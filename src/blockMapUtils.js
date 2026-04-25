@@ -11,6 +11,52 @@
  *
  */
 
+// =============================================================================
+// SYSTEM: Environment Scans (Pollution / Crime / Land Value / Fire / Traffic)
+// =============================================================================
+// BlockMapUtils contains the periodic city-wide analysis functions that run
+// during simulation phases 10-15. They are NOT called on every tick; the
+// frequency is throttled by speedPower/PollutionTerrain/Crime/etc. arrays
+// in simulation.js, which slow down at lower game speeds.
+//
+// Functions and their simulation phases:
+//
+// pollutionTerrainLandValueScan  (phase 12)
+//   Iterates every tile and classifies it for pollution (getPollutionValue),
+//   terrain rawness, and development status. Pollution is smoothed twice via
+//   smoothMap(). Land value is then computed from distance-to-centre, terrain
+//   bonus, pollution penalty, and crime penalty. Updates:
+//     blockMaps.pollutionDensityMap, .landValueMap, .terrainDensityMap
+//     census.pollutionAverage, census.landValueAverage, map.pollutionMax{X,Y}
+//
+// crimeScan  (phase 13)
+//   Spreads police-station coverage via three passes of smoothMap(), then
+//   computes a crime score for each developed block as:
+//     128 − landValue + populationDensity − policeStationCoverage  (0-250)
+//   Updates: blockMaps.crimeRateMap, census.crimeAverage
+//
+// populationDensityScan  (phase 14)
+//   Asks each zone for its population, smooths the density map three times,
+//   recomputes the city centre (centroid of all zones), then calls
+//   fillCityCentreDistScoreMap() to score each neighbourhood by proximity.
+//   Updates: blockMaps.populationDensityMap, .cityCentreDistScoreMap,
+//            map.cityCentreX, map.cityCentreY
+//
+// fireAnalysis  (phase 15)
+//   Spreads fire-station coverage via three passes of smoothMap().
+//   Updates: blockMaps.fireStationEffectMap
+//
+// neutraliseRateOfGrowthMap  (phase 10, every 5 cycles)
+//   Ticks each block's growth rate one step toward zero.
+//
+// neutraliseTrafficMap  (phase 10, every cycle)
+//   Reduces each block's traffic density value, modelling traffic easing.
+//
+// smoothMap() is a shared helper with two modes:
+//   SMOOTH_NEIGHBOURS_THEN_BLOCK – neighbour average then average with self
+//   SMOOTH_ALL_THEN_CLAMP        – five-cell average clamped to 0-255
+// =============================================================================
+
 import { BlockMap } from './blockMap.ts';
 import { Commercial } from './commercial.js';
 import { Industrial } from './industrial.js';

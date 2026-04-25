@@ -11,11 +11,23 @@
  *
  */
 
+// =============================================================================
+// SYSTEM: Disaster Manager
+// =============================================================================
+// DisasterManager triggers and handles random city disasters. It runs once per
+// simulation cycle in phase 15. When disastersEnabled is true, each call to
+// doDisasters() has a 1-in-DisChance[gameLevel] probability of starting an
+// event: fire (40%), flood (20%), air crash (20%), tornado (10%), earthquake
+// (10%), or (on harder difficulties) nuclear meltdown via PowerManager.
+//
+// Nuclear meltdown is handled inside PowerManager.nuclearPowerFound() during
+// the map scan, not here, but it is gated by disastersEnabled as well.
+//
+// Disaster events emit messages (FIRE_REPORTED, FLOODING_REPORTED, etc.)
+// which are forwarded through Simulation._wrapMessage() to the front-end.
+// =============================================================================
+
 import { EventEmitter } from './eventEmitter.js';
-import * as Messages from './messages.ts';
-import { MiscUtils } from './miscUtils.js';
-import { Random } from './random.ts';
-import { SPRITE_AIRPLANE } from './spriteConstants.ts';
 import { TileUtils } from './tileUtils.js';
 import * as TileValues from "./tileValues.ts";
 import { ZoneUtils } from './zoneUtils.js';
