@@ -34,6 +34,8 @@
 // =============================================================================
 
 import { Random } from './random.ts';
+import { TileUtils } from './tileUtils.js';
+import { COMCLR, CZB } from "./tileValues.ts";
 import { Traffic } from './traffic.js';
 import { ZoneUtils } from './zoneUtils.js';
 

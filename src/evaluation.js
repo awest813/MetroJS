@@ -41,6 +41,7 @@
 // =============================================================================
 
 import { EventEmitter } from './eventEmitter.js';
+import { CLASSIFICATION_UPDATED, POPULATION_UPDATED, SCORE_UPDATED } from './messages.ts';
 import { MiscUtils } from './miscUtils.js';
 import { Random } from './random.ts';
 

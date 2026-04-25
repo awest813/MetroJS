@@ -36,6 +36,7 @@
 // =============================================================================
 
 import { BlockMap } from './blockMap.ts';
+import { forEachCardinalDirection } from './direction.ts';
 import { EventEmitter } from './eventEmitter.js';
 import { Position } from './position.ts';
 import { NOT_ENOUGH_POWER } from './messages.ts';

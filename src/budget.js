@@ -43,8 +43,8 @@
 // =============================================================================
 
 import { EventEmitter } from './eventEmitter.js';
-
-// Cost of maintaining 1 police station
+import * as Messages from './messages.ts';
+import { MiscUtils } from './miscUtils.js';
 var policeMaintenanceCost = 100;
 
 // Cost of maintaining 1 fire station

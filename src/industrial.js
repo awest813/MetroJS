@@ -38,6 +38,7 @@
 // =============================================================================
 
 import { Random } from './random.ts';
+import { ANIMBIT, ASCBIT, BNCNBIT } from "./tileFlags.ts";
 import { TileUtils } from './tileUtils.js';
 import { INDCLR, IZB } from "./tileValues.ts";
 import { Traffic } from './traffic.js';

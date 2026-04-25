@@ -28,6 +28,10 @@
 // =============================================================================
 
 import { EventEmitter } from './eventEmitter.js';
+import * as Messages from './messages.ts';
+import { MiscUtils } from './miscUtils.js';
+import { Random } from './random.ts';
+import { SPRITE_AIRPLANE } from './spriteConstants.ts';
 import { TileUtils } from './tileUtils.js';
 import * as TileValues from "./tileValues.ts";
 import { ZoneUtils } from './zoneUtils.js';
