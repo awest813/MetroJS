@@ -45,6 +45,8 @@
 import { EventEmitter } from './eventEmitter.js';
 import * as Messages from './messages.ts';
 import { MiscUtils } from './miscUtils.js';
+
+// Cost of maintaining 1 police station
 var policeMaintenanceCost = 100;
 
 // Cost of maintaining 1 fire station

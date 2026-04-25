@@ -36,6 +36,8 @@
 // =============================================================================
 
 import { MiscUtils } from './miscUtils.js';
+
+var arrs = ['res', 'com', 'ind', 'crime',
             'money', 'pollution'];
 function Census() {
   this.clearCensus();
