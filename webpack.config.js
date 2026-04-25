@@ -74,10 +74,10 @@ function injectBuildIdIntoNameLicense(gitHash) {
 
 function addDevelopmentConfigTo(options) {
   options.devServer = {
-    contentBase: `./${OUTPUT_DIRECTORY}`
+    static: `./${OUTPUT_DIRECTORY}`
   };
 
-  options.devtool = 'source-maps';
+  options.devtool = 'source-map';
   options.mode = 'development';
 }
 
