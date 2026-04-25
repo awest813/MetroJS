@@ -549,8 +549,7 @@ These are listed in suggested priority order. None should change gameplay behavi
 
 5. **Remove dead vendor-prefixed rAF fallbacks** (`mozRequestAnimationFrame`,
    `webkitRequestAnimationFrame`) in `src/game.js`.
-6. **Replace `devServer.contentBase`** (already noted above).
-7. **Migrate remaining `.js` source files to TypeScript** incrementally, starting with the
+6. **Migrate remaining `.js` source files to TypeScript** incrementally, starting with the
    most-tested data-layer modules.
 8. **Replace `canvas.toDataURL()` tile-splitting** in `tileSet.js` with `createImageBitmap` or
    a single spritesheet draw call to improve startup performance.
