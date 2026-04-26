@@ -171,7 +171,7 @@ export class ZoneGrowthSystem {
     // Walkability is a bonus — walkable areas attract more foot traffic and
     // support healthier commercial demand.
     const popGrowthBoost  = stats.population > 0 ? 3 : -1;
-    const walkBoost       = Math.round(stats.walkability / 25); // 0 at walk=0, +4 at walk=100
+    const walkBoost       = Math.round(stats.walkability / 25); // 0 at walk=0, 4 at walk=100
     stats.commercialDemand = Math.max(
       0,
       Math.min(MAX_DEMAND, stats.commercialDemand + popGrowthBoost + walkBoost + comTaxMod),

@@ -42,8 +42,9 @@ export interface ICityTile {
   noise:           number;
   /**
    * Walkability score [0–100] for this tile.
-   * Set by LandValueSystem from mixed-use buildings with walkabilityRadius > 0.
-   * Higher walkability means residents can reach shops on foot.
+   * Computed monthly by WalkabilitySystem from nearby mixed-use buildings,
+   * parks, services, and road noise.
+   * Higher walkability means residents can reach destinations on foot.
    */
   walkability:     number;
 }
