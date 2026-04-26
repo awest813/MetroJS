@@ -5,7 +5,8 @@ import { ZoneType } from './CityTile';
 
 /**
  * Static definition of a building type loaded from buildings.json.
- * zoneType mirrors the ZoneType enum values (1 = Residential, 2 = Commercial, 3 = Industrial).
+ * zoneType mirrors the ZoneType enum values (1 = Residential, 2 = Commercial,
+ * 3 = Industrial, 4 = MixedUse).
  */
 export interface BuildingDef {
   /** Unique identifier referenced by CityTile.buildingId. */
@@ -36,4 +37,11 @@ export interface BuildingDef {
    * Omit or set to 0 for non-park buildings.
    */
   readonly parkRadius?: number;
+  /**
+   * Radius (in tiles) within which this mixed-use building boosts walkability
+   * and land value on nearby tiles.
+   * Only meaningful for mixed-use buildings.
+   * Omit or set to 0 for non-mixed-use buildings.
+   */
+  readonly walkabilityRadius?: number;
 }

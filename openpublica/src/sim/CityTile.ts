@@ -21,6 +21,8 @@ export enum ZoneType {
   Residential = 1,
   Commercial  = 2,
   Industrial  = 3,
+  /** Mixed-use main-street zoning: residents + commercial jobs in one tile. */
+  MixedUse    = 4,
 }
 
 /** Full set of per-tile simulation properties. */
@@ -38,6 +40,12 @@ export interface ICityTile {
   trafficPressure: number;
   /** Noise level [0–100] derived from traffic pressure by TrafficPressureSystem. */
   noise:           number;
+  /**
+   * Walkability score [0–100] for this tile.
+   * Set by LandValueSystem from mixed-use buildings with walkabilityRadius > 0.
+   * Higher walkability means residents can reach shops on foot.
+   */
+  walkability:     number;
 }
 
 /** Mutable tile used by the simulation engine. */
@@ -54,6 +62,7 @@ export class CityTile implements ICityTile {
   pollution:       number;
   trafficPressure: number;
   noise:           number;
+  walkability:     number;
 
   constructor(x: number, y: number) {
     this.x               = x;
@@ -68,5 +77,6 @@ export class CityTile implements ICityTile {
     this.pollution       = 0;
     this.trafficPressure = 0;
     this.noise           = 0;
+    this.walkability     = 0;
   }
 }

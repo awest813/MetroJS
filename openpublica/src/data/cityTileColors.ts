@@ -10,6 +10,7 @@ const ZONE_COLORS: Record<ZoneType, TileColor> = {
   [ZoneType.Residential]: { r: 0.38, g: 0.58, b: 0.82 }, // soft blue
   [ZoneType.Commercial]:  { r: 0.90, g: 0.78, b: 0.22 }, // amber/yellow
   [ZoneType.Industrial]:  { r: 0.62, g: 0.42, b: 0.72 }, // muted purple
+  [ZoneType.MixedUse]:    { r: 0.22, g: 0.72, b: 0.62 }, // teal
 };
 
 /** Display color for each road type. */
@@ -32,6 +33,7 @@ const BUILDING_COLORS: Record<ZoneType, TileColor> = {
   [ZoneType.Residential]: { r: 0.20, g: 0.35, b: 0.65 }, // dark blue
   [ZoneType.Commercial]:  { r: 0.70, g: 0.55, b: 0.05 }, // dark amber
   [ZoneType.Industrial]:  { r: 0.40, g: 0.22, b: 0.50 }, // dark purple
+  [ZoneType.MixedUse]:    { r: 0.10, g: 0.50, b: 0.42 }, // dark teal
 };
 
 /**

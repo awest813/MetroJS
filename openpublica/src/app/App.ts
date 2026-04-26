@@ -16,6 +16,7 @@ import {
   createResidentialLowBrush,
   createCommercialLowBrush,
   createIndustrialLightBrush,
+  createMixedUseBrush,
 } from '../tools/ZoneBrushTool';
 import { BulldozeTool } from '../tools/BulldozeTool';
 import { PlacePowerPlantTool } from '../tools/PlacePowerPlantTool';
@@ -55,6 +56,7 @@ export class App {
     const residentialTool   = createResidentialLowBrush();
     const commercialTool    = createCommercialLowBrush();
     const industrialTool    = createIndustrialLightBrush();
+    const mixedUseTool      = createMixedUseBrush();
     const bulldozeTool      = new BulldozeTool();
     const powerPlantTool    = new PlacePowerPlantTool();
     const parkTool          = new PlaceParkTool();
@@ -65,6 +67,7 @@ export class App {
       residentialTool,
       commercialTool,
       industrialTool,
+      mixedUseTool,
       bulldozeTool,
       powerPlantTool,
       parkTool,

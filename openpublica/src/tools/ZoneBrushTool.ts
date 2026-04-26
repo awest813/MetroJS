@@ -13,6 +13,7 @@ export const ZONE_TOOL_NAMES = {
   [ZoneType.Residential]: 'zoneResidentialLow',
   [ZoneType.Commercial]:  'zoneCommercialLow',
   [ZoneType.Industrial]:  'zoneIndustrialLight',
+  [ZoneType.MixedUse]:    'zoneMixedUse',
   [ZoneType.None]:        'zoneClear',
 } as const;
 
@@ -22,6 +23,7 @@ const ZONE_LABELS: Record<ZoneType, string> = {
   [ZoneType.Residential]: '🏠 Residential',
   [ZoneType.Commercial]:  '🏢 Commercial',
   [ZoneType.Industrial]:  '🏭 Industrial',
+  [ZoneType.MixedUse]:    '🏪 Mixed-Use',
 };
 
 /**
@@ -75,4 +77,9 @@ export function createCommercialLowBrush(): ZoneBrushTool {
 /** Light industrial zone brush. */
 export function createIndustrialLightBrush(): ZoneBrushTool {
   return new ZoneBrushTool(ZoneType.Industrial);
+}
+
+/** Mixed-use main-street zone brush. */
+export function createMixedUseBrush(): ZoneBrushTool {
+  return new ZoneBrushTool(ZoneType.MixedUse);
 }

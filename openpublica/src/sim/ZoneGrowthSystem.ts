@@ -199,7 +199,12 @@ export class ZoneGrowthSystem {
       // With the default GROW_CHANCE of 0.25, the effective chance stays well
       // below the 0.9 safety cap (max = 0.25 × 1.5 = 0.375).
       const lvFactor   = 0.5 + tile.landValue / 100;
-      const growChance = Math.min(0.9, GROW_CHANCE * lvFactor);
+      // Mixed-use gets an extra boost when near existing residential or commercial
+      // zones, reflecting the real-world tendency for main-street corridors to form
+      // in already-active neighbourhoods.
+      const mixedBoost = (tile.zoneType === ZoneType.MixedUse &&
+        this._hasAdjacentResOrCom(map, tile.x, tile.y)) ? 1.3 : 1.0;
+      const growChance = Math.min(0.9, GROW_CHANCE * lvFactor * mixedBoost);
       if (Math.random() > growChance) return;
 
       const def = this._pickDef(tile.zoneType);
@@ -245,12 +250,36 @@ export class ZoneGrowthSystem {
     return neighbours.some((t) => t !== undefined && t.roadType !== RoadType.None);
   }
 
+  /**
+   * Returns true if any orthogonal neighbour is zoned Residential, Commercial,
+   * or MixedUse.  Used to give mixed-use tiles a growth bonus in active areas.
+   */
+  private _hasAdjacentResOrCom(map: CityMap, x: number, y: number): boolean {
+    const neighbours = [
+      map.getTile(x,     y - 1),
+      map.getTile(x,     y + 1),
+      map.getTile(x - 1, y),
+      map.getTile(x + 1, y),
+    ];
+    return neighbours.some(
+      (t) =>
+        t !== undefined &&
+        (t.zoneType === ZoneType.Residential ||
+         t.zoneType === ZoneType.Commercial  ||
+         t.zoneType === ZoneType.MixedUse),
+    );
+  }
+
   /** Returns the demand level for the given zone type. */
   private _demandFor(zoneType: ZoneType, stats: CityStats): number {
     switch (zoneType) {
       case ZoneType.Residential: return stats.residentialDemand;
       case ZoneType.Commercial:  return stats.commercialDemand;
       case ZoneType.Industrial:  return stats.industrialDemand;
+      // Mixed-use requires both residential and commercial demand to be positive;
+      // it grows at the rate of the weaker of the two signals so it stays balanced.
+      case ZoneType.MixedUse:
+        return Math.min(stats.residentialDemand, stats.commercialDemand);
       default:                   return 0;
     }
   }

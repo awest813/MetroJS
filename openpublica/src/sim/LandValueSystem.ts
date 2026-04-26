@@ -18,6 +18,13 @@ const PARK_BONUS = 40;
 const INDUSTRIAL_RADIUS = 8;
 
 /**
+ * Maximum per-tile land value bonus a single mixed-use building can grant
+ * at its centre via walkability.  Decays linearly to 0 at walkabilityRadius.
+ * Kept smaller than PARK_BONUS so mixed-use and parks are distinct.
+ */
+const WALKABILITY_BONUS = 20;
+
+/**
  * Maximum per-tile land value penalty an industrial building can impose at
  * distance 0 (scales linearly to 0 at the edge of INDUSTRIAL_RADIUS).
  */
@@ -72,7 +79,10 @@ export class LandValueSystem {
     defs: ReadonlyMap<string, BuildingDef>,
   ): void {
     // Reset every tile to the baseline.
-    map.forEach((tile) => { tile.landValue = BASE_LAND_VALUE; });
+    map.forEach((tile) => {
+      tile.landValue  = BASE_LAND_VALUE;
+      tile.walkability = 0;
+    });
 
     // ── Park proximity bonus ───────────────────────────────────────────────
     for (const instance of buildings.values()) {
@@ -90,6 +100,30 @@ export class LandValueSystem {
           if (!tile) continue;
           const dist = Math.sqrt(dist2);
           tile.landValue += Math.round(PARK_BONUS * (1 - dist / r));
+        }
+      }
+    }
+
+    // ── Mixed-use walkability bonus ────────────────────────────────────────
+    // Mixed-use buildings boost walkability on nearby tiles and grant a modest
+    // land value bonus (smaller than parks, reflecting street-level vitality).
+    for (const instance of buildings.values()) {
+      const def = defs.get(instance.defId);
+      if (!def?.walkabilityRadius || def.walkabilityRadius <= 0) continue;
+
+      const wr  = def.walkabilityRadius;
+      const wr2 = wr * wr;
+
+      for (let dy = -wr; dy <= wr; dy++) {
+        for (let dx = -wr; dx <= wr; dx++) {
+          const dist2 = dx * dx + dy * dy;
+          if (dist2 > wr2) continue;
+          const tile = map.getTile(instance.x + dx, instance.y + dy);
+          if (!tile) continue;
+          const dist = Math.sqrt(dist2);
+          const bonus = Math.round(WALKABILITY_BONUS * (1 - dist / wr));
+          tile.walkability  = Math.min(100, tile.walkability + bonus);
+          tile.landValue   += bonus;
         }
       }
     }
