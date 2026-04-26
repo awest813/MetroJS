@@ -44,5 +44,29 @@
     "jobs": 0,
     "isService": true,
     "parkRadius": 6
+  },
+  {
+    "id": "shopfront_apartments",
+    "name": "Shopfront Apartments",
+    "zoneType": 4,
+    "population": 6,
+    "jobs": 2,
+    "walkabilityRadius": 4
+  },
+  {
+    "id": "corner_store_flats",
+    "name": "Corner Store Flats",
+    "zoneType": 4,
+    "population": 5,
+    "jobs": 3,
+    "walkabilityRadius": 4
+  },
+  {
+    "id": "main_street_block",
+    "name": "Main Street Block",
+    "zoneType": 4,
+    "population": 10,
+    "jobs": 5,
+    "walkabilityRadius": 5
   }
 ]

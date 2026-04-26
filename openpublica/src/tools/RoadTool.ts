@@ -5,9 +5,10 @@ import { RoadType } from '../sim/CityTile';
 
 /** Cost in city funds to place one road tile. */
 export const ROAD_COST: Record<RoadType, number> = {
-  [RoadType.None]:    0,
-  [RoadType.Street]:  10,
-  [RoadType.Highway]: 25,
+  [RoadType.None]:          0,
+  [RoadType.Street]:        10,
+  [RoadType.Highway]:       25,
+  [RoadType.TrolleyAvenue]: 30, // same cost as TrolleyAvenueTool — included for completeness
 };
 
 /** Places a road tile and deducts the placement cost from city funds. */

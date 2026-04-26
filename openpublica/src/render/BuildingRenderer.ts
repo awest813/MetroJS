@@ -23,11 +23,15 @@ interface BuildingShape {
  * These are render-only values; no simulation data lives here.
  */
 const BUILDING_SHAPES: Record<string, BuildingShape> = {
-  small_house:       { width: 0.50, depth: 0.50, height: 0.40 },
-  rowhouse:          { width: 0.70, depth: 0.45, height: 0.55 },
-  small_shop:        { width: 0.65, depth: 0.65, height: 0.35 },
-  light_workshop:    { width: 0.75, depth: 0.75, height: 0.50 },
-  small_power_plant: { width: 0.80, depth: 0.80, height: 0.60 },
+  small_house:          { width: 0.50, depth: 0.50, height: 0.40 },
+  rowhouse:             { width: 0.70, depth: 0.45, height: 0.55 },
+  small_shop:           { width: 0.65, depth: 0.65, height: 0.35 },
+  light_workshop:       { width: 0.75, depth: 0.75, height: 0.50 },
+  small_power_plant:    { width: 0.80, depth: 0.80, height: 0.60 },
+  // Mixed-use buildings — taller than shops, narrower than rowhouses.
+  shopfront_apartments: { width: 0.75, depth: 0.55, height: 0.65 },
+  corner_store_flats:   { width: 0.65, depth: 0.65, height: 0.60 },
+  main_street_block:    { width: 0.85, depth: 0.60, height: 0.75 },
 };
 
 const DEFAULT_SHAPE: BuildingShape = { width: 0.50, depth: 0.50, height: 0.40 };
@@ -78,10 +82,12 @@ export class BuildingRenderer {
 
     // Shared materials — one per zone type.
     this._materials = {
-      [ZoneType.None]:        this._makeMaterial('bld-none',  new Color3(0.60, 0.60, 0.60)),
-      [ZoneType.Residential]: this._makeMaterial('bld-res',   new Color3(0.40, 0.60, 0.90)),
-      [ZoneType.Commercial]:  this._makeMaterial('bld-com',   new Color3(0.92, 0.78, 0.20)),
-      [ZoneType.Industrial]:  this._makeMaterial('bld-ind',   new Color3(0.68, 0.48, 0.78)),
+      [ZoneType.None]:        this._makeMaterial('bld-none',     new Color3(0.60, 0.60, 0.60)),
+      [ZoneType.Residential]: this._makeMaterial('bld-res',      new Color3(0.40, 0.60, 0.90)),
+      [ZoneType.Commercial]:  this._makeMaterial('bld-com',      new Color3(0.92, 0.78, 0.20)),
+      [ZoneType.Industrial]:  this._makeMaterial('bld-ind',      new Color3(0.68, 0.48, 0.78)),
+      // Teal — visually distinct from residential (blue) and commercial (yellow).
+      [ZoneType.MixedUse]:    this._makeMaterial('bld-mixed',    new Color3(0.20, 0.75, 0.65)),
     };
 
     // Bright orange material for power plants (and other service buildings).

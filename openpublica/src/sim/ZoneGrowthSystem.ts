@@ -12,6 +12,9 @@ import { MONTH_SECONDS } from '../data/constants';
 import { EconomySystem } from './EconomySystem';
 import { PowerSystem } from './PowerSystem';
 import { LandValueSystem } from './LandValueSystem';
+import { TrafficPressureSystem } from './TrafficPressureSystem';
+import { WalkabilitySystem } from './WalkabilitySystem';
+import { TransitSystem } from './TransitSystem';
 
 /** Maximum demand value (clamps residentialDemand, commercialDemand, industrialDemand). */
 const MAX_DEMAND = 100;
@@ -62,9 +65,21 @@ export class ZoneGrowthSystem {
   /** Land value system — injected from CitySim so both share the same instance. */
   private readonly _landValue: LandValueSystem;
 
-  constructor(power: PowerSystem, landValue: LandValueSystem) {
-    this._power      = power;
-    this._landValue  = landValue;
+  /** Traffic pressure system — injected from CitySim so both share the same instance. */
+  private readonly _traffic: TrafficPressureSystem;
+
+  /** Walkability system — injected from CitySim so both share the same instance. */
+  private readonly _walkability: WalkabilitySystem;
+
+  /** Transit system — injected from CitySim so both share the same instance. */
+  private readonly _transit: TransitSystem;
+
+  constructor(power: PowerSystem, landValue: LandValueSystem, traffic: TrafficPressureSystem, walkability: WalkabilitySystem, transit: TransitSystem) {
+    this._power       = power;
+    this._landValue   = landValue;
+    this._traffic     = traffic;
+    this._walkability = walkability;
+    this._transit     = transit;
     this._defs      = new Map(BUILDING_DEFS.map((d) => [d.id, d]));
     this._defsByZone = new Map<ZoneType, BuildingDef[]>();
     for (const def of BUILDING_DEFS) {
@@ -121,6 +136,18 @@ export class ZoneGrowthSystem {
     this._recalcStats(stats, map);
     this._economy.tick(map, this.buildings, this._defs, stats);
 
+    // Traffic pressure is recalculated last so it reflects the freshest
+    // building layout and populates tile.trafficPressure / tile.noise.
+    this._traffic.tick(map, this.buildings, this.defs, stats);
+
+    // Walkability runs after traffic so it can read fresh tile.noise values
+    // and apply a modest reduction to trafficPressure on walkable road tiles.
+    this._walkability.tick(map, this.buildings, this.defs, stats);
+
+    // Transit runs last so it can further reduce trafficPressure after walkability
+    // has already adjusted it, and so its effects feed into next month's LV pass.
+    this._transit.tick(map, stats);
+
     return true;
   }
 
@@ -143,17 +170,28 @@ export class ZoneGrowthSystem {
     const indTaxMod = (9 - stats.indTaxRate) * 2;
 
     // Residential: people move in when there are more jobs than workers.
-    const jobBalance = stats.jobs - stats.population;
+    // Transit access also makes neighbourhoods more desirable to live in.
+    //   TRANSIT_RES_DEMAND_DIVISOR=50 → each 50 transit points adds 1 demand point/month.
+    const TRANSIT_RES_DEMAND_DIVISOR = 50;
+    const jobBalance        = stats.jobs - stats.population;
+    const transitResBoost   = Math.round(stats.transitAccess / TRANSIT_RES_DEMAND_DIVISOR);
     stats.residentialDemand = Math.max(
       0,
-      Math.min(MAX_DEMAND, stats.residentialDemand + (jobBalance > 0 ? 5 : -2) + resTaxMod),
+      Math.min(MAX_DEMAND, stats.residentialDemand + (jobBalance > 0 ? 5 : -2) + transitResBoost + resTaxMod),
     );
 
     // Commercial: shops open when there are more residents to serve.
-    const popGrowthBoost = stats.population > 0 ? 3 : -1;
+    // Walkability and transit both boost foot traffic — commercial is sensitive to both.
+    //   WALK_COM_DEMAND_DIVISOR=25   → each 25 walkability points adds 1 demand/month.
+    //   TRANSIT_COM_DEMAND_DIVISOR=20 → each 20 transit points adds 1 demand/month.
+    const WALK_COM_DEMAND_DIVISOR   = 25;
+    const TRANSIT_COM_DEMAND_DIVISOR = 20;
+    const popGrowthBoost    = stats.population > 0 ? 3 : -1;
+    const walkBoost         = Math.round(stats.walkability   / WALK_COM_DEMAND_DIVISOR);
+    const transitComBoost   = Math.round(stats.transitAccess / TRANSIT_COM_DEMAND_DIVISOR);
     stats.commercialDemand = Math.max(
       0,
-      Math.min(MAX_DEMAND, stats.commercialDemand + popGrowthBoost + comTaxMod),
+      Math.min(MAX_DEMAND, stats.commercialDemand + popGrowthBoost + walkBoost + transitComBoost + comTaxMod),
     );
 
     // Industrial: starts at a modest positive level, slowly converges to 20.
@@ -190,7 +228,12 @@ export class ZoneGrowthSystem {
       // With the default GROW_CHANCE of 0.25, the effective chance stays well
       // below the 0.9 safety cap (max = 0.25 × 1.5 = 0.375).
       const lvFactor   = 0.5 + tile.landValue / 100;
-      const growChance = Math.min(0.9, GROW_CHANCE * lvFactor);
+      // Mixed-use gets an extra boost when near existing residential or commercial
+      // zones, reflecting the real-world tendency for main-street corridors to form
+      // in already-active neighbourhoods.
+      const mixedBoost = (tile.zoneType === ZoneType.MixedUse &&
+        this._hasAdjacentActiveZone(map, tile.x, tile.y)) ? 1.3 : 1.0;
+      const growChance = Math.min(0.9, GROW_CHANCE * lvFactor * mixedBoost);
       if (Math.random() > growChance) return;
 
       const def = this._pickDef(tile.zoneType);
@@ -236,12 +279,37 @@ export class ZoneGrowthSystem {
     return neighbours.some((t) => t !== undefined && t.roadType !== RoadType.None);
   }
 
+  /**
+   * Returns true if any orthogonal neighbour is zoned Residential, Commercial,
+   * or MixedUse — any "active" (people/jobs-generating) zone type.
+   * Used to give mixed-use tiles a growth bonus in already-active neighbourhoods.
+   */
+  private _hasAdjacentActiveZone(map: CityMap, x: number, y: number): boolean {
+    const neighbours = [
+      map.getTile(x,     y - 1),
+      map.getTile(x,     y + 1),
+      map.getTile(x - 1, y),
+      map.getTile(x + 1, y),
+    ];
+    return neighbours.some(
+      (t) =>
+        t !== undefined &&
+        (t.zoneType === ZoneType.Residential ||
+         t.zoneType === ZoneType.Commercial  ||
+         t.zoneType === ZoneType.MixedUse),
+    );
+  }
+
   /** Returns the demand level for the given zone type. */
   private _demandFor(zoneType: ZoneType, stats: CityStats): number {
     switch (zoneType) {
       case ZoneType.Residential: return stats.residentialDemand;
       case ZoneType.Commercial:  return stats.commercialDemand;
       case ZoneType.Industrial:  return stats.industrialDemand;
+      // Mixed-use requires both residential and commercial demand to be positive;
+      // it grows at the rate of the weaker of the two signals so it stays balanced.
+      case ZoneType.MixedUse:
+        return Math.min(stats.residentialDemand, stats.commercialDemand);
       default:                   return 0;
     }
   }

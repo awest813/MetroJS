@@ -18,6 +18,29 @@ const PARK_BONUS = 40;
 const INDUSTRIAL_RADIUS = 8;
 
 /**
+ * Maximum per-tile land value bonus a single mixed-use building can grant
+ * at its centre via walkability.  Decays linearly to 0 at walkabilityRadius.
+ * Kept smaller than PARK_BONUS so mixed-use and parks are distinct.
+ */
+const WALKABILITY_BONUS = 20;
+
+/**
+ * Multiplier applied to `tile.walkability` (previous month's value, set by
+ * WalkabilitySystem) when computing a land value bonus.  Walkable areas
+ * naturally attract residents and raise property values.
+ * At walkability=100 the bonus is +15 (= 100 × 0.15, rounded).
+ */
+const WALKABILITY_LV_MULTIPLIER = 0.15;
+
+/**
+ * Multiplier applied to `tile.transitAccess` (previous month's value, set by
+ * TransitSystem) when computing a land value bonus.  Properties near transit
+ * corridors command a premium in real cities.
+ * At transitAccess=100 the bonus is +10 (= 100 × 0.10, rounded).
+ */
+const TRANSIT_LV_MULTIPLIER = 0.10;
+
+/**
  * Maximum per-tile land value penalty an industrial building can impose at
  * distance 0 (scales linearly to 0 at the edge of INDUSTRIAL_RADIUS).
  */
@@ -72,7 +95,11 @@ export class LandValueSystem {
     defs: ReadonlyMap<string, BuildingDef>,
   ): void {
     // Reset every tile to the baseline.
-    map.forEach((tile) => { tile.landValue = BASE_LAND_VALUE; });
+    // Note: tile.walkability is NOT reset here — WalkabilitySystem owns that field
+    // and runs after this system each month.  We read the previous month's value below.
+    map.forEach((tile) => {
+      tile.landValue = BASE_LAND_VALUE;
+    });
 
     // ── Park proximity bonus ───────────────────────────────────────────────
     for (const instance of buildings.values()) {
@@ -90,6 +117,29 @@ export class LandValueSystem {
           if (!tile) continue;
           const dist = Math.sqrt(dist2);
           tile.landValue += Math.round(PARK_BONUS * (1 - dist / r));
+        }
+      }
+    }
+
+    // ── Mixed-use walkability bonus ────────────────────────────────────────
+    // Mixed-use buildings boost walkability on nearby tiles and grant a modest
+    // land value bonus (smaller than parks, reflecting street-level vitality).
+    for (const instance of buildings.values()) {
+      const def = defs.get(instance.defId);
+      if (!def?.walkabilityRadius || def.walkabilityRadius <= 0) continue;
+
+      const wr  = def.walkabilityRadius;
+      const wr2 = wr * wr;
+
+      for (let dy = -wr; dy <= wr; dy++) {
+        for (let dx = -wr; dx <= wr; dx++) {
+          const dist2 = dx * dx + dy * dy;
+          if (dist2 > wr2) continue;
+          const tile = map.getTile(instance.x + dx, instance.y + dy);
+          if (!tile) continue;
+          const dist = Math.sqrt(dist2);
+          const bonus = Math.round(WALKABILITY_BONUS * (1 - dist / wr));
+          tile.landValue   += bonus;
         }
       }
     }
@@ -124,6 +174,16 @@ export class LandValueSystem {
       // Pollution and traffic penalties (populated by other future systems).
       tile.landValue -= Math.round(tile.pollution       * POLLUTION_PENALTY_MULTIPLIER);
       tile.landValue -= Math.round(tile.trafficPressure * TRAFFIC_PENALTY_MULTIPLIER);
+
+      // Walkability bonus: highly walkable tiles attract residents and raise
+      // property values.  LandValueSystem runs before WalkabilitySystem each month,
+      // so this reads the previous month's walkability value.
+      tile.landValue += Math.round(tile.walkability   * WALKABILITY_LV_MULTIPLIER);
+
+      // Transit access bonus: properties near trolley corridors command a premium.
+      // LandValueSystem runs before TransitSystem each month,
+      // so this reads the previous month's transitAccess value.
+      tile.landValue += Math.round(tile.transitAccess * TRANSIT_LV_MULTIPLIER);
 
       // Clamp to valid range.
       tile.landValue = Math.max(0, Math.min(100, tile.landValue));
