@@ -1,14 +1,24 @@
 import type { Tool } from './Tool';
 import type { TileCoord } from '../data/types';
-import type { GameMap } from '../sim/GameMap';
-import { TileType } from '../data/tileTypes';
+import type { CitySim } from '../sim/CitySim';
+import { ZoneType } from '../sim/CityTile';
 
-/** Designates a tile as a residential zone. */
+/** Cost in city funds to zone one residential tile. */
+export const RESIDENTIAL_COST = 5;
+
+/** Designates a tile as a low-density residential zone. */
 export class ResidentialTool implements Tool {
   readonly name = 'residential';
   readonly label = '🏠 Residential';
 
-  onTileClick(coord: TileCoord, map: GameMap): void {
-    map.setTileType(coord.x, coord.y, TileType.Residential);
+  apply(coord: TileCoord, sim: CitySim): boolean {
+    if (!sim.deductMoney(RESIDENTIAL_COST)) {
+      console.warn(
+        `[Residential] Insufficient funds (need $${RESIDENTIAL_COST}, have $${sim.stats.money})`,
+      );
+      return false;
+    }
+    sim.setZone(coord.x, coord.y, ZoneType.Residential);
+    return true;
   }
 }
