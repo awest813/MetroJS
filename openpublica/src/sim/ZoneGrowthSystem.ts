@@ -9,6 +9,7 @@ import type { BuildingInstance } from './BuildingInstance';
 import rawDefs from '../data/buildings.json';
 
 import { MONTH_SECONDS } from '../data/constants';
+import { EconomySystem } from './EconomySystem';
 
 /** Maximum demand value (clamps residentialDemand, commercialDemand, industrialDemand). */
 const MAX_DEMAND = 100;
@@ -43,6 +44,9 @@ export class ZoneGrowthSystem {
 
   /** How many seconds have elapsed since the last monthly tick. */
   private _secondsAccumulator = 0;
+
+  /** Economy system — runs once per simulated month. */
+  private readonly _economy = new EconomySystem();
 
   constructor() {
     this._defs      = new Map(BUILDING_DEFS.map((d) => [d.id, d]));
@@ -85,7 +89,7 @@ export class ZoneGrowthSystem {
     this._updateDemand(stats);
     this._growBuildings(map, stats, changedTiles);
     this._recalcStats(stats);
-    this._recalcBudget(stats);
+    this._economy.tick(map, this.buildings, this._defs, stats);
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────
@@ -178,35 +182,6 @@ export class ZoneGrowthSystem {
 
     stats.population = population;
     stats.jobs       = jobs;
-  }
-
-  /**
-   * Compute monthly income and expenses, then update the city treasury.
-   * Called once per simulated month (guarded by the accumulator in tick()).
-   *
-   * Income  = population × resTaxRate × 0.5
-   *         + commercial jobs × comTaxRate × 0.4
-   *         + industrial jobs × indTaxRate × 0.3
-   * Expenses = 50 base + population × 0.3 + total jobs × 0.1
-   */
-  private _recalcBudget(stats: CityStats): void {
-    let comJobs = 0;
-    let indJobs = 0;
-
-    for (const instance of this.buildings.values()) {
-      const def = this._defs.get(instance.defId);
-      if (!def) continue;
-      if (def.zoneType === ZoneType.Commercial)  comJobs += def.jobs;
-      if (def.zoneType === ZoneType.Industrial)  indJobs += def.jobs;
-    }
-
-    stats.monthlyIncome = Math.floor(
-      stats.population * stats.resTaxRate * 0.5 +
-      comJobs          * stats.comTaxRate * 0.4 +
-      indJobs          * stats.indTaxRate * 0.3,
-    );
-    stats.monthlyExpenses = Math.floor(50 + stats.population * 0.3 + stats.jobs * 0.1);
-    stats.money += stats.monthlyIncome - stats.monthlyExpenses;
   }
 
   /** Returns true if any orthogonal neighbour has a road. */
