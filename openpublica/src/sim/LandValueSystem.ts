@@ -25,6 +25,14 @@ const INDUSTRIAL_RADIUS = 8;
 const WALKABILITY_BONUS = 20;
 
 /**
+ * Multiplier applied to `tile.walkability` (previous month's value, set by
+ * WalkabilitySystem) when computing a land value bonus.  Walkable areas
+ * naturally attract residents and raise property values.
+ * At walkability=100 the bonus is +15 (= 100 × 0.15, rounded).
+ */
+const WALKABILITY_LV_MULTIPLIER = 0.15;
+
+/**
  * Maximum per-tile land value penalty an industrial building can impose at
  * distance 0 (scales linearly to 0 at the edge of INDUSTRIAL_RADIUS).
  */
@@ -79,9 +87,10 @@ export class LandValueSystem {
     defs: ReadonlyMap<string, BuildingDef>,
   ): void {
     // Reset every tile to the baseline.
+    // Note: tile.walkability is NOT reset here — WalkabilitySystem owns that field
+    // and runs after this system each month.  We read the previous month's value below.
     map.forEach((tile) => {
-      tile.landValue  = BASE_LAND_VALUE;
-      tile.walkability = 0;
+      tile.landValue = BASE_LAND_VALUE;
     });
 
     // ── Park proximity bonus ───────────────────────────────────────────────
@@ -122,7 +131,6 @@ export class LandValueSystem {
           if (!tile) continue;
           const dist = Math.sqrt(dist2);
           const bonus = Math.round(WALKABILITY_BONUS * (1 - dist / wr));
-          tile.walkability  = Math.min(100, tile.walkability + bonus);
           tile.landValue   += bonus;
         }
       }
@@ -158,6 +166,11 @@ export class LandValueSystem {
       // Pollution and traffic penalties (populated by other future systems).
       tile.landValue -= Math.round(tile.pollution       * POLLUTION_PENALTY_MULTIPLIER);
       tile.landValue -= Math.round(tile.trafficPressure * TRAFFIC_PENALTY_MULTIPLIER);
+
+      // Walkability bonus: highly walkable tiles attract residents and raise
+      // property values.  We read the previous month's walkability value here
+      // (WalkabilitySystem runs after LandValueSystem each month).
+      tile.landValue += Math.round(tile.walkability * WALKABILITY_LV_MULTIPLIER);
 
       // Clamp to valid range.
       tile.landValue = Math.max(0, Math.min(100, tile.landValue));

@@ -13,6 +13,7 @@ import { EconomySystem } from './EconomySystem';
 import { PowerSystem } from './PowerSystem';
 import { LandValueSystem } from './LandValueSystem';
 import { TrafficPressureSystem } from './TrafficPressureSystem';
+import { WalkabilitySystem } from './WalkabilitySystem';
 
 /** Maximum demand value (clamps residentialDemand, commercialDemand, industrialDemand). */
 const MAX_DEMAND = 100;
@@ -66,10 +67,14 @@ export class ZoneGrowthSystem {
   /** Traffic pressure system — injected from CitySim so both share the same instance. */
   private readonly _traffic: TrafficPressureSystem;
 
-  constructor(power: PowerSystem, landValue: LandValueSystem, traffic: TrafficPressureSystem) {
-    this._power      = power;
-    this._landValue  = landValue;
-    this._traffic    = traffic;
+  /** Walkability system — injected from CitySim so both share the same instance. */
+  private readonly _walkability: WalkabilitySystem;
+
+  constructor(power: PowerSystem, landValue: LandValueSystem, traffic: TrafficPressureSystem, walkability: WalkabilitySystem) {
+    this._power       = power;
+    this._landValue   = landValue;
+    this._traffic     = traffic;
+    this._walkability = walkability;
     this._defs      = new Map(BUILDING_DEFS.map((d) => [d.id, d]));
     this._defsByZone = new Map<ZoneType, BuildingDef[]>();
     for (const def of BUILDING_DEFS) {
@@ -130,6 +135,10 @@ export class ZoneGrowthSystem {
     // building layout and populates tile.trafficPressure / tile.noise.
     this._traffic.tick(map, this.buildings, this.defs, stats);
 
+    // Walkability runs after traffic so it can read fresh tile.noise values
+    // and apply a modest reduction to trafficPressure on walkable road tiles.
+    this._walkability.tick(map, this.buildings, this.defs, stats);
+
     return true;
   }
 
@@ -159,10 +168,13 @@ export class ZoneGrowthSystem {
     );
 
     // Commercial: shops open when there are more residents to serve.
-    const popGrowthBoost = stats.population > 0 ? 3 : -1;
+    // Walkability is a bonus — walkable areas attract more foot traffic and
+    // support healthier commercial demand.
+    const popGrowthBoost  = stats.population > 0 ? 3 : -1;
+    const walkBoost       = Math.round(stats.walkability / 25); // 0 at walk=0, +4 at walk=100
     stats.commercialDemand = Math.max(
       0,
-      Math.min(MAX_DEMAND, stats.commercialDemand + popGrowthBoost + comTaxMod),
+      Math.min(MAX_DEMAND, stats.commercialDemand + popGrowthBoost + walkBoost + comTaxMod),
     );
 
     // Industrial: starts at a modest positive level, slowly converges to 20.

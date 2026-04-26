@@ -4,6 +4,7 @@ import { BuildingRenderer } from '../render/BuildingRenderer';
 import { PowerOverlayRenderer } from '../render/PowerOverlayRenderer';
 import { LandValueOverlayRenderer } from '../render/LandValueOverlayRenderer';
 import { TrafficOverlayRenderer } from '../render/TrafficOverlayRenderer';
+import { WalkabilityOverlayRenderer } from '../render/WalkabilityOverlayRenderer';
 import { DecorativeCarRenderer } from '../render/DecorativeCarRenderer';
 import { TilePicker } from '../render/TilePicker';
 import { HighlightRenderer } from '../render/HighlightRenderer';
@@ -89,6 +90,8 @@ export class App {
     landValueOverlay.build(sim.map);
     const trafficOverlay = new TrafficOverlayRenderer(scene);
     trafficOverlay.build(sim.map);
+    const walkabilityOverlay = new WalkabilityOverlayRenderer(scene);
+    walkabilityOverlay.build(sim.map);
     const decorativeCars = new DecorativeCarRenderer(scene);
 
     const highlight = new HighlightRenderer(scene);
@@ -150,6 +153,11 @@ export class App {
     sim.onTrafficChanged = () => {
       if (trafficOverlay.isVisible) trafficOverlay.refresh(sim.map);
       decorativeCars.refresh(sim.map);
+    };
+
+    // ── Walkability system fires monthly when scores are recalculated ─────────
+    sim.onWalkabilityChanged = () => {
+      if (walkabilityOverlay.isVisible) walkabilityOverlay.refresh(sim.map);
     };
 
     // ── Advance the simulation clock every rendered frame ────────────────────
@@ -222,6 +230,19 @@ export class App {
       if (next) trafficOverlay.refresh(sim.map);
     });
     toolbarEl.appendChild(trafficOverlayBtn);
+
+    // Walkability overlay toggle button.
+    const walkOverlayBtn = document.createElement('button');
+    walkOverlayBtn.id          = 'walkability-overlay-btn';
+    walkOverlayBtn.textContent = '🚶 Walkability: OFF';
+    walkOverlayBtn.addEventListener('click', () => {
+      const next = !walkabilityOverlay.isVisible;
+      walkabilityOverlay.setVisible(next);
+      walkOverlayBtn.textContent = `🚶 Walkability: ${next ? 'ON' : 'OFF'}`;
+      walkOverlayBtn.classList.toggle('active', next);
+      if (next) walkabilityOverlay.refresh(sim.map);
+    });
+    toolbarEl.appendChild(walkOverlayBtn);
 
     // ── City HUD ─────────────────────────────────────────────────────────────
     const hud = new CityHUD(hudEl);
