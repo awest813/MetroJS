@@ -88,10 +88,10 @@ export class ZoneGrowthSystem {
    */
   private _updateDemand(stats: CityStats): void {
     // Residential: people move in when there are more jobs than workers.
-    const jobSurplus = stats.jobs - stats.population;
+    const jobBalance = stats.jobs - stats.population;
     stats.residentialDemand = Math.max(
       0,
-      Math.min(MAX_DEMAND, stats.residentialDemand + (jobSurplus > 0 ? 5 : -2)),
+      Math.min(MAX_DEMAND, stats.residentialDemand + (jobBalance > 0 ? 5 : -2)),
     );
 
     // Commercial: shops open when there are more residents to serve.
@@ -102,11 +102,11 @@ export class ZoneGrowthSystem {
     );
 
     // Industrial: starts at a modest positive level, slowly converges to 20.
-    const industTarget = 20;
-    const industDelta  = stats.industrialDemand < industTarget ? 2 : -1;
+    const industrialTarget = 20;
+    const industrialDelta  = stats.industrialDemand < industrialTarget ? 2 : -1;
     stats.industrialDemand = Math.max(
       0,
-      Math.min(MAX_DEMAND, stats.industrialDemand + industDelta),
+      Math.min(MAX_DEMAND, stats.industrialDemand + industrialDelta),
     );
   }
 
