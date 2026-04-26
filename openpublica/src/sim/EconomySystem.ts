@@ -107,7 +107,7 @@ export class EconomySystem {
       const def = defs.get(instance.defId);
       if (!def) continue;
 
-      if (def.zoneType === ZoneType.Commercial) comJobs += def.jobs;
+      if (def.zoneType === ZoneType.Commercial || def.zoneType === ZoneType.MixedUse) comJobs += def.jobs;
       if (def.zoneType === ZoneType.Industrial) indJobs += def.jobs;
       if (def.isService)                        serviceBuildingCount += 1;
     }

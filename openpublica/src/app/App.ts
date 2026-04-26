@@ -311,6 +311,7 @@ export class App {
         rebuildAllRenderers();
         hud.update(sim.stats, sim.clock);
         budgetPanel.update(sim.stats);
+        budgetPanel.syncTaxSliders(sim.stats);
         statusEl.textContent = 'City loaded.';
       } else {
         statusEl.textContent = 'No save found.';
