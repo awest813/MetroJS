@@ -123,13 +123,19 @@ export class DecorativeCarRenderer {
 
 // ── Module-level helpers ───────────────────────────────────────────────────────
 
+/** Prime multiplier applied to the x coordinate in _tileRand. */
+const HASH_MULTIPLIER_X = 2654435761; // Knuth multiplicative hash prime
+
+/** Prime multiplier applied to the y coordinate in _tileRand. */
+const HASH_MULTIPLIER_Y = 2246822519; // Complementary prime for spatial hashing
+
 /**
  * Cheap deterministic pseudo-random value in [0, 1) from two integer seeds.
  * Used so each tile consistently spawns (or skips) a car across refreshes.
  */
 function _tileRand(x: number, y: number): number {
   // Simple integer hash — fast and sufficient for decorative variation.
-  let h = (x * 2654435761) ^ (y * 2246822519);
+  let h = Math.imul(x, HASH_MULTIPLIER_X) ^ Math.imul(y, HASH_MULTIPLIER_Y);
   h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
   h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
   h ^= h >>> 16;

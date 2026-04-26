@@ -98,7 +98,7 @@ export class TrafficPressureSystem {
       let pressure: number;
       if (def.zoneType === ZoneType.Residential) {
         // Residential: trips ≈ population × trip rate (at least 1 if anyone lives here).
-        pressure = Math.max(0, Math.ceil(def.population * RESIDENTIAL_TRIP_RATE));
+        pressure = Math.ceil(def.population * RESIDENTIAL_TRIP_RATE);
       } else if (def.zoneType === ZoneType.Commercial) {
         pressure = COMMERCIAL_BASE_PRESSURE;
       } else if (def.zoneType === ZoneType.Industrial) {
