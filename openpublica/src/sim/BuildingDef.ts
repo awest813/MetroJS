@@ -18,4 +18,10 @@ export interface BuildingDef {
   readonly population: number;
   /** Number of jobs produced by one instance of this building. */
   readonly jobs:       number;
+  /**
+   * True for civic / utility buildings (e.g. fire stations, schools) that
+   * contribute a monthly operating expense.  Omit or set to false for
+   * residential, commercial, and industrial buildings.
+   */
+  readonly isService?: boolean;
 }

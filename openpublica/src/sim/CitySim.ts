@@ -24,6 +24,8 @@ export interface CityStats {
   monthlyIncome:     number;
   /** Expenses paid last simulated month. */
   monthlyExpenses:   number;
+  /** True whenever the city treasury is negative. */
+  bankruptcyWarning: boolean;
 }
 
 /**
@@ -65,6 +67,7 @@ export class CitySim {
       indTaxRate:        9,
       monthlyIncome:     0,
       monthlyExpenses:   0,
+      bankruptcyWarning: false,
     };
   }
 

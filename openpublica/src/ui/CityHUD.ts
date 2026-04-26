@@ -77,7 +77,11 @@ export class CityHUD {
 
   /** Refresh all HUD elements from the latest sim state. */
   update(stats: CityStats, clock: SimulationClock): void {
-    this._money.textContent = `💰 $${stats.money.toLocaleString()}`;
+    const moneyStr = `💰 $${stats.money.toLocaleString()}`;
+    this._money.textContent = stats.bankruptcyWarning
+      ? `${moneyStr} ⚠️ BANKRUPT`
+      : moneyStr;
+    this._money.classList.toggle('hud-money-warning', stats.bankruptcyWarning);
     this._pop.textContent   = `👥 Pop: ${stats.population.toLocaleString()}`;
     this._jobs.textContent  = `💼 Jobs: ${stats.jobs.toLocaleString()}`;
     this._date.textContent  = `📅 ${clock.monthName} ${clock.year}`;
