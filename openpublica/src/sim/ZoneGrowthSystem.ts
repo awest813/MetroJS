@@ -10,12 +10,19 @@ import rawDefs from '../data/buildings.json';
 
 import { MONTH_SECONDS } from '../data/constants';
 import { EconomySystem } from './EconomySystem';
+import { PowerSystem } from './PowerSystem';
 
 /** Maximum demand value (clamps residentialDemand, commercialDemand, industrialDemand). */
 const MAX_DEMAND = 100;
 
 /** Probability (0–1) that an eligible tile grows a building in any given month. */
 const GROW_CHANCE = 0.25;
+
+/**
+ * Fraction of a building's population/jobs contribution when it lacks power.
+ * A value of 0.75 means a 25% reduction while unpowered.
+ */
+const UNPOWERED_FACTOR = 0.75;
 
 /** Cast the imported JSON to a typed array once at module load. */
 const BUILDING_DEFS: BuildingDef[] = rawDefs as BuildingDef[];
@@ -48,7 +55,11 @@ export class ZoneGrowthSystem {
   /** Economy system — runs once per simulated month. */
   private readonly _economy = new EconomySystem();
 
-  constructor() {
+  /** Power system — injected from CitySim so both share the same instance. */
+  private readonly _power: PowerSystem;
+
+  constructor(power: PowerSystem) {
+    this._power     = power;
     this._defs      = new Map(BUILDING_DEFS.map((d) => [d.id, d]));
     this._defsByZone = new Map<ZoneType, BuildingDef[]>();
     for (const def of BUILDING_DEFS) {
@@ -59,6 +70,11 @@ export class ZoneGrowthSystem {
       }
       bucket.push(def);
     }
+  }
+
+  /** Expose building definitions for use by CitySim (e.g. power refresh). */
+  get defs(): ReadonlyMap<string, BuildingDef> {
+    return this._defs;
   }
 
   /**
@@ -74,22 +90,30 @@ export class ZoneGrowthSystem {
    * Called every simulation tick.
    * Returns an array of tile keys whose appearance changed (building placed),
    * so callers can trigger render updates.
+   * Returns `true` if a monthly tick occurred (so CitySim can fire power callbacks).
    */
   tick(
     deltaSeconds: number,
     map: CityMap,
     stats: CityStats,
     changedTiles: Array<{ x: number; y: number }>,
-  ): void {
+  ): boolean {
     this._secondsAccumulator += deltaSeconds;
 
-    if (this._secondsAccumulator < MONTH_SECONDS) return;
+    if (this._secondsAccumulator < MONTH_SECONDS) return false;
     this._secondsAccumulator -= MONTH_SECONDS;
 
     this._updateDemand(stats);
     this._growBuildings(map, stats, changedTiles);
-    this._recalcStats(stats);
+
+    // Update power coverage before recalculating stats so that newly grown
+    // buildings and the current power plant layout are both reflected.
+    this._power.tick(map, this.buildings, this._defs);
+
+    this._recalcStats(stats, map);
     this._economy.tick(map, this.buildings, this._defs, stats);
+
+    return true;
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────
@@ -168,20 +192,23 @@ export class ZoneGrowthSystem {
     });
   }
 
-  /** Recompute population and jobs from all placed buildings. */
-  private _recalcStats(stats: CityStats): void {
+  /** Recompute population and jobs from all placed buildings.
+   *  Unpowered buildings contribute only UNPOWERED_FACTOR of their potential. */
+  private _recalcStats(stats: CityStats, map: CityMap): void {
     let population = 0;
     let jobs       = 0;
 
     for (const instance of this.buildings.values()) {
       const def = this._defs.get(instance.defId);
       if (!def) continue;
-      population += def.population;
-      jobs       += def.jobs;
+      const tile   = map.getTile(instance.x, instance.y);
+      const factor = (tile?.powered ?? false) ? 1.0 : UNPOWERED_FACTOR;
+      population += def.population * factor;
+      jobs       += def.jobs       * factor;
     }
 
-    stats.population = population;
-    stats.jobs       = jobs;
+    stats.population = Math.floor(population);
+    stats.jobs       = Math.floor(jobs);
   }
 
   /** Returns true if any orthogonal neighbour has a road. */

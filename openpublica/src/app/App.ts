@@ -1,6 +1,7 @@
 import { createScene } from '../render/SceneSetup';
 import { TerrainRenderer } from '../render/TerrainRenderer';
 import { BuildingRenderer } from '../render/BuildingRenderer';
+import { PowerOverlayRenderer } from '../render/PowerOverlayRenderer';
 import { TilePicker } from '../render/TilePicker';
 import { HighlightRenderer } from '../render/HighlightRenderer';
 import { CitySim } from '../sim/CitySim';
@@ -14,6 +15,7 @@ import {
   createIndustrialLightBrush,
 } from '../tools/ZoneBrushTool';
 import { BulldozeTool } from '../tools/BulldozeTool';
+import { PlacePowerPlantTool } from '../tools/PlacePowerPlantTool';
 import { ToolController } from '../tools/ToolController';
 import { Toolbar } from '../ui/Toolbar';
 import { CityHUD } from '../ui/CityHUD';
@@ -44,12 +46,13 @@ export class App {
     const sim = CitySim.createCity(MAP_SIZE, MAP_SIZE);
 
     // ── Tools ────────────────────────────────────────────────────────────────
-    const inspectTool     = new InspectTool();
-    const roadTool        = new RoadTool();
-    const residentialTool = createResidentialLowBrush();
-    const commercialTool  = createCommercialLowBrush();
-    const industrialTool  = createIndustrialLightBrush();
-    const bulldozeTool    = new BulldozeTool();
+    const inspectTool       = new InspectTool();
+    const roadTool          = new RoadTool();
+    const residentialTool   = createResidentialLowBrush();
+    const commercialTool    = createCommercialLowBrush();
+    const industrialTool    = createIndustrialLightBrush();
+    const bulldozeTool      = new BulldozeTool();
+    const powerPlantTool    = new PlacePowerPlantTool();
 
     const allTools = [
       inspectTool,
@@ -58,6 +61,7 @@ export class App {
       commercialTool,
       industrialTool,
       bulldozeTool,
+      powerPlantTool,
     ];
 
     const toolController = new ToolController(inspectTool);
@@ -66,21 +70,38 @@ export class App {
     // ── Babylon.js renderer ──────────────────────────────────────────────────
     const { scene, engine } = createScene(canvas);
 
-    const terrain   = new TerrainRenderer(scene);
+    const terrain      = new TerrainRenderer(scene);
     terrain.buildCityGrid(sim.map);
 
-    const buildings = new BuildingRenderer(scene);
+    const buildings    = new BuildingRenderer(scene);
+    const powerOverlay = new PowerOverlayRenderer(scene);
+    powerOverlay.build(sim.map);
+
     const highlight = new HighlightRenderer(scene);
     const picker    = new TilePicker(scene);
+
+    // ── Helper: refresh building warning states and power overlay ────────────
+    const refreshPowerVisuals = () => {
+      sim.map.forEach((tile) => {
+        buildings.updatePowerState(tile.x, tile.y, tile.powered);
+      });
+      powerOverlay.refresh(sim.map);
+    };
 
     // ── Renderer reacts to tile mutations via ToolController callback ─────────
     toolController.onTileChanged((coord) => {
       const tile = sim.getTile(coord.x, coord.y);
       if (tile) {
         terrain.updateCityTile(tile);
-        // If the tile no longer has a building (e.g. bulldozed), remove its mesh.
         if (tile.buildingId === null) {
           buildings.removeBuilding(coord.x, coord.y);
+        } else {
+          // Service building placed — add its mesh and refresh power visuals.
+          const instance = sim.growth.buildings.get(tileKey(coord.x, coord.y));
+          if (instance) {
+            buildings.addBuilding(instance, tile.zoneType);
+          }
+          refreshPowerVisuals();
         }
       }
     });
@@ -99,6 +120,11 @@ export class App {
           }
         }
       }
+    };
+
+    // ── Power system fires when coverage changes (monthly or on placement) ───
+    sim.onPowerChanged = () => {
+      refreshPowerVisuals();
     };
 
     // ── Advance the simulation clock every rendered frame ────────────────────
@@ -132,6 +158,19 @@ export class App {
     // ── Toolbar UI ───────────────────────────────────────────────────────────
     const toolbar = new Toolbar(toolbarEl, toolController);
     toolbar.build(allTools);
+
+    // Power overlay toggle button (separate from the tool buttons).
+    const overlayBtn = document.createElement('button');
+    overlayBtn.id          = 'power-overlay-btn';
+    overlayBtn.textContent = '🔌 Power Overlay: OFF';
+    overlayBtn.addEventListener('click', () => {
+      const next = !powerOverlay.isVisible;
+      powerOverlay.setVisible(next);
+      overlayBtn.textContent = `🔌 Power Overlay: ${next ? 'ON' : 'OFF'}`;
+      overlayBtn.classList.toggle('active', next);
+      if (next) refreshPowerVisuals();
+    });
+    toolbarEl.appendChild(overlayBtn);
 
     // ── City HUD ─────────────────────────────────────────────────────────────
     const hud = new CityHUD(hudEl);

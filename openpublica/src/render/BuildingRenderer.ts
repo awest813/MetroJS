@@ -23,13 +23,20 @@ interface BuildingShape {
  * These are render-only values; no simulation data lives here.
  */
 const BUILDING_SHAPES: Record<string, BuildingShape> = {
-  small_house:    { width: 0.50, depth: 0.50, height: 0.40 },
-  rowhouse:       { width: 0.70, depth: 0.45, height: 0.55 },
-  small_shop:     { width: 0.65, depth: 0.65, height: 0.35 },
-  light_workshop: { width: 0.75, depth: 0.75, height: 0.50 },
+  small_house:       { width: 0.50, depth: 0.50, height: 0.40 },
+  rowhouse:          { width: 0.70, depth: 0.45, height: 0.55 },
+  small_shop:        { width: 0.65, depth: 0.65, height: 0.35 },
+  light_workshop:    { width: 0.75, depth: 0.75, height: 0.50 },
+  small_power_plant: { width: 0.80, depth: 0.80, height: 0.60 },
 };
 
 const DEFAULT_SHAPE: BuildingShape = { width: 0.50, depth: 0.50, height: 0.40 };
+
+/**
+ * Building def IDs that should use the service material rather than a
+ * zone-type material.  Keyed by defId.
+ */
+const SERVICE_DEF_IDS = new Set(['small_power_plant']);
 
 // ── Metadata stored on each mesh for picking ──────────────────────────────────
 
@@ -47,6 +54,8 @@ export interface BuildingPickData {
  *
  * Design:
  * - Three shared `StandardMaterial`s (one per zone type) → minimal draw-state changes.
+ * - A dedicated material for service buildings (e.g. power plants) and an
+ *   "unpowered warning" material (red emissive) for buildings lacking power.
  * - Meshes are stored in a `Map<"x,y", Mesh>`.
  * - Selection is shown by toggling `mesh.showBoundingBox`; the bounding-box renderer
  *   is styled once in the constructor.
@@ -56,6 +65,12 @@ export class BuildingRenderer {
   private readonly _scene:    Scene;
   private readonly _meshes:   Map<string, Mesh> = new Map();
   private readonly _materials: Record<ZoneType, StandardMaterial>;
+  private readonly _serviceMat:  StandardMaterial;
+  private readonly _warningMat:  StandardMaterial;
+  /** Stores the zone type for each placed building so we can restore its material. */
+  private readonly _zoneTypes:   Map<string, ZoneType> = new Map();
+  /** Tracks which tiles currently show the warning (unpowered) material. */
+  private readonly _warnActive:  Set<string> = new Set();
   private _selectedKey: string | null = null;
 
   constructor(scene: Scene) {
@@ -68,6 +83,14 @@ export class BuildingRenderer {
       [ZoneType.Commercial]:  this._makeMaterial('bld-com',   new Color3(0.92, 0.78, 0.20)),
       [ZoneType.Industrial]:  this._makeMaterial('bld-ind',   new Color3(0.68, 0.48, 0.78)),
     };
+
+    // Bright orange material for power plants (and other service buildings).
+    this._serviceMat = this._makeMaterial('bld-service', new Color3(1.0, 0.55, 0.0));
+    this._serviceMat.emissiveColor = new Color3(0.4, 0.2, 0.0);
+
+    // Red-emissive warning material shown on buildings that lack power.
+    this._warningMat = this._makeMaterial('bld-warning', new Color3(0.70, 0.20, 0.20));
+    this._warningMat.emissiveColor = new Color3(0.4, 0.0, 0.0);
 
     // Style the bounding-box renderer used for selection highlights.
     const bbr = scene.getBoundingBoxRenderer();
@@ -101,13 +124,17 @@ export class BuildingRenderer {
       instance.y * TILE_SIZE + TILE_SIZE / 2,
     );
 
-    mesh.material = this._materials[zoneType] ?? this._materials[ZoneType.None];
+    // Service buildings get their own distinct material.
+    mesh.material = SERVICE_DEF_IDS.has(instance.defId)
+      ? this._serviceMat
+      : (this._materials[zoneType] ?? this._materials[ZoneType.None]);
 
     // Store only picking metadata — no live sim references.
     const pickData: BuildingPickData = { buildingId: instance.defId, x: instance.x, y: instance.y };
     mesh.metadata = pickData;
 
     this._meshes.set(key, mesh);
+    this._zoneTypes.set(key, zoneType);
   }
 
   /**
@@ -122,6 +149,8 @@ export class BuildingRenderer {
     if (this._selectedKey === key) this._selectedKey = null;
     mesh.dispose();
     this._meshes.delete(key);
+    this._zoneTypes.delete(key);
+    this._warnActive.delete(key);
   }
 
   /**
@@ -150,6 +179,37 @@ export class BuildingRenderer {
     }
   }
 
+  /**
+   * Update the visual warning state for the building at (x, y).
+   *
+   * - `powered = false` → switch to the red warning material.
+   * - `powered = true`  → restore the building's normal material.
+   *
+   * Service buildings (power plants) are never shown with the warning material
+   * because they generate power themselves.
+   */
+  updatePowerState(x: number, y: number, powered: boolean): void {
+    const key  = _tileKey(x, y);
+    const mesh = this._meshes.get(key);
+    if (!mesh) return;
+
+    const pickData = mesh.metadata as BuildingPickData | null;
+    if (pickData && SERVICE_DEF_IDS.has(pickData.buildingId)) return;
+
+    if (!powered) {
+      if (!this._warnActive.has(key)) {
+        mesh.material = this._warningMat;
+        this._warnActive.add(key);
+      }
+    } else {
+      if (this._warnActive.has(key)) {
+        const zoneType = this._zoneTypes.get(key) ?? ZoneType.None;
+        mesh.material  = this._materials[zoneType] ?? this._materials[ZoneType.None];
+        this._warnActive.delete(key);
+      }
+    }
+  }
+
   // ── Private helpers ────────────────────────────────────────────────────────
 
   private _makeMaterial(name: string, color: Color3): StandardMaterial {
@@ -165,3 +225,4 @@ export class BuildingRenderer {
 function _tileKey(x: number, y: number): string {
   return `${x},${y}`;
 }
+

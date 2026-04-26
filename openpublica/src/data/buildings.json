@@ -26,5 +26,14 @@
     "zoneType": 3,
     "population": 0,
     "jobs": 5
+  },
+  {
+    "id": "small_power_plant",
+    "name": "Small Power Plant",
+    "zoneType": 0,
+    "population": 0,
+    "jobs": 2,
+    "isService": true,
+    "powerRadius": 8
   }
 ]
