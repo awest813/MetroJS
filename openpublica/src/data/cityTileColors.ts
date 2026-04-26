@@ -26,14 +26,25 @@ const TERRAIN_COLORS: Record<TerrainType, TileColor> = {
   [TerrainType.Dirt]:  { r: 0.60, g: 0.44, b: 0.28 },
 };
 
+/** Display colour for a tile that has a building on it (darker than the zone tint). */
+const BUILDING_COLORS: Record<ZoneType, TileColor> = {
+  [ZoneType.None]:        { r: 0.30, g: 0.60, b: 0.22 }, // fallback (unused)
+  [ZoneType.Residential]: { r: 0.20, g: 0.35, b: 0.65 }, // dark blue
+  [ZoneType.Commercial]:  { r: 0.70, g: 0.55, b: 0.05 }, // dark amber
+  [ZoneType.Industrial]:  { r: 0.40, g: 0.22, b: 0.50 }, // dark purple
+};
+
 /**
  * Returns the display colour for a CityTile.
  *
- * Priority: road > zone > terrain.
+ * Priority: road > building > zone > terrain.
  */
 export function cityTileColor(tile: CityTile): TileColor {
   if (tile.roadType !== RoadType.None) {
     return ROAD_COLORS[tile.roadType];
+  }
+  if (tile.buildingId !== null && tile.zoneType !== ZoneType.None) {
+    return BUILDING_COLORS[tile.zoneType];
   }
   if (tile.zoneType !== ZoneType.None) {
     return ZONE_COLORS[tile.zoneType];
