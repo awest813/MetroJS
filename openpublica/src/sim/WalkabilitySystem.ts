@@ -56,6 +56,12 @@ const WALK_TRAFFIC_DIVISOR = 30;
  */
 const WALK_MAX_HAPPINESS = 20;
 
+/**
+ * Divisor used to convert stats.walkability → a monthly happiness bonus.
+ * walkability=50 → +10; walkability=100 → +20 (capped at WALK_MAX_HAPPINESS).
+ */
+const WALK_HAPPINESS_DIVISOR = 5;
+
 // ──────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -194,7 +200,7 @@ export class WalkabilitySystem {
 
     // 7. Happiness boost — walkable cities are more pleasant to live in.
     //    Added on top of the traffic-derived happiness from TrafficPressureSystem.
-    const walkBonus = Math.min(WALK_MAX_HAPPINESS, Math.round(stats.walkability / 5));
+    const walkBonus = Math.min(WALK_MAX_HAPPINESS, Math.round(stats.walkability / WALK_HAPPINESS_DIVISOR));
     stats.happiness  = Math.max(0, Math.min(100, stats.happiness + walkBonus));
   }
 }

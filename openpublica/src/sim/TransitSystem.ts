@@ -34,6 +34,14 @@ const TRANSIT_TRAFFIC_DIVISOR = 25;
  */
 const TRANSIT_MAX_HAPPINESS = 15;
 
+/**
+ * Divisor used to convert stats.transitAccess → a monthly happiness bonus.
+ * transitAccess=50 → +10; transitAccess=75 → +15 (capped at TRANSIT_MAX_HAPPINESS).
+ * Uses the same scaling factor as WalkabilitySystem (WALK_HAPPINESS_DIVISOR=5)
+ * so transit and walkability together can contribute up to +35 happiness.
+ */
+const TRANSIT_HAPPINESS_DIVISOR = 5;
+
 // ──────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -117,7 +125,7 @@ export class TransitSystem {
 
     // 5. Happiness boost — good transit coverage improves quality of life.
     //    Added on top of the traffic and walkability happiness contributions.
-    const transitBonus = Math.min(TRANSIT_MAX_HAPPINESS, Math.round(stats.transitAccess / 5));
+    const transitBonus = Math.min(TRANSIT_MAX_HAPPINESS, Math.round(stats.transitAccess / TRANSIT_HAPPINESS_DIVISOR));
     stats.happiness    = Math.max(0, Math.min(100, stats.happiness + transitBonus));
   }
 }

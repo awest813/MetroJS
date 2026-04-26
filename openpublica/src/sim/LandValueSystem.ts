@@ -176,13 +176,13 @@ export class LandValueSystem {
       tile.landValue -= Math.round(tile.trafficPressure * TRAFFIC_PENALTY_MULTIPLIER);
 
       // Walkability bonus: highly walkable tiles attract residents and raise
-      // property values.  We read the previous month's walkability value here
-      // (WalkabilitySystem runs after LandValueSystem each month).
+      // property values.  LandValueSystem runs before WalkabilitySystem each month,
+      // so this reads the previous month's walkability value.
       tile.landValue += Math.round(tile.walkability   * WALKABILITY_LV_MULTIPLIER);
 
       // Transit access bonus: properties near trolley corridors command a premium.
-      // We read the previous month's transitAccess value here
-      // (TransitSystem runs after LandValueSystem each month).
+      // LandValueSystem runs before TransitSystem each month,
+      // so this reads the previous month's transitAccess value.
       tile.landValue += Math.round(tile.transitAccess * TRANSIT_LV_MULTIPLIER);
 
       // Clamp to valid range.

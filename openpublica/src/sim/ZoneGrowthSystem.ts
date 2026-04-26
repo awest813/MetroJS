@@ -171,8 +171,10 @@ export class ZoneGrowthSystem {
 
     // Residential: people move in when there are more jobs than workers.
     // Transit access also makes neighbourhoods more desirable to live in.
-    const jobBalance    = stats.jobs - stats.population;
-    const transitResBoost = Math.round(stats.transitAccess / 50); // 0 at transit=0, 2 at transit=100
+    //   TRANSIT_RES_DEMAND_DIVISOR=50 → each 50 transit points adds 1 demand point/month.
+    const TRANSIT_RES_DEMAND_DIVISOR = 50;
+    const jobBalance        = stats.jobs - stats.population;
+    const transitResBoost   = Math.round(stats.transitAccess / TRANSIT_RES_DEMAND_DIVISOR);
     stats.residentialDemand = Math.max(
       0,
       Math.min(MAX_DEMAND, stats.residentialDemand + (jobBalance > 0 ? 5 : -2) + transitResBoost + resTaxMod),
@@ -180,9 +182,13 @@ export class ZoneGrowthSystem {
 
     // Commercial: shops open when there are more residents to serve.
     // Walkability and transit both boost foot traffic — commercial is sensitive to both.
-    const popGrowthBoost   = stats.population > 0 ? 3 : -1;
-    const walkBoost        = Math.round(stats.walkability   / 25); // 0 at walk=0, 4 at walk=100
-    const transitComBoost  = Math.round(stats.transitAccess / 20); // 0 at transit=0, 5 at transit=100
+    //   WALK_COM_DEMAND_DIVISOR=25   → each 25 walkability points adds 1 demand/month.
+    //   TRANSIT_COM_DEMAND_DIVISOR=20 → each 20 transit points adds 1 demand/month.
+    const WALK_COM_DEMAND_DIVISOR   = 25;
+    const TRANSIT_COM_DEMAND_DIVISOR = 20;
+    const popGrowthBoost    = stats.population > 0 ? 3 : -1;
+    const walkBoost         = Math.round(stats.walkability   / WALK_COM_DEMAND_DIVISOR);
+    const transitComBoost   = Math.round(stats.transitAccess / TRANSIT_COM_DEMAND_DIVISOR);
     stats.commercialDemand = Math.max(
       0,
       Math.min(MAX_DEMAND, stats.commercialDemand + popGrowthBoost + walkBoost + transitComBoost + comTaxMod),
