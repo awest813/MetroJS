@@ -11,6 +11,28 @@
  *
  */
 
+// =============================================================================
+// SYSTEM: Map Scanner (Tile Dispatch Engine)
+// =============================================================================
+// MapScanner iterates over every tile in the game map and dispatches to a
+// registered list of (criterion → action) handlers. Subsystems register their
+// handlers via addAction() during Simulation.init(); the scan itself is split
+// across phases 1-8 of the simulation cycle, covering 1/8 of the map width
+// per phase so that it does not block for too long in a single tick.
+//
+// During a scan of each tile:
+//   1. If the tile value is >= FLOOD, its power conductivity is checked and
+//      the power manager is asked to mark it as powered or not.
+//   2. If the tile is a zone centre, the repair manager checks for decay, and
+//      the census powered/unpowered zone counts are incremented.
+//   3. Each registered action's criterion is tested (either a tile value
+//      constant or a predicate function). The first matching action's handler
+//      is called with (map, x, y, simData) and scanning moves to the next tile.
+//
+// Handlers are registered by: Commercial, EmergencyServices, Industrial,
+// MiscTiles, PowerManager, Road, Residential, Stadia, Transport.
+// =============================================================================
+
 import { Tile } from "./tile.ts";
 import { FLOOD } from "./tileValues.ts";
 

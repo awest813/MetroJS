@@ -18,8 +18,7 @@
 var Config = {
   debug: false,
   gameDebug: false,
-  queryDebug: false
+  queryDebug: false,
 };
-
 
 export { Config };

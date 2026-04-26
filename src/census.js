@@ -11,6 +11,30 @@
  *
  */
 
+// =============================================================================
+// SYSTEM: City Census (Statistics Accumulator)
+// =============================================================================
+// Census accumulates per-cycle counts of every zone type (residential,
+// commercial, industrial, fire stations, police stations, power plants, etc.)
+// as the map scanner visits each tile. These raw counts are then used by
+// Valves.setValves(), Budget.collectTax(), and Evaluation.cityEvaluation().
+//
+// Key data maintained:
+//   resPop / comPop / indPop  – raw population contributions from each zone type
+//   *ZonePop                  – count of zone tiles found during this scan
+//   landValueAverage          – set by blockMapUtils after the land-value scan
+//   pollutionAverage          – set by blockMapUtils after the pollution scan
+//   crimeAverage              – set by blockMapUtils after the crime scan
+//
+// History arrays (resHist10, comHist10, …, pollutionHist120) form the sliding
+// 10-tick and 120-tick windows that drive the in-game graphs. Each call to
+// take10Census() or take120Census() shifts the array left (pop oldest entry)
+// and inserts the current value at index 0.
+//
+// clearCensus() is called at the start of every simulation cycle (phase 0) to
+// reset tile-count fields; the history arrays are NOT cleared between cycles.
+// =============================================================================
+
 import { MiscUtils } from './miscUtils.js';
 
 var arrs = ['res', 'com', 'ind', 'crime',

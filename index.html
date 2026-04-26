@@ -30,7 +30,7 @@
       <div class="left inlineblock">
         <h1 id="title" class="white fontlarge">micropolisJS</h1>
       </div>
-      <nav class="white right padding10 inlineblock">
+      <nav aria-label="Site navigation" class="white right padding10 inlineblock">
         <ul>
           <li class="padding10"><a href="about.html" target="_blank">About</a></li>
           <li class="padding10"><a href="https://github.com/graememcc/micropolisJS" target="_blank">GitHub</a></li>
@@ -58,16 +58,18 @@
           <form id="playForm">
             <label for="nameForm">City name (max 15 letters)</label>
             <input id="nameForm" autofocus required class="margin10" type="text" maxlength="15">
-            Difficulty
-            <input type="radio" class="difficulty" name="difficulty" id="difficultyEasy" value="0" checked="checked"><label for="difficultyEasy">Easy</label>
-            <input type="radio" class="difficulty" name="difficulty" id="difficultyMed" value="1"><label for="difficultyMed">Medium</label>
-            <input type="radio" class="difficulty" name="difficulty" id="difficultyHard" value="2"><label for="difficultyHard">Hard</label>
+            <fieldset class="difficultyGroup">
+              <legend>Difficulty</legend>
+              <input type="radio" class="difficulty" name="difficulty" id="difficultyEasy" value="0" checked="checked"><label for="difficultyEasy">Easy</label>
+              <input type="radio" class="difficulty" name="difficulty" id="difficultyMed" value="1"><label for="difficultyMed">Medium</label>
+              <input type="radio" class="difficulty" name="difficulty" id="difficultyHard" value="2"><label for="difficultyHard">Hard</label>
+            </fieldset>
             <div id="playSubmitDiv">
               <input id="playit" type="submit" value="Play!">
             </div>
           </form>
         </div>
-        <div id="infobar" class="alignCenter leftedge open width140 padding10 controlShadow mintcream z1 initialHidden">
+        <div id="infobar" aria-label="City information" class="alignCenter leftedge open width140 padding10 controlShadow mintcream z1 initialHidden">
           <div class="inner">
             <div class="semibold chunk">
               <span id="name">Your Name Here</span>
@@ -89,51 +91,51 @@
             </div>
           </div>
         </div>
-        <div id="miscButtons" class="alignCenter leftedge open controlShadow width140 padding10 mintcream z1 initialHidden">
+        <div id="miscButtons" aria-label="City controls" class="alignCenter leftedge open controlShadow width140 padding10 mintcream z1 initialHidden">
           <div class="inner">
             <div>
-              <button id="budgetRequest" class="miscButton">Budget</button>
+              <button id="budgetRequest" class="miscButton" title="Open the city budget panel">Budget</button>
             </div>
             <div>
-              <button id="evalRequest" class="miscButton">Evaluation</button>
+              <button id="evalRequest" class="miscButton" title="View city evaluation and statistics">Evaluation</button>
             </div>
             <div>
-              <button id="disasterRequest" class="miscButton">Disasters</button>
+              <button id="disasterRequest" class="miscButton" title="Trigger a disaster">Disasters</button>
             </div>
             <div>
-              <button id="saveRequest" class="miscButton loadSave" disabled>Save</button>
+              <button id="saveRequest" class="miscButton loadSave" disabled title="Save the current game">Save</button>
             </div>
             <div>
-              <button id="settingsRequest" class="miscButton">Settings</button>
+              <button id="settingsRequest" class="miscButton" title="Adjust game settings">Settings</button>
             </div>
             <div>
-              <button id="screenshotRequest" class="miscButton">Take Picture</button>
+              <button id="screenshotRequest" class="miscButton" title="Take a screenshot of the map">Take Picture</button>
             </div>
             <div>
-              <button id="pauseRequest" class="miscButton">Pause</button>
+              <button id="pauseRequest" class="miscButton" title="Pause or resume the simulation">Pause</button>
             </div>
           </div>
         </div>
         <div id="RCIContainer" class="controlShadow leftedge width140 padding10 mintcream z1 initialHidden"></div>
-        <div id="controls" class="controlShadow mintcream z1 initialHidden rightedge open">
+        <div id="controls" aria-label="Build tools" class="controlShadow mintcream z1 initialHidden rightedge open">
           <div id="toolInfo" class="alignCenter"><span id="toolOutput">Tools</span></div>
           <div id="buttons">
-            <button id="residentialButton" data-size="3" data-tool="residential" data-colour="lime" class="toolButton unselected">Residential $100</button>
-            <button id="nuclearButton" data-size="4" data-tool="nuclear" data-colour="mistyrose" class="toolButton unselected">Nuclear $5000</button>
-            <button id="commercialButton" data-size="3" data-tool="commercial" data-colour="blue" class="toolButton unselected">Commercial $100</button>
-            <button id="coalButton" data-size="4" data-tool="coal" data-colour="gray" class="toolButton unselected">Coal $3000</button>
-            <button id="industrialButton" data-size="3" data-tool="industrial" data-colour="yellow" class="toolButton unselected">Industrial $100</button>
-            <button id="policeButton" data-size="3" data-tool="police" data-colour="darkblue" class="toolButton unselected">Police $500</button>
-            <button id="roadButton" data-size="1" data-tool="road" data-colour="black" class="toolButton unselected">Road $10</button>
-            <button id="fireButton" data-size="3" data-tool="fire" data-colour="red" class="toolButton unselected">Fire $500</button>
-            <button id="railButton" data-size="1" data-tool="rail" data-colour="brown" class="toolButton unselected">Rail $20</button>
-            <button id="portButton" data-size="4" data-tool="port" data-colour="dodgerblue" class="toolButton unselected">Port $3000</button>
-            <button id="wireButton" data-size="1" data-tool="wire" data-colour="khaki" class="toolButton unselected">Wire $5</button>
-            <button id="stadiumButton" data-size="4" data-tool="stadium" data-colour="indigo" class="toolButton unselected">Stadium $5000</button>
-            <button id="bulldozerButton" data-size="1" data-tool="bulldozer" data-colour="salmon" class="toolButton unselected">Bulldozer $1</button>
-            <button id="airportButton" data-size="6" data-tool="airport" data-colour="violet" class="toolButton unselected">Airport $10000</button>
-            <button id="queryButton" data-size="1" data-tool="query" data-colour="cyan" class="toolButton unselected">Query</button>
-            <button id="parkButton" data-size="1" data-tool="park" data-colour="darkgreen" class="toolButton unselected">Park $10</button>
+            <button id="residentialButton" data-size="3" data-tool="residential" data-colour="lime" class="toolButton unselected" title="Place a residential zone ($100)">Residential $100</button>
+            <button id="nuclearButton" data-size="4" data-tool="nuclear" data-colour="mistyrose" class="toolButton unselected" title="Build a nuclear power plant ($5,000)">Nuclear $5000</button>
+            <button id="commercialButton" data-size="3" data-tool="commercial" data-colour="blue" class="toolButton unselected" title="Place a commercial zone ($100)">Commercial $100</button>
+            <button id="coalButton" data-size="4" data-tool="coal" data-colour="gray" class="toolButton unselected" title="Build a coal power plant ($3,000)">Coal $3000</button>
+            <button id="industrialButton" data-size="3" data-tool="industrial" data-colour="yellow" class="toolButton unselected" title="Place an industrial zone ($100)">Industrial $100</button>
+            <button id="policeButton" data-size="3" data-tool="police" data-colour="darkblue" class="toolButton unselected" title="Build a police station ($500)">Police $500</button>
+            <button id="roadButton" data-size="1" data-tool="road" data-colour="black" class="toolButton unselected" title="Place a road segment ($10)">Road $10</button>
+            <button id="fireButton" data-size="3" data-tool="fire" data-colour="red" class="toolButton unselected" title="Build a fire station ($500)">Fire $500</button>
+            <button id="railButton" data-size="1" data-tool="rail" data-colour="brown" class="toolButton unselected" title="Place a rail segment ($20)">Rail $20</button>
+            <button id="portButton" data-size="4" data-tool="port" data-colour="dodgerblue" class="toolButton unselected" title="Build a seaport ($3,000)">Port $3000</button>
+            <button id="wireButton" data-size="1" data-tool="wire" data-colour="khaki" class="toolButton unselected" title="Place a power line ($5)">Wire $5</button>
+            <button id="stadiumButton" data-size="4" data-tool="stadium" data-colour="indigo" class="toolButton unselected" title="Build a stadium ($5,000)">Stadium $5000</button>
+            <button id="bulldozerButton" data-size="1" data-tool="bulldozer" data-colour="salmon" class="toolButton unselected" title="Bulldoze terrain or structures ($1)">Bulldozer $1</button>
+            <button id="airportButton" data-size="6" data-tool="airport" data-colour="violet" class="toolButton unselected" title="Build an airport ($10,000)">Airport $10000</button>
+            <button id="queryButton" data-size="1" data-tool="query" data-colour="cyan" class="toolButton unselected" title="Query tile information">Query</button>
+            <button id="parkButton" data-size="1" data-tool="park" data-colour="darkgreen" class="toolButton unselected" title="Place a park ($10)">Park $10</button>
           </div>
         </div>
         <div id="tw" class="z1 rightedge initialHidden">
@@ -156,7 +158,7 @@
             <button id="debugRequest">Debug</button>
           </div>
         </div>
-        <div id="notifications" class="initialHidden neutral z1 rightedge alignCenter elided padding10 controlShadow"></div>
+        <div id="notifications" role="status" aria-live="polite" aria-label="City news" class="initialHidden neutral z1 rightedge alignCenter elided padding10 controlShadow"></div>
         <div id="tooSmall" data-hasscript="false" class="mintcream open"><div id="tooSmallInner" class="alignCenter padding10"><h2 class="chunk">Uh-oh!</h2><p>This screen is too small&mdash;I won't be able to fit in all the controls, buttons and gizmos! Sorry!</p></div></div>
         <noscript>
           <div id="noscript" class="open mintcream centred padding10">
@@ -175,7 +177,7 @@
           Micropolis is a registered trademark of <a href="https://www.micropolis.com">Micropolis Corporation (Micropolis GmbH)</a> and is licensed here as a courtesy of the owner under the <a href="name_license.html">Micropolis Public Name License</a>.
         </div>
       </footer>
-      <div class="hidden modal shadow" id="budget">
+      <div class="hidden modal shadow" id="budget" role="dialog" aria-modal="true" aria-labelledby="budgetHeader">
         <header id="budgetHeader" class="budgetHeader padding10 chunk alignCenter">
            Budget
         </header>
@@ -221,7 +223,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="evalWindow">
+      <div class="hidden modal shadow" id="evalWindow" role="dialog" aria-modal="true" aria-labelledby="evalHeader">
         <header id="evalHeader" class="evalHeader padding10 chunk alignCenter">
            Evaluation
         </header>
@@ -255,7 +257,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="disasterWindow">
+      <div class="hidden modal shadow" id="disasterWindow" role="dialog" aria-modal="true" aria-labelledby="disasterHeader">
         <header id="disasterHeader" class="disasterHeader padding10 chunk alignCenter">
            Disasters
         </header>
@@ -280,7 +282,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="queryWindow">
+      <div class="hidden modal shadow" id="queryWindow" role="dialog" aria-modal="true" aria-labelledby="queryHeader">
         <header id="queryHeader" class="queryHeader padding10 chunk alignCenter">
            Query
         </header>
@@ -342,7 +344,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="congratsWindow">
+      <div class="hidden modal shadow" id="congratsWindow" role="dialog" aria-modal="true" aria-labelledby="congratsHeader">
         <header id="congratsHeader" class="congratsHeader padding10 chunk alignCenter">
            Congratulations!
         </header>
@@ -353,7 +355,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="nagWindow">
+      <div class="hidden modal shadow" id="nagWindow" role="dialog" aria-modal="true" aria-labelledby="nagHeader">
         <header id="nagHeader" class="nagHeader padding10 chunk white alignCenter">
            micropolisJS
         </header>
@@ -366,7 +368,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="saveWindow">
+      <div class="hidden modal shadow" id="saveWindow" role="dialog" aria-modal="true" aria-labelledby="saveHeader">
         <header id="saveHeader" class="saveHeader padding10 chunk alignCenter">
           Save
         </header>
@@ -377,7 +379,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="screenshotLinkWindow">
+      <div class="hidden modal shadow" id="screenshotLinkWindow" role="dialog" aria-modal="true" aria-labelledby="screenshotLinkHeader">
         <header id="screenshotLinkHeader" class="screenshotHeader padding10 chunk alignCenter">
            Take Picture
         </header>
@@ -390,7 +392,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="screenshotWindow">
+      <div class="hidden modal shadow" id="screenshotWindow" role="dialog" aria-modal="true" aria-labelledby="screenshotHeader">
         <header id="screenshotHeader" class="screenshotHeader white padding10 chunk alignCenter">
            Take Picture
         </header>
@@ -406,7 +408,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="settingsWindow">
+      <div class="hidden modal shadow" id="settingsWindow" role="dialog" aria-modal="true" aria-labelledby="settingsHeader">
         <header id="settingsHeader" class="settingsHeader white padding10 chunk alignCenter">
            Settings
         </header>
@@ -440,7 +442,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="debugWindow">
+      <div class="hidden modal shadow" id="debugWindow" role="dialog" aria-modal="true" aria-labelledby="debugHeader">
         <header id="debugHeader" class="debugHeader white padding10 chunk alignCenter">
            Debug
         </header>
@@ -456,7 +458,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="touchWarnWindow">
+      <div class="hidden modal shadow" id="touchWarnWindow" role="dialog" aria-modal="true" aria-labelledby="touchHeader">
         <header id="touchHeader" class="touchHeader white padding10 chunk alignCenter">
            Hello, touchscreen user!
         </header>

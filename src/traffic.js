@@ -11,6 +11,33 @@
  *
  */
 
+// =============================================================================
+// SYSTEM: Traffic Routing
+// =============================================================================
+// Traffic simulates vehicle movement along roads to determine whether a zone
+// is "connected" to the rest of the city. It is called per zone during the
+// map scan by residentialFound, commercialFound, and industrialFound.
+//
+// makeTraffic(x, y, blockMaps, destFn) – the primary entry point:
+//   1. findPerimeterRoad(): scans a 5×5 perimeter around (x,y) for a road
+//      tile. Returns NO_ROAD_FOUND if none exists, causing immediate zone decay.
+//   2. tryDrive(): attempts a random walk along the road network for up to
+//      MAX_TRAFFIC_DISTANCE (30) steps, checking each adjacent tile with destFn
+//      (e.g. TileUtils.isCommercial) to detect arrival at a destination zone.
+//      Returns ROUTE_FOUND or NO_ROUTE_FOUND.
+//   3. addToTrafficDensityMap(): replays the recorded path and increments the
+//      traffic density value of each road tile by 50 (capped at 240). Dense
+//      roads (≥240) redirect the news-copter sprite.
+//
+// The traffic density map (blockMaps.trafficDensityMap) feeds into:
+//   - BlockMapUtils.pollutionTerrainLandValueScan() (heavy traffic = pollution)
+//   - Evaluation.getTrafficAverage() (for city score and advisory messages)
+//   - BlockMapUtils.neutraliseTrafficMap() (gradual decay each cycle)
+//
+// Return codes: Traffic.ROUTE_FOUND (1), Traffic.NO_ROUTE_FOUND (0),
+//               Traffic.NO_ROAD_FOUND (-1)
+// =============================================================================
+
 import { forEachCardinalDirection } from './direction.ts';
 import { MiscUtils } from './miscUtils.js';
 import { Position } from './position.ts';

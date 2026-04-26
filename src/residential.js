@@ -11,6 +11,32 @@
  *
  */
 
+// =============================================================================
+// SYSTEM: Residential Zone Growth
+// =============================================================================
+// Handles the evaluation and mutation of residential (R) zones during the
+// map scan. Residential zones go through these stages:
+//
+//   Empty zone (FREEZ) → individual houses → low-density block → … → high-density block
+//
+// On each encounter of a residential zone centre, residentialFound():
+//   1. Counts the zone and its population into the census.
+//   2. Probabilistically checks whether a road route to a commercial zone
+//      exists (via traffic.makeTraffic). No road → zone degrades.
+//   3. Computes a zoneScore = global resValve + local land/pollution score.
+//      Unpowered zones receive a −500 penalty.
+//   4. A stochastic grow/degrade decision is made using getRandom16Signed()
+//      against (zoneScore ± 26380), yielding roughly 9% grow and 10% degrade
+//      base probabilities when demand is neutral.
+//
+// Zone population tiers use tile offsets from RZB (see tileValues.ts).
+// lpValue (0-3) encodes the combined land-value / pollution desirability index.
+//
+// Hospitals are a special case: an empty residential zone may become a hospital
+// when demand (census.needHospital > 0) is present, and may degrade back if
+// demand disappears.
+// =============================================================================
+
 import { Config } from './config.js';
 import { Random } from './random.ts';
 import { Tile } from './tile.ts';

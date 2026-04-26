@@ -11,6 +11,32 @@
  *
  */
 
+// =============================================================================
+// SYSTEM: Main Simulation Loop
+// =============================================================================
+// Simulation is the top-level coordinator for every game-tick calculation.
+// It owns all subsystem objects (valves, census, powerManager, mapScanner,
+// traffic, budget, evaluation, spriteManager, disasterManager) and drives them
+// through a fixed 16-phase cycle on each call to _simFrame().
+//
+// Phase 0    – Advance city clock; recalculate demand valves every other cycle;
+//              clear the census counters ready for this cycle's map scan.
+// Phases 1-8 – Run the map scanner over 1/8 of the map width each phase,
+//              triggering zone growth/decay handlers for every tile.
+// Phase 9    – Every 4 ticks: record 10-cycle census snapshot.
+//              Every 40 ticks: record 120-cycle census snapshot.
+//              Every 48 ticks: collect tax and run the city evaluation.
+// Phase 10   – Decay rate-of-growth and traffic density maps;
+//              send advisory messages to the front-end (needs, warnings).
+// Phase 11   – Power grid scan (flood-fill from power plants).
+// Phase 12   – Pollution / terrain / land-value scan.
+// Phase 13   – Crime scan.
+// Phase 14   – Population density scan (also recomputes city centre).
+// Phase 15   – Fire-coverage analysis; trigger disasters.
+//
+// Entry point called externally: Simulation.prototype.simTick()
+// =============================================================================
+
 import { BlockMap } from './blockMap.ts';
 import { BlockMapUtils } from './blockMapUtils.js';
 import { Budget } from './budget.js';
@@ -314,6 +340,8 @@ var simulate = function(simData) {
   var speedIndex = this._speed - 1;
 
   switch (this._phaseCycle)  {
+    // Phase 0: Advance simulation clock, recalculate demand valves every other
+    // cycle, then wipe the census counters so this cycle's map scan starts fresh.
     case 0:
       if (++this._simCycle > 1023)
           this._simCycle = 0;
@@ -326,6 +354,9 @@ var simulate = function(simData) {
       this._clearCensus();
       break;
 
+    // Phases 1-8: Map scan – each phase covers 1/8 of the map's column range.
+    // Registered handlers (residential, commercial, industrial, road, power, etc.)
+    // are invoked for each matching tile, enabling zone growth and census counting.
     case 1:
     case 2:
     case 3:
@@ -338,6 +369,8 @@ var simulate = function(simData) {
                                 this._phaseCycle * this._map.width / 8, simData);
       break;
 
+    // Phase 9: Periodic census snapshots (10-cycle and 120-cycle history arrays).
+    // Tax collection and full city evaluation happen every 48 ticks.
     case 9:
       if (this._cityTime % CENSUS_FREQUENCY_10 === 0)
         this._census.take10Census(budget);
@@ -352,6 +385,8 @@ var simulate = function(simData) {
 
       break;
 
+    // Phase 10: Gradually decay the rate-of-growth and traffic density maps
+    // toward zero (stable state), then dispatch advisory front-end messages.
     case 10:
       if ((this._simCycle % 5) === 0)
         BlockMapUtils.neutraliseRateOfGrowthMap(simData.blockMaps);
@@ -360,26 +395,35 @@ var simulate = function(simData) {
       this._sendMessages();
       break;
 
+    // Phase 11: Flood-fill power from coal/nuclear plants through conductive tiles.
     case 11:
       if ((this._simCycle % speedPowerScan[speedIndex]) === 0)
         this._powerManager.doPowerScan(this._census);
       break;
 
+    // Phase 12: Recompute pollution density, terrain desirability, and land value
+    // maps. Pollution sources are smoothed across neighbours.
     case 12:
       if ((this._simCycle % speedPollutionTerrainLandValueScan[speedIndex]) === 0)
         BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps);
       break;
 
+    // Phase 13: Recompute crime rate map using land value, population density,
+    // and police station coverage.
     case 13:
       if ((this._simCycle % speedCrimeScan[speedIndex]) === 0)
         BlockMapUtils.crimeScan(this._census, this.blockMaps);
       break;
 
+    // Phase 14: Recompute population density map and recalculate the city centre
+    // location (used for commercial zone scoring).
     case 14:
       if ((this._simCycle % speedPopulationDensityScan[speedIndex]) === 0)
         BlockMapUtils.populationDensityScan(this._map, this.blockMaps);
       break;
 
+    // Phase 15: Propagate fire-station coverage via smoothing, then give the
+    // disaster manager a chance to trigger a random event.
     case 15:
       if ((this._simCycle % speedFireAnalysis[speedIndex]) === 0)
         BlockMapUtils.fireAnalysis(this.blockMaps);

@@ -11,6 +11,35 @@
  *
  */
 
+// =============================================================================
+// SYSTEM: City Evaluation & Score
+// =============================================================================
+// Evaluation computes the single 0-1000 cityScore that represents overall
+// city health, and tracks which problems citizens care about most. It runs
+// every TAX_FREQUENCY (48) ticks during simulation phase 9.
+//
+// cityEvaluation(simData) orchestrates:
+//   getAssessedValue()  – dollar value of all city infrastructure
+//   getPopulation()     – derives cityPop from census counts; emits
+//                         POPULATION_UPDATED if changed
+//   getCityClass()      – classifies city as Village/Town/City/Capital/
+//                         Metropolis/Megalopolis by population thresholds
+//   doProblems()        – collects seven problem scores (crime, pollution,
+//                         housing cost, tax rate, traffic, unemployment, fire),
+//                         then simulates 100 voter opinion polls via
+//                         voteProblems(), ranking which problems matter most
+//   getScore()          – computes a composite 0-1000 score from the problem
+//                         totals, adjusted by population growth momentum,
+//                         demand-cap penalties, service-funding ratios, and
+//                         the powered-zone ratio. New score is averaged with
+//                         the previous score for smoothing.
+//   doVotes()           – derives cityYes (mayoral approval 0-100) by sampling
+//                         100 voters against the current cityScore.
+//
+// The top-4 ranked problems (problemOrder) and city class are exposed to the
+// front-end via the evaluation window and advisory messages.
+// =============================================================================
+
 import { EventEmitter } from './eventEmitter.js';
 import { CLASSIFICATION_UPDATED, POPULATION_UPDATED, SCORE_UPDATED } from './messages.ts';
 import { MiscUtils } from './miscUtils.js';

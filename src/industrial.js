@@ -11,6 +11,32 @@
  *
  */
 
+// =============================================================================
+// SYSTEM: Industrial Zone Growth
+// =============================================================================
+// Handles the evaluation and mutation of industrial (I) zones during the map
+// scan. Industrial zones have 4 population levels and 2 value grades, giving
+// 8 distinct developed variants plus the empty zone (INDCLR).
+//
+// On each encounter of an industrial zone centre, industrialFound():
+//   1. Counts the zone and its population into the census.
+//   2. Sets or clears the animation flag on the relevant sub-tile (powered
+//      industrial zones display a smokestack animation).
+//   3. Probabilistically checks for a road route to a residential zone
+//      (factories need workers). No road → zone degrades.
+//   4. Computes a zoneScore = global indValve (no city-centre adjustment;
+//      industry is location-agnostic). Unpowered zones get −500.
+//   5. A stochastic grow/degrade decision is made with ~2.9% grow and ~9%
+//      degrade base rates at neutral demand.
+//
+// Unlike residential and commercial, the value category for new/degraded
+// industrial zones is chosen randomly (Random.getRandom16() & 1).
+//
+// Zone tile indices are computed from IZB (see tileValues.ts).
+//
+// External market demand is factored in via Valves.setValves(), not here.
+// =============================================================================
+
 import { Random } from './random.ts';
 import { ANIMBIT, ASCBIT, BNCNBIT } from "./tileFlags.ts";
 import { TileUtils } from './tileUtils.js';

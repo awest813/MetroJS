@@ -11,6 +11,30 @@
  *
  */
 
+// =============================================================================
+// SYSTEM: Power Grid
+// =============================================================================
+// PowerManager maintains the electrical grid by flood-filling conductivity
+// from coal and nuclear power plants outward through all conductive tiles.
+//
+// How it works (phase 11 of the simulation cycle):
+//   1. During the map scan (phases 1-8), coalPowerFound() and
+//      nuclearPowerFound() are called for each power-plant tile they encounter.
+//      Each call adds the plant's position to _powerStack and increments the
+//      corresponding census counter (coalPowerPop / nuclearPowerPop).
+//   2. doPowerScan() then BFS-floods from every stacked plant position:
+//      - Each step consumes one unit of power from the total capacity
+//        (coal plants provide 700 units, nuclear 2000).
+//      - When capacity is exhausted, NOT_ENOUGH_POWER is emitted.
+//      - The flood marks visited tiles in powerGridMap (a BlockMap).
+//   3. setTilePower() is called during the map scan for every conductive tile;
+//      it sets or clears the POWERBIT flag based on whether the tile's block
+//      appears in the powerGridMap from the *previous* cycle's flood-fill.
+//
+// Known limitation: two adjacent power plants treat the second as a consumer
+// rather than a source (original Micropolis bug, preserved here).
+// =============================================================================
+
 import { BlockMap } from './blockMap.ts';
 import { forEachCardinalDirection } from './direction.ts';
 import { EventEmitter } from './eventEmitter.js';

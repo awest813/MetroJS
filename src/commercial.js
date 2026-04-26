@@ -11,6 +11,28 @@
  *
  */
 
+// =============================================================================
+// SYSTEM: Commercial Zone Growth
+// =============================================================================
+// Handles the evaluation and mutation of commercial (C) zones during the map
+// scan. Commercial zones have 5 population levels and 4 land-value grades,
+// giving 20 distinct developed variants plus the empty zone (COMCLR).
+//
+// On each encounter of a commercial zone centre, commercialFound():
+//   1. Counts the zone and its population into the census.
+//   2. Probabilistically checks for a road route to an industrial zone
+//      (commerce needs workers). No road → zone degrades.
+//   3. Computes a zoneScore = global comValve + city-centre distance score.
+//      Unpowered zones receive a −500 penalty.
+//      Unlike residential, commercial zones also benefit from proximity to the
+//      city centre (cityCentreDistScoreMap, range −64 to +64).
+//   4. A stochastic grow/degrade decision is made identically to residential,
+//      yielding ~3% grow and ~10% degrade base rates at neutral demand.
+//
+// Zone tile indices are computed from CZB (see tileValues.ts).
+// lpValue (0-3) encodes the combined land-value / pollution desirability index.
+// =============================================================================
+
 import { Random } from './random.ts';
 import { TileUtils } from './tileUtils.js';
 import { COMCLR, CZB } from "./tileValues.ts";

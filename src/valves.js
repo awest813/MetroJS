@@ -11,6 +11,29 @@
  *
  */
 
+// =============================================================================
+// SYSTEM: Demand Valves (Zone Growth Throttle)
+// =============================================================================
+// Valves holds three signed integers – resValve, comValve, indValve – whose
+// magnitude and sign control whether residential, commercial, and industrial
+// zones should currently grow (+) or shrink (-).
+//
+// setValves() is called every other simulation cycle (phase 0). It:
+//   1. Derives a "projected population" from the existing census figures,
+//      birth rate, and employment ratio (com + ind jobs vs. res workers).
+//   2. Projects commercial and industrial needs from the internal market size
+//      and an external market factor that varies by difficulty level.
+//   3. Converts each projection into a ratio and applies a penalty from the
+//      tax table (higher tax = lower growth). The resulting delta is added to
+//      the current valve, clamped to ±RES/COM/IND_VALVE_RANGE.
+//   4. Hard-zeros a valve if the corresponding cap flag is set (e.g. resCap is
+//      set when the city needs a stadium to support further residential growth).
+//
+// Downstream: the zone-growth handlers in residential.js, commercial.js, and
+// industrial.js read simData.valves.resValve / comValve / indValve to decide
+// whether to grow or shrink each zone they encounter during the map scan.
+// =============================================================================
+
 import { EventEmitter } from './eventEmitter.js';
 import { VALVES_UPDATED } from './messages.ts';
 import { MiscUtils } from './miscUtils.js';

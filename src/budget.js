@@ -11,6 +11,37 @@
  *
  */
 
+// =============================================================================
+// SYSTEM: Budget & Tax
+// =============================================================================
+// Budget manages the city's finances: tax collection, service spending, and
+// the funding-effect levels that drive infrastructure degradation.
+//
+// collectTax(gameLevel, census)  – called every TAX_FREQUENCY (48) ticks:
+//   Computes the full-funding cost for roads/rail, fire stations, and police
+//   stations from the census tile counts. Tax revenue is calculated as:
+//     floor(totalPop × landValueAverage / 120) × cityTax × FLevels[gameLevel]
+//   where FLevels[] makes tax more or less efficient by difficulty.
+//   Road costs are scaled by RLevels[] (easier levels pay less per tile).
+//   After computing revenue, calls doBudgetNow() to allocate spending.
+//
+// doBudgetNow() / _calculateBestPercentages()
+//   Distributes available funds in priority order (road > fire > police),
+//   updating *Percent values to reflect what can actually be afforded.
+//   If autoBudget is off and funds run short, emits BUDGET_NEEDED so the
+//   front-end can show the budget window.
+//
+// updateFundEffects()
+//   Converts the *Percent spend ratios into *Effect integers that subsystems
+//   use to determine service quality:
+//     roadEffect   (0-32)   – affects road tile deterioration speed
+//     policeEffect (0-1000) – used by EmergencyServices to score police coverage
+//     fireEffect   (0-1000) – used by EmergencyServices to score fire coverage
+//
+// shouldDegradeRoad() returns true when roadEffect is below 15/16 of maximum,
+// signalling that road tiles should deteriorate during the map scan.
+// =============================================================================
+
 import { EventEmitter } from './eventEmitter.js';
 import * as Messages from './messages.ts';
 import { MiscUtils } from './miscUtils.js';

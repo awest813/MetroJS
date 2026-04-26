@@ -11,6 +11,28 @@
  *
  */
 
+// =============================================================================
+// SYSTEM: Emergency Services (Police & Fire Stations)
+// =============================================================================
+// EmergencyServices registers map-scan handlers for police station and fire
+// station tiles. When the scanner visits one of these tiles it:
+//   1. Increments the relevant census counter (policeStationPop / fireStationPop).
+//   2. Looks up the current budget effect level (policeEffect / fireEffect),
+//      which reflects how well-funded the service is.
+//   3. Halves the effect if the building is unpowered.
+//   4. Halves the effect again if not connected to the road network.
+//   5. Accumulates the resulting effect value into the corresponding block-map
+//      (policeStationMap / fireStationMap).
+//
+// After the scan, BlockMapUtils.crimeScan() reads policeStationMap and spreads
+// it via smoothing to produce policeStationEffectMap, which is then subtracted
+// from the crime score of each neighbourhood. Likewise, BlockMapUtils.
+// fireAnalysis() spreads fireStationMap to form fireStationEffectMap, which
+// represents fire protection coverage.
+//
+// Budget effects are updated each tax period by Budget.updateFundEffects().
+// =============================================================================
+
 import { Position } from './position.ts';
 import { FIRESTATION, POLICESTATION } from "./tileValues.ts";
 
