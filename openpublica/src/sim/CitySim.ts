@@ -4,6 +4,7 @@
 import { CityMap } from './CityMap';
 import { CityTile, RoadType, ZoneType } from './CityTile';
 import { SimulationClock } from './SimulationClock';
+import { ZoneGrowthSystem } from './ZoneGrowthSystem';
 
 /** Aggregate statistics for the city, updated each tick. */
 export interface CityStats {
@@ -27,20 +28,28 @@ export interface CityStats {
  *   sim.tick(1);
  */
 export class CitySim {
-  readonly map:   CityMap;
-  readonly clock: SimulationClock;
-  readonly stats: CityStats;
+  readonly map:    CityMap;
+  readonly clock:  SimulationClock;
+  readonly stats:  CityStats;
+  readonly growth: ZoneGrowthSystem;
+
+  /**
+   * Called after each monthly growth tick with the list of tiles that received a
+   * new building.  Wire this up in App.ts to refresh the renderer.
+   */
+  onGrowth: ((changed: ReadonlyArray<{ x: number; y: number }>) => void) | null = null;
 
   private constructor(map: CityMap) {
-    this.map   = map;
-    this.clock = new SimulationClock();
-    this.stats = {
+    this.map    = map;
+    this.clock  = new SimulationClock();
+    this.growth = new ZoneGrowthSystem();
+    this.stats  = {
       population:        0,
       jobs:              0,
       money:             10_000,
       residentialDemand: 0,
       commercialDemand:  0,
-      industrialDemand:  0,
+      industrialDemand:  20, // industrial starts with a modest positive demand
     };
   }
 
@@ -101,9 +110,16 @@ export class CitySim {
 
   // ── Time ──────────────────────────────────────────────────────────────────
 
-  /** Advance the simulation by deltaSeconds. Full growth simulation is a future concern. */
+  /** Advance the simulation by deltaSeconds, running growth once per simulated month. */
   tick(deltaSeconds: number): void {
     this.clock.tick(deltaSeconds);
+
+    const changedTiles: Array<{ x: number; y: number }> = [];
+    this.growth.tick(deltaSeconds, this.map, this.stats, changedTiles);
+
+    if (changedTiles.length > 0 && this.onGrowth) {
+      this.onGrowth(changedTiles);
+    }
   }
 }
 

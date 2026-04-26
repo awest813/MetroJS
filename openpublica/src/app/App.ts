@@ -53,7 +53,7 @@ export class App {
     allTools.slice(1).forEach((t) => toolController.register(t));
 
     // ── Babylon.js renderer ──────────────────────────────────────────────────
-    const { scene } = createScene(canvas);
+    const { scene, engine } = createScene(canvas);
 
     const terrain   = new TerrainRenderer(scene);
     terrain.buildCityGrid(sim.map);
@@ -67,6 +67,19 @@ export class App {
       if (tile) terrain.updateCityTile(tile);
     });
 
+    // ── Growth system updates renderer when buildings appear ─────────────────
+    sim.onGrowth = (changed) => {
+      for (const coord of changed) {
+        const tile = sim.getTile(coord.x, coord.y);
+        if (tile) terrain.updateCityTile(tile);
+      }
+    };
+
+    // ── Advance the simulation clock every rendered frame ────────────────────
+    scene.onBeforeRenderObservable.add(() => {
+      sim.tick(engine.getDeltaTime() / 1000);
+    });
+
     // ── Wire interactions ────────────────────────────────────────────────────
     picker.onPick((coord) => {
       toolController.applyToTile(coord, sim);
@@ -76,6 +89,7 @@ export class App {
       statusEl.textContent =
         `Tile (${coord.x}, ${coord.y})  ·  Tool: ${toolController.activeTool.label}` +
         `  ·  $${sim.stats.money.toLocaleString()}` +
+        `  ·  Pop: ${sim.stats.population}  Jobs: ${sim.stats.jobs}` +
         (tile ? `  ·  zone=${tile.zoneType} road=${tile.roadType}` : '');
     });
 
