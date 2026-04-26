@@ -108,7 +108,7 @@ export class ZoneGrowthSystem {
 
     // Update power coverage before recalculating stats so that newly grown
     // buildings and the current power plant layout are both reflected.
-    this._power.tick(map, this.buildings, this._defs);
+    this._power.tick(map, this.buildings, this.defs);
 
     this._recalcStats(stats, map);
     this._economy.tick(map, this.buildings, this._defs, stats);
