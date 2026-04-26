@@ -1,14 +1,23 @@
 import type { Tool } from './Tool';
 import type { TileCoord } from '../data/types';
-import type { GameMap } from '../sim/GameMap';
-import { TileType } from '../data/tileTypes';
+import type { CitySim } from '../sim/CitySim';
 
-/** Clears a tile back to bulldozed (bare) ground. */
+/** Cost in city funds to bulldoze one tile. */
+export const BULLDOZE_COST = 1;
+
+/** Clears the road, zone, and building from a tile. */
 export class BulldozeTool implements Tool {
   readonly name = 'bulldoze';
   readonly label = '🚧 Bulldoze';
 
-  onTileClick(coord: TileCoord, map: GameMap): void {
-    map.setTileType(coord.x, coord.y, TileType.Bulldozed);
+  apply(coord: TileCoord, sim: CitySim): boolean {
+    if (!sim.deductMoney(BULLDOZE_COST)) {
+      console.warn(
+        `[Bulldoze] Insufficient funds (need $${BULLDOZE_COST}, have $${sim.stats.money})`,
+      );
+      return false;
+    }
+    sim.bulldoze(coord.x, coord.y);
+    return true;
   }
 }

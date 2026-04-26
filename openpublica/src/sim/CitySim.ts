@@ -82,6 +82,23 @@ export class CitySim {
     }
   }
 
+  // ── Economy ───────────────────────────────────────────────────────────────
+
+  /** Returns true if the city treasury has at least `amount`. */
+  canAfford(amount: number): boolean {
+    return this.stats.money >= amount;
+  }
+
+  /**
+   * Deducts `amount` from the city treasury.
+   * Does nothing (and returns false) when funds are insufficient.
+   */
+  deductMoney(amount: number): boolean {
+    if (!this.canAfford(amount)) return false;
+    this.stats.money -= amount;
+    return true;
+  }
+
   // ── Time ──────────────────────────────────────────────────────────────────
 
   /** Advance the simulation by deltaSeconds. Full growth simulation is a future concern. */

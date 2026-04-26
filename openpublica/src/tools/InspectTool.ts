@@ -1,16 +1,24 @@
 import type { Tool } from './Tool';
 import type { TileCoord } from '../data/types';
-import type { GameMap } from '../sim/GameMap';
+import type { CitySim } from '../sim/CitySim';
 
-/** Shows tile information in the console.  Does not modify the map. */
+/** Reads and displays tile information. Does not modify the map. */
 export class InspectTool implements Tool {
   readonly name = 'inspect';
   readonly label = '🔍 Inspect';
 
-  onTileClick(coord: TileCoord, map: GameMap): void {
-    const tile = map.getTile(coord.x, coord.y);
+  apply(coord: TileCoord, sim: CitySim): boolean {
+    const tile = sim.getTile(coord.x, coord.y);
     if (tile) {
-      console.info(`[Inspect] Tile (${tile.x}, ${tile.y}): type=${tile.type}`);
+      console.info(
+        `[Inspect] (${tile.x}, ${tile.y}) ` +
+        `terrain=${tile.terrain} road=${tile.roadType} zone=${tile.zoneType} ` +
+        `building=${tile.buildingId ?? 'none'} ` +
+        `powered=${tile.powered} watered=${tile.watered} ` +
+        `landValue=${tile.landValue} pollution=${tile.pollution} ` +
+        `traffic=${tile.trafficPressure}`,
+      );
     }
+    return false; // inspect never mutates
   }
 }
