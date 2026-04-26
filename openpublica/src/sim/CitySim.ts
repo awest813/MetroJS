@@ -88,6 +88,7 @@ export class CitySim {
       tile.roadType   = RoadType.None;
       tile.zoneType   = ZoneType.None;
       tile.buildingId = null;
+      this.growth.removeAt(x, y);
     }
   }
 

@@ -1,5 +1,6 @@
 import { createScene } from '../render/SceneSetup';
 import { TerrainRenderer } from '../render/TerrainRenderer';
+import { BuildingRenderer } from '../render/BuildingRenderer';
 import { TilePicker } from '../render/TilePicker';
 import { HighlightRenderer } from '../render/HighlightRenderer';
 import { CitySim } from '../sim/CitySim';
@@ -58,20 +59,35 @@ export class App {
     const terrain   = new TerrainRenderer(scene);
     terrain.buildCityGrid(sim.map);
 
+    const buildings = new BuildingRenderer(scene);
     const highlight = new HighlightRenderer(scene);
     const picker    = new TilePicker(scene);
 
     // ── Renderer reacts to tile mutations via ToolController callback ─────────
     toolController.onTileChanged((coord) => {
       const tile = sim.getTile(coord.x, coord.y);
-      if (tile) terrain.updateCityTile(tile);
+      if (tile) {
+        terrain.updateCityTile(tile);
+        // If the tile no longer has a building (e.g. bulldozed), remove its mesh.
+        if (tile.buildingId === null) {
+          buildings.removeBuilding(coord.x, coord.y);
+        }
+      }
     });
 
     // ── Growth system updates renderer when buildings appear ─────────────────
     sim.onGrowth = (changed) => {
       for (const coord of changed) {
         const tile = sim.getTile(coord.x, coord.y);
-        if (tile) terrain.updateCityTile(tile);
+        if (tile) {
+          terrain.updateCityTile(tile);
+          if (tile.buildingId !== null) {
+            const instance = sim.growth.buildings.get(`${coord.x},${coord.y}`);
+            if (instance) {
+              buildings.addBuilding(instance, tile.zoneType);
+            }
+          }
+        }
       }
     };
 
@@ -85,12 +101,20 @@ export class App {
       toolController.applyToTile(coord, sim);
       highlight.show(coord);
 
-      const tile = sim.getTile(coord.x, coord.y);
-      statusEl.textContent =
-        `Tile (${coord.x}, ${coord.y})  ·  Tool: ${toolController.activeTool.label}` +
+      const tile    = sim.getTile(coord.x, coord.y);
+      const pickData = buildings.selectBuilding(coord.x, coord.y);
+
+      let info = `Tile (${coord.x}, ${coord.y})  ·  Tool: ${toolController.activeTool.label}` +
         `  ·  $${sim.stats.money.toLocaleString()}` +
-        `  ·  Pop: ${sim.stats.population}  Jobs: ${sim.stats.jobs}` +
-        (tile ? `  ·  zone=${tile.zoneType} road=${tile.roadType}` : '');
+        `  ·  Pop: ${sim.stats.population}  Jobs: ${sim.stats.jobs}`;
+
+      if (pickData) {
+        info += `  ·  Building: ${pickData.buildingId}`;
+      } else if (tile) {
+        info += `  ·  zone=${tile.zoneType} road=${tile.roadType}`;
+      }
+
+      statusEl.textContent = info;
     });
 
     picker.onDragEnd(() => toolController.resetDrag());

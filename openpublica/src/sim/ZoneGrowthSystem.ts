@@ -56,6 +56,15 @@ export class ZoneGrowthSystem {
   }
 
   /**
+   * Remove the building instance at (x, y) from the registry.
+   * Call this from CitySim.bulldoze() to keep the registry consistent.
+   * Returns true if a building was found and removed.
+   */
+  removeAt(x: number, y: number): boolean {
+    return this.buildings.delete(tileKey(x, y));
+  }
+
+  /**
    * Called every simulation tick.
    * Returns an array of tile keys whose appearance changed (building placed),
    * so callers can trigger render updates.
