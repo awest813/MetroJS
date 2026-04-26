@@ -28,6 +28,7 @@ import { ToolController } from '../tools/ToolController';
 import { Toolbar } from '../ui/Toolbar';
 import { CityHUD } from '../ui/CityHUD';
 import { BudgetPanel } from '../ui/BudgetPanel';
+import { SaveSystem } from '../save/SaveSystem';
 
 /**
  * Top-level application coordinator.
@@ -109,6 +110,29 @@ export class App {
         buildings.updatePowerState(tile.x, tile.y, tile.powered);
       });
       powerOverlay.refresh(sim.map);
+    };
+
+    // ── Helper: rebuild all renderers from current sim state (used after load) ─
+    const rebuildAllRenderers = () => {
+      // Rebuild terrain mesh (disposes old mesh internally).
+      terrain.buildCityGrid(sim.map);
+
+      // Remove all existing building meshes then re-add from restored sim state.
+      sim.map.forEach((tile) => buildings.removeBuilding(tile.x, tile.y));
+      for (const instance of sim.growth.buildings.values()) {
+        const tile = sim.getTile(instance.x, instance.y);
+        if (tile) buildings.addBuilding(instance, tile.zoneType);
+      }
+
+      // Refresh power visuals (coverage data may have changed).
+      refreshPowerVisuals();
+
+      // Refresh all overlay renderers from fresh tile data.
+      landValueOverlay.refresh(sim.map);
+      trafficOverlay.refresh(sim.map);
+      walkabilityOverlay.refresh(sim.map);
+      transitOverlay.refresh(sim.map);
+      decorativeCars.refresh(sim.map);
     };
 
     // ── Renderer reacts to tile mutations via ToolController callback ─────────
@@ -268,6 +292,42 @@ export class App {
     });
     toolbarEl.appendChild(transitOverlayBtn);
 
+    // ── Save / Load / New City buttons ───────────────────────────────────────
+    const saveBtn = document.createElement('button');
+    saveBtn.id          = 'save-btn';
+    saveBtn.textContent = '💾 Save';
+    saveBtn.addEventListener('click', () => {
+      SaveSystem.save(sim);
+      statusEl.textContent = 'City saved.';
+    });
+    toolbarEl.appendChild(saveBtn);
+
+    const loadBtn = document.createElement('button');
+    loadBtn.id          = 'load-btn';
+    loadBtn.textContent = '📂 Load';
+    loadBtn.addEventListener('click', () => {
+      const ok = SaveSystem.load(sim);
+      if (ok) {
+        rebuildAllRenderers();
+        hud.update(sim.stats, sim.clock);
+        budgetPanel.update(sim.stats);
+        statusEl.textContent = 'City loaded.';
+      } else {
+        statusEl.textContent = 'No save found.';
+      }
+    });
+    toolbarEl.appendChild(loadBtn);
+
+    const newCityBtn = document.createElement('button');
+    newCityBtn.id          = 'new-city-btn';
+    newCityBtn.textContent = '🌱 New City';
+    newCityBtn.addEventListener('click', () => {
+      if (!confirm('Start a new city? Unsaved progress will be lost.')) return;
+      SaveSystem.deleteSave();
+      window.location.reload();
+    });
+    toolbarEl.appendChild(newCityBtn);
+
     // ── City HUD ─────────────────────────────────────────────────────────────
     const hud = new CityHUD(hudEl);
     hud.update(sim.stats, sim.clock);
@@ -288,4 +348,3 @@ export class App {
     }, 1000);
   }
 }
-

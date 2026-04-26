@@ -40,6 +40,17 @@ export class SimulationClock {
     return this._ticks;
   }
 
+  /**
+   * Restore the clock to a previously saved point in time.
+   * Called by SaveCodec when loading a city.
+   * The tick counter is reset to zero because frame counts are not meaningful
+   * across sessions.
+   */
+  restore(totalSeconds: number): void {
+    this._totalSeconds = totalSeconds;
+    this._ticks        = 0;
+  }
+
   /** Total number of simulated months elapsed. */
   get monthsPassed(): number {
     return Math.floor(this._totalSeconds / MONTH_SECONDS);
