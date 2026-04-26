@@ -3,6 +3,8 @@ import { TerrainRenderer } from '../render/TerrainRenderer';
 import { BuildingRenderer } from '../render/BuildingRenderer';
 import { PowerOverlayRenderer } from '../render/PowerOverlayRenderer';
 import { LandValueOverlayRenderer } from '../render/LandValueOverlayRenderer';
+import { TrafficOverlayRenderer } from '../render/TrafficOverlayRenderer';
+import { DecorativeCarRenderer } from '../render/DecorativeCarRenderer';
 import { TilePicker } from '../render/TilePicker';
 import { HighlightRenderer } from '../render/HighlightRenderer';
 import { CitySim } from '../sim/CitySim';
@@ -82,6 +84,9 @@ export class App {
     powerOverlay.build(sim.map);
     const landValueOverlay = new LandValueOverlayRenderer(scene);
     landValueOverlay.build(sim.map);
+    const trafficOverlay = new TrafficOverlayRenderer(scene);
+    trafficOverlay.build(sim.map);
+    const decorativeCars = new DecorativeCarRenderer(scene);
 
     const highlight = new HighlightRenderer(scene);
     const picker    = new TilePicker(scene);
@@ -136,6 +141,12 @@ export class App {
     // ── Land value system fires when values change (monthly or on park placement)
     sim.onLandValueChanged = () => {
       if (landValueOverlay.isVisible) landValueOverlay.refresh(sim.map);
+    };
+
+    // ── Traffic system fires monthly when pressure is recalculated ────────────
+    sim.onTrafficChanged = () => {
+      if (trafficOverlay.isVisible) trafficOverlay.refresh(sim.map);
+      decorativeCars.refresh(sim.map);
     };
 
     // ── Advance the simulation clock every rendered frame ────────────────────
@@ -195,6 +206,19 @@ export class App {
       if (next) landValueOverlay.refresh(sim.map);
     });
     toolbarEl.appendChild(lvOverlayBtn);
+
+    // Traffic overlay toggle button.
+    const trafficOverlayBtn = document.createElement('button');
+    trafficOverlayBtn.id          = 'traffic-overlay-btn';
+    trafficOverlayBtn.textContent = '🚗 Traffic: OFF';
+    trafficOverlayBtn.addEventListener('click', () => {
+      const next = !trafficOverlay.isVisible;
+      trafficOverlay.setVisible(next);
+      trafficOverlayBtn.textContent = `🚗 Traffic: ${next ? 'ON' : 'OFF'}`;
+      trafficOverlayBtn.classList.toggle('active', next);
+      if (next) trafficOverlay.refresh(sim.map);
+    });
+    toolbarEl.appendChild(trafficOverlayBtn);
 
     // ── City HUD ─────────────────────────────────────────────────────────────
     const hud = new CityHUD(hudEl);

@@ -36,6 +36,8 @@ export interface ICityTile {
   landValue:       number;
   pollution:       number;
   trafficPressure: number;
+  /** Noise level [0–100] derived from traffic pressure by TrafficPressureSystem. */
+  noise:           number;
 }
 
 /** Mutable tile used by the simulation engine. */
@@ -51,6 +53,7 @@ export class CityTile implements ICityTile {
   landValue:       number;
   pollution:       number;
   trafficPressure: number;
+  noise:           number;
 
   constructor(x: number, y: number) {
     this.x               = x;
@@ -64,5 +67,6 @@ export class CityTile implements ICityTile {
     this.landValue       = 50; // neutral baseline until LandValueSystem first runs
     this.pollution       = 0;
     this.trafficPressure = 0;
+    this.noise           = 0;
   }
 }

@@ -11,10 +11,11 @@ export class CityHUD {
   private readonly _root: HTMLElement;
 
   // Status fields
-  private readonly _money:  HTMLElement;
-  private readonly _pop:    HTMLElement;
-  private readonly _jobs:   HTMLElement;
-  private readonly _date:   HTMLElement;
+  private readonly _money:     HTMLElement;
+  private readonly _pop:       HTMLElement;
+  private readonly _jobs:      HTMLElement;
+  private readonly _date:      HTMLElement;
+  private readonly _happiness: HTMLElement;
 
   // Demand bar fills
   private readonly _resFill: HTMLElement;
@@ -37,6 +38,8 @@ export class CityHUD {
         <span class="hud-item" id="hud-jobs">💼 Jobs: 0</span>
         <span class="hud-sep">|</span>
         <span class="hud-item" id="hud-date">📅 Jan 2000</span>
+        <span class="hud-sep">|</span>
+        <span class="hud-item" id="hud-happiness">😊 Happiness: 100</span>
       </div>
       <div id="hud-demand">
         <div class="demand-row">
@@ -63,10 +66,11 @@ export class CityHUD {
       </div>
     `;
 
-    this._money    = this._root.querySelector('#hud-money')!;
-    this._pop      = this._root.querySelector('#hud-pop')!;
-    this._jobs     = this._root.querySelector('#hud-jobs')!;
-    this._date     = this._root.querySelector('#hud-date')!;
+    this._money     = this._root.querySelector('#hud-money')!;
+    this._pop       = this._root.querySelector('#hud-pop')!;
+    this._jobs      = this._root.querySelector('#hud-jobs')!;
+    this._date      = this._root.querySelector('#hud-date')!;
+    this._happiness = this._root.querySelector('#hud-happiness')!;
     this._resFill  = this._root.querySelector('#hud-res-fill')!;
     this._comFill  = this._root.querySelector('#hud-com-fill')!;
     this._indFill  = this._root.querySelector('#hud-ind-fill')!;
@@ -82,9 +86,11 @@ export class CityHUD {
       ? `${moneyStr} ⚠️ BANKRUPT`
       : moneyStr;
     this._money.classList.toggle('hud-money-warning', stats.bankruptcyWarning);
-    this._pop.textContent   = `👥 Pop: ${stats.population.toLocaleString()}`;
-    this._jobs.textContent  = `💼 Jobs: ${stats.jobs.toLocaleString()}`;
-    this._date.textContent  = `📅 ${clock.monthName} ${clock.year}`;
+    this._pop.textContent       = `👥 Pop: ${stats.population.toLocaleString()}`;
+    this._jobs.textContent      = `💼 Jobs: ${stats.jobs.toLocaleString()}`;
+    this._date.textContent      = `📅 ${clock.monthName} ${clock.year}`;
+    const happinessEmoji        = stats.happiness >= 70 ? '😊' : stats.happiness >= 40 ? '😐' : '😞';
+    this._happiness.textContent = `${happinessEmoji} Happiness: ${stats.happiness}`;
 
     this._setBar(this._resFill, this._resLabel, stats.residentialDemand);
     this._setBar(this._comFill, this._comLabel, stats.commercialDemand);

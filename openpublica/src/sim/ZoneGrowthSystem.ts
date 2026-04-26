@@ -12,6 +12,7 @@ import { MONTH_SECONDS } from '../data/constants';
 import { EconomySystem } from './EconomySystem';
 import { PowerSystem } from './PowerSystem';
 import { LandValueSystem } from './LandValueSystem';
+import { TrafficPressureSystem } from './TrafficPressureSystem';
 
 /** Maximum demand value (clamps residentialDemand, commercialDemand, industrialDemand). */
 const MAX_DEMAND = 100;
@@ -62,9 +63,13 @@ export class ZoneGrowthSystem {
   /** Land value system — injected from CitySim so both share the same instance. */
   private readonly _landValue: LandValueSystem;
 
-  constructor(power: PowerSystem, landValue: LandValueSystem) {
+  /** Traffic pressure system — injected from CitySim so both share the same instance. */
+  private readonly _traffic: TrafficPressureSystem;
+
+  constructor(power: PowerSystem, landValue: LandValueSystem, traffic: TrafficPressureSystem) {
     this._power      = power;
     this._landValue  = landValue;
+    this._traffic    = traffic;
     this._defs      = new Map(BUILDING_DEFS.map((d) => [d.id, d]));
     this._defsByZone = new Map<ZoneType, BuildingDef[]>();
     for (const def of BUILDING_DEFS) {
@@ -120,6 +125,10 @@ export class ZoneGrowthSystem {
 
     this._recalcStats(stats, map);
     this._economy.tick(map, this.buildings, this._defs, stats);
+
+    // Traffic pressure is recalculated last so it reflects the freshest
+    // building layout and populates tile.trafficPressure / tile.noise.
+    this._traffic.tick(map, this.buildings, this.defs, stats);
 
     return true;
   }

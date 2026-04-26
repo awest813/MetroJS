@@ -7,6 +7,7 @@ import { SimulationClock } from './SimulationClock';
 import { ZoneGrowthSystem } from './ZoneGrowthSystem';
 import { PowerSystem } from './PowerSystem';
 import { LandValueSystem } from './LandValueSystem';
+import { TrafficPressureSystem } from './TrafficPressureSystem';
 import { tileKey } from './ZoneGrowthSystem';
 
 /** Aggregate statistics for the city, updated each tick. */
@@ -29,6 +30,11 @@ export interface CityStats {
   monthlyExpenses:   number;
   /** True whenever the city treasury is negative. */
   bankruptcyWarning: boolean;
+  /**
+   * City-wide happiness [0–100].  Starts at 100 and is reduced by
+   * TrafficPressureSystem when many road tiles carry extreme traffic pressure.
+   */
+  happiness: number;
 }
 
 /**
@@ -49,6 +55,7 @@ export class CitySim {
   readonly growth:    ZoneGrowthSystem;
   readonly power:     PowerSystem;
   readonly landValue: LandValueSystem;
+  readonly traffic:   TrafficPressureSystem;
 
   /**
    * Called after each monthly growth tick with the list of tiles that received a
@@ -70,12 +77,19 @@ export class CitySim {
    */
   onLandValueChanged: (() => void) | null = null;
 
+  /**
+   * Called after traffic pressure is recalculated each month.
+   * Wire this up in App.ts to refresh the traffic overlay and decorative cars.
+   */
+  onTrafficChanged: (() => void) | null = null;
+
   private constructor(map: CityMap) {
     this.map        = map;
     this.clock      = new SimulationClock();
     this.power      = new PowerSystem();
     this.landValue  = new LandValueSystem();
-    this.growth     = new ZoneGrowthSystem(this.power, this.landValue);
+    this.traffic    = new TrafficPressureSystem();
+    this.growth     = new ZoneGrowthSystem(this.power, this.landValue, this.traffic);
     this.stats  = {
       population:        0,
       jobs:              0,
@@ -89,6 +103,7 @@ export class CitySim {
       monthlyIncome:     0,
       monthlyExpenses:   0,
       bankruptcyWarning: false,
+      happiness:         100,
     };
   }
 
@@ -203,6 +218,11 @@ export class CitySim {
     // Land value is also recalculated monthly; notify listeners.
     if (monthTicked && this.onLandValueChanged) {
       this.onLandValueChanged();
+    }
+
+    // Traffic pressure is recalculated monthly; notify listeners.
+    if (monthTicked && this.onTrafficChanged) {
+      this.onTrafficChanged();
     }
   }
 }
