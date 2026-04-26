@@ -5,6 +5,8 @@ import { CityMap } from './CityMap';
 import { CityTile, RoadType, ZoneType } from './CityTile';
 import { SimulationClock } from './SimulationClock';
 import { ZoneGrowthSystem } from './ZoneGrowthSystem';
+import { PowerSystem } from './PowerSystem';
+import { tileKey } from './ZoneGrowthSystem';
 
 /** Aggregate statistics for the city, updated each tick. */
 export interface CityStats {
@@ -44,6 +46,7 @@ export class CitySim {
   readonly clock:  SimulationClock;
   readonly stats:  CityStats;
   readonly growth: ZoneGrowthSystem;
+  readonly power:  PowerSystem;
 
   /**
    * Called after each monthly growth tick with the list of tiles that received a
@@ -51,10 +54,18 @@ export class CitySim {
    */
   onGrowth: ((changed: ReadonlyArray<{ x: number; y: number }>) => void) | null = null;
 
+  /**
+   * Called after power coverage is recalculated — either on a monthly tick or
+   * immediately after a service building is placed.  Wire this up in App.ts to
+   * refresh the power overlay and building warning states.
+   */
+  onPowerChanged: (() => void) | null = null;
+
   private constructor(map: CityMap) {
     this.map    = map;
     this.clock  = new SimulationClock();
-    this.growth = new ZoneGrowthSystem();
+    this.power  = new PowerSystem();
+    this.growth = new ZoneGrowthSystem(this.power);
     this.stats  = {
       population:        0,
       jobs:              0,
@@ -110,6 +121,36 @@ export class CitySim {
     }
   }
 
+  /**
+   * Place a service building (e.g. a power plant) on the tile at (x, y).
+   *
+   * - Deducts `cost` from the treasury; fails silently if insufficient funds.
+   * - Registers the building in the growth system's buildings registry.
+   * - Immediately recalculates power coverage so the overlay updates at once.
+   *
+   * Returns `true` if the building was placed successfully.
+   */
+  placeServiceBuilding(x: number, y: number, defId: string, cost: number): boolean {
+    const tile = this.map.getTile(x, y);
+    if (!tile) return false;
+
+    if (!this.deductMoney(cost)) {
+      console.warn(
+        `[PlaceService] Insufficient funds (need $${cost}, have $${this.stats.money})`,
+      );
+      return false;
+    }
+
+    tile.buildingId = defId;
+    this.growth.buildings.set(tileKey(x, y), { defId, x, y });
+
+    // Immediately recalculate power so nearby buildings become powered at once.
+    this.power.tick(this.map, this.growth.buildings, this.growth.defs);
+
+    if (this.onPowerChanged) this.onPowerChanged();
+    return true;
+  }
+
   // ── Economy ───────────────────────────────────────────────────────────────
 
   /** Returns true if the city treasury has at least `amount`. */
@@ -134,10 +175,15 @@ export class CitySim {
     this.clock.tick(deltaSeconds);
 
     const changedTiles: Array<{ x: number; y: number }> = [];
-    this.growth.tick(deltaSeconds, this.map, this.stats, changedTiles);
+    const monthTicked = this.growth.tick(deltaSeconds, this.map, this.stats, changedTiles);
 
     if (changedTiles.length > 0 && this.onGrowth) {
       this.onGrowth(changedTiles);
+    }
+
+    // Power is recalculated inside growth.tick() each month; notify listeners.
+    if (monthTicked && this.onPowerChanged) {
+      this.onPowerChanged();
     }
   }
 }

@@ -24,4 +24,10 @@ export interface BuildingDef {
    * residential, commercial, and industrial buildings.
    */
   readonly isService?: boolean;
+  /**
+   * Radius (in tiles) within which this building provides power.
+   * Only meaningful for power-generating service buildings.
+   * Omit or set to 0 for non-generating buildings.
+   */
+  readonly powerRadius?: number;
 }
