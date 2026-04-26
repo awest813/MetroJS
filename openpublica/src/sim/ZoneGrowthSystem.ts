@@ -101,7 +101,7 @@ export class ZoneGrowthSystem {
    * - higher tax rates suppress demand (penalty); lower rates boost it.
    */
   private _updateDemand(stats: CityStats): void {
-    // Each tax point above 9% reduces demand by 2; below 9% adds 1.
+    // Each tax point above 9% reduces demand by 2 per month; below 9% adds 2.
     const resTaxMod = (9 - stats.resTaxRate) * 2;
     const comTaxMod = (9 - stats.comTaxRate) * 2;
     const indTaxMod = (9 - stats.indTaxRate) * 2;
@@ -182,6 +182,7 @@ export class ZoneGrowthSystem {
 
   /**
    * Compute monthly income and expenses, then update the city treasury.
+   * Called once per simulated month (guarded by the accumulator in tick()).
    *
    * Income  = population × resTaxRate × 0.5
    *         + commercial jobs × comTaxRate × 0.4
