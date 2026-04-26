@@ -14,6 +14,7 @@ import { PowerSystem } from './PowerSystem';
 import { LandValueSystem } from './LandValueSystem';
 import { TrafficPressureSystem } from './TrafficPressureSystem';
 import { WalkabilitySystem } from './WalkabilitySystem';
+import { TransitSystem } from './TransitSystem';
 
 /** Maximum demand value (clamps residentialDemand, commercialDemand, industrialDemand). */
 const MAX_DEMAND = 100;
@@ -70,11 +71,15 @@ export class ZoneGrowthSystem {
   /** Walkability system — injected from CitySim so both share the same instance. */
   private readonly _walkability: WalkabilitySystem;
 
-  constructor(power: PowerSystem, landValue: LandValueSystem, traffic: TrafficPressureSystem, walkability: WalkabilitySystem) {
+  /** Transit system — injected from CitySim so both share the same instance. */
+  private readonly _transit: TransitSystem;
+
+  constructor(power: PowerSystem, landValue: LandValueSystem, traffic: TrafficPressureSystem, walkability: WalkabilitySystem, transit: TransitSystem) {
     this._power       = power;
     this._landValue   = landValue;
     this._traffic     = traffic;
     this._walkability = walkability;
+    this._transit     = transit;
     this._defs      = new Map(BUILDING_DEFS.map((d) => [d.id, d]));
     this._defsByZone = new Map<ZoneType, BuildingDef[]>();
     for (const def of BUILDING_DEFS) {
@@ -139,6 +144,10 @@ export class ZoneGrowthSystem {
     // and apply a modest reduction to trafficPressure on walkable road tiles.
     this._walkability.tick(map, this.buildings, this.defs, stats);
 
+    // Transit runs last so it can further reduce trafficPressure after walkability
+    // has already adjusted it, and so its effects feed into next month's LV pass.
+    this._transit.tick(map, stats);
+
     return true;
   }
 
@@ -161,20 +170,22 @@ export class ZoneGrowthSystem {
     const indTaxMod = (9 - stats.indTaxRate) * 2;
 
     // Residential: people move in when there are more jobs than workers.
-    const jobBalance = stats.jobs - stats.population;
+    // Transit access also makes neighbourhoods more desirable to live in.
+    const jobBalance    = stats.jobs - stats.population;
+    const transitResBoost = Math.round(stats.transitAccess / 50); // 0 at transit=0, 2 at transit=100
     stats.residentialDemand = Math.max(
       0,
-      Math.min(MAX_DEMAND, stats.residentialDemand + (jobBalance > 0 ? 5 : -2) + resTaxMod),
+      Math.min(MAX_DEMAND, stats.residentialDemand + (jobBalance > 0 ? 5 : -2) + transitResBoost + resTaxMod),
     );
 
     // Commercial: shops open when there are more residents to serve.
-    // Walkability is a bonus — walkable areas attract more foot traffic and
-    // support healthier commercial demand.
-    const popGrowthBoost  = stats.population > 0 ? 3 : -1;
-    const walkBoost       = Math.round(stats.walkability / 25); // 0 at walk=0, 4 at walk=100
+    // Walkability and transit both boost foot traffic — commercial is sensitive to both.
+    const popGrowthBoost   = stats.population > 0 ? 3 : -1;
+    const walkBoost        = Math.round(stats.walkability   / 25); // 0 at walk=0, 4 at walk=100
+    const transitComBoost  = Math.round(stats.transitAccess / 20); // 0 at transit=0, 5 at transit=100
     stats.commercialDemand = Math.max(
       0,
-      Math.min(MAX_DEMAND, stats.commercialDemand + popGrowthBoost + walkBoost + comTaxMod),
+      Math.min(MAX_DEMAND, stats.commercialDemand + popGrowthBoost + walkBoost + transitComBoost + comTaxMod),
     );
 
     // Industrial: starts at a modest positive level, slowly converges to 20.

@@ -5,6 +5,7 @@ import { PowerOverlayRenderer } from '../render/PowerOverlayRenderer';
 import { LandValueOverlayRenderer } from '../render/LandValueOverlayRenderer';
 import { TrafficOverlayRenderer } from '../render/TrafficOverlayRenderer';
 import { WalkabilityOverlayRenderer } from '../render/WalkabilityOverlayRenderer';
+import { TransitOverlayRenderer } from '../render/TransitOverlayRenderer';
 import { DecorativeCarRenderer } from '../render/DecorativeCarRenderer';
 import { TilePicker } from '../render/TilePicker';
 import { HighlightRenderer } from '../render/HighlightRenderer';
@@ -22,6 +23,7 @@ import {
 import { BulldozeTool } from '../tools/BulldozeTool';
 import { PlacePowerPlantTool } from '../tools/PlacePowerPlantTool';
 import { PlaceParkTool } from '../tools/PlaceParkTool';
+import { TrolleyAvenueTool } from '../tools/TrolleyAvenueTool';
 import { ToolController } from '../tools/ToolController';
 import { Toolbar } from '../ui/Toolbar';
 import { CityHUD } from '../ui/CityHUD';
@@ -61,6 +63,7 @@ export class App {
     const bulldozeTool      = new BulldozeTool();
     const powerPlantTool    = new PlacePowerPlantTool();
     const parkTool          = new PlaceParkTool();
+    const trolleyAvenueTool = new TrolleyAvenueTool();
 
     const allTools = [
       inspectTool,
@@ -72,6 +75,7 @@ export class App {
       bulldozeTool,
       powerPlantTool,
       parkTool,
+      trolleyAvenueTool,
     ];
 
     const toolController = new ToolController(inspectTool);
@@ -92,6 +96,8 @@ export class App {
     trafficOverlay.build(sim.map);
     const walkabilityOverlay = new WalkabilityOverlayRenderer(scene);
     walkabilityOverlay.build(sim.map);
+    const transitOverlay = new TransitOverlayRenderer(scene);
+    transitOverlay.build(sim.map);
     const decorativeCars = new DecorativeCarRenderer(scene);
 
     const highlight = new HighlightRenderer(scene);
@@ -158,6 +164,11 @@ export class App {
     // ── Walkability system fires monthly when scores are recalculated ─────────
     sim.onWalkabilityChanged = () => {
       if (walkabilityOverlay.isVisible) walkabilityOverlay.refresh(sim.map);
+    };
+
+    // ── Transit system fires monthly when access scores are recalculated ──────
+    sim.onTransitChanged = () => {
+      if (transitOverlay.isVisible) transitOverlay.refresh(sim.map);
     };
 
     // ── Advance the simulation clock every rendered frame ────────────────────
@@ -243,6 +254,19 @@ export class App {
       if (next) walkabilityOverlay.refresh(sim.map);
     });
     toolbarEl.appendChild(walkOverlayBtn);
+
+    // Transit overlay toggle button.
+    const transitOverlayBtn = document.createElement('button');
+    transitOverlayBtn.id          = 'transit-overlay-btn';
+    transitOverlayBtn.textContent = '🚃 Transit: OFF';
+    transitOverlayBtn.addEventListener('click', () => {
+      const next = !transitOverlay.isVisible;
+      transitOverlay.setVisible(next);
+      transitOverlayBtn.textContent = `🚃 Transit: ${next ? 'ON' : 'OFF'}`;
+      transitOverlayBtn.classList.toggle('active', next);
+      if (next) transitOverlay.refresh(sim.map);
+    });
+    toolbarEl.appendChild(transitOverlayBtn);
 
     // ── City HUD ─────────────────────────────────────────────────────────────
     const hud = new CityHUD(hudEl);

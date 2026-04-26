@@ -9,6 +9,7 @@ import { PowerSystem } from './PowerSystem';
 import { LandValueSystem } from './LandValueSystem';
 import { TrafficPressureSystem } from './TrafficPressureSystem';
 import { WalkabilitySystem } from './WalkabilitySystem';
+import { TransitSystem } from './TransitSystem';
 import { tileKey } from './ZoneGrowthSystem';
 
 /** Aggregate statistics for the city, updated each tick. */
@@ -43,6 +44,12 @@ export interface CityStats {
    * Higher values mean residents can reach destinations on foot.
    */
   walkability: number;
+  /**
+   * City-wide transit access score [0–100].  Average transit access across
+   * all zoned tiles, computed by TransitSystem each month.
+   * Higher values mean residents live near trolley corridors.
+   */
+  transitAccess: number;
 }
 
 /**
@@ -57,14 +64,15 @@ export interface CityStats {
  *   sim.tick(1);
  */
 export class CitySim {
-  readonly map:        CityMap;
-  readonly clock:      SimulationClock;
-  readonly stats:      CityStats;
-  readonly growth:     ZoneGrowthSystem;
-  readonly power:      PowerSystem;
-  readonly landValue:  LandValueSystem;
-  readonly traffic:    TrafficPressureSystem;
-  readonly walkability: WalkabilitySystem;
+  readonly map:          CityMap;
+  readonly clock:        SimulationClock;
+  readonly stats:        CityStats;
+  readonly growth:       ZoneGrowthSystem;
+  readonly power:        PowerSystem;
+  readonly landValue:    LandValueSystem;
+  readonly traffic:      TrafficPressureSystem;
+  readonly walkability:  WalkabilitySystem;
+  readonly transit:      TransitSystem;
 
   /**
    * Called after each monthly growth tick with the list of tiles that received a
@@ -98,14 +106,21 @@ export class CitySim {
    */
   onWalkabilityChanged: (() => void) | null = null;
 
+  /**
+   * Called after transit access is recalculated each month.
+   * Wire this up in App.ts to refresh the transit overlay.
+   */
+  onTransitChanged: (() => void) | null = null;
+
   private constructor(map: CityMap) {
-    this.map         = map;
-    this.clock       = new SimulationClock();
-    this.power       = new PowerSystem();
-    this.landValue   = new LandValueSystem();
-    this.traffic     = new TrafficPressureSystem();
-    this.walkability = new WalkabilitySystem();
-    this.growth      = new ZoneGrowthSystem(this.power, this.landValue, this.traffic, this.walkability);
+    this.map          = map;
+    this.clock        = new SimulationClock();
+    this.power        = new PowerSystem();
+    this.landValue    = new LandValueSystem();
+    this.traffic      = new TrafficPressureSystem();
+    this.walkability  = new WalkabilitySystem();
+    this.transit      = new TransitSystem();
+    this.growth       = new ZoneGrowthSystem(this.power, this.landValue, this.traffic, this.walkability, this.transit);
     this.stats  = {
       population:        0,
       jobs:              0,
@@ -121,6 +136,7 @@ export class CitySim {
       bankruptcyWarning: false,
       happiness:         100,
       walkability:       0,
+      transitAccess:     0,
     };
   }
 
@@ -245,6 +261,11 @@ export class CitySim {
     // Walkability is recalculated monthly (after traffic); notify listeners.
     if (monthTicked && this.onWalkabilityChanged) {
       this.onWalkabilityChanged();
+    }
+
+    // Transit access is recalculated monthly (after walkability); notify listeners.
+    if (monthTicked && this.onTransitChanged) {
+      this.onTransitChanged();
     }
   }
 }

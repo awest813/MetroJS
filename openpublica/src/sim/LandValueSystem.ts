@@ -33,6 +33,14 @@ const WALKABILITY_BONUS = 20;
 const WALKABILITY_LV_MULTIPLIER = 0.15;
 
 /**
+ * Multiplier applied to `tile.transitAccess` (previous month's value, set by
+ * TransitSystem) when computing a land value bonus.  Properties near transit
+ * corridors command a premium in real cities.
+ * At transitAccess=100 the bonus is +10 (= 100 × 0.10, rounded).
+ */
+const TRANSIT_LV_MULTIPLIER = 0.10;
+
+/**
  * Maximum per-tile land value penalty an industrial building can impose at
  * distance 0 (scales linearly to 0 at the edge of INDUSTRIAL_RADIUS).
  */
@@ -170,7 +178,12 @@ export class LandValueSystem {
       // Walkability bonus: highly walkable tiles attract residents and raise
       // property values.  We read the previous month's walkability value here
       // (WalkabilitySystem runs after LandValueSystem each month).
-      tile.landValue += Math.round(tile.walkability * WALKABILITY_LV_MULTIPLIER);
+      tile.landValue += Math.round(tile.walkability   * WALKABILITY_LV_MULTIPLIER);
+
+      // Transit access bonus: properties near trolley corridors command a premium.
+      // We read the previous month's transitAccess value here
+      // (TransitSystem runs after LandValueSystem each month).
+      tile.landValue += Math.round(tile.transitAccess * TRANSIT_LV_MULTIPLIER);
 
       // Clamp to valid range.
       tile.landValue = Math.max(0, Math.min(100, tile.landValue));

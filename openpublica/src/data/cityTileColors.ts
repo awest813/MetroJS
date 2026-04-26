@@ -15,9 +15,10 @@ const ZONE_COLORS: Record<ZoneType, TileColor> = {
 
 /** Display color for each road type. */
 const ROAD_COLORS: Record<RoadType, TileColor> = {
-  [RoadType.None]:    { r: 0, g: 0, b: 0 },              // unused; road=None falls through to terrain
-  [RoadType.Street]:  { r: 0.42, g: 0.42, b: 0.42 },     // grey asphalt
-  [RoadType.Highway]: { r: 0.25, g: 0.25, b: 0.25 },     // dark concrete
+  [RoadType.None]:          { r: 0, g: 0, b: 0 },           // unused; road=None falls through to terrain
+  [RoadType.Street]:        { r: 0.42, g: 0.42, b: 0.42 },  // grey asphalt
+  [RoadType.Highway]:       { r: 0.25, g: 0.25, b: 0.25 },  // dark concrete
+  [RoadType.TrolleyAvenue]: { r: 0.70, g: 0.38, b: 0.18 },  // warm terracotta (clearly distinct)
 };
 
 /** Display colour for each terrain type (used when no road or zone). */
