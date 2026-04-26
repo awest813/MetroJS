@@ -93,4 +93,18 @@ export class BudgetPanel {
     this._incomeEl.textContent  = `$${stats.monthlyIncome.toLocaleString()}/mo`;
     this._expenseEl.textContent = `$${stats.monthlyExpenses.toLocaleString()}/mo`;
   }
+
+  /**
+   * Sync slider positions and rate labels from loaded stats.
+   * Call this after loading a saved game so sliders reflect the restored
+   * tax rates rather than remaining at their default HTML value of 9.
+   */
+  syncTaxSliders(stats: CityStats): void {
+    this._resSlider.value = String(Math.round(stats.resTaxRate));
+    this._comSlider.value = String(Math.round(stats.comTaxRate));
+    this._indSlider.value = String(Math.round(stats.indTaxRate));
+    this._resRateEl.textContent = `${this._resSlider.value}%`;
+    this._comRateEl.textContent = `${this._comSlider.value}%`;
+    this._indRateEl.textContent = `${this._indSlider.value}%`;
+  }
 }

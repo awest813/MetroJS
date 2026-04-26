@@ -130,6 +130,15 @@ export class SaveCodec {
 
     // ── v1 → current (no changes needed yet) ──────────────────────────────
     if (data['version'] === 1) {
+      // Basic structural validation: require the arrays and map dimensions.
+      if (!Array.isArray(data['tiles']) || !Array.isArray(data['buildings'])) {
+        console.warn('[SaveCodec] Save data is missing required tile/building arrays.');
+        return null;
+      }
+      if (typeof data['mapWidth'] !== 'number' || typeof data['mapHeight'] !== 'number') {
+        console.warn('[SaveCodec] Save data is missing map dimensions.');
+        return null;
+      }
       return data as unknown as SaveGame;
     }
 

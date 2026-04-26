@@ -30,7 +30,15 @@ describe('CitySim', () => {
       expect(sim.stats.money).toBeGreaterThanOrEqual(0);
       expect(sim.stats.residentialDemand).toBe(0);
       expect(sim.stats.commercialDemand).toBe(0);
-      expect(sim.stats.industrialDemand).toBe(0);
+      // Industrial starts with a modest positive demand to seed early factory growth.
+      expect(sim.stats.industrialDemand).toBe(20);
+      expect(sim.stats.happiness).toBe(100);
+      expect(sim.stats.walkability).toBe(0);
+      expect(sim.stats.transitAccess).toBe(0);
+      expect(sim.stats.resTaxRate).toBe(9);
+      expect(sim.stats.comTaxRate).toBe(9);
+      expect(sim.stats.indTaxRate).toBe(9);
+      expect(sim.stats.bankruptcyWarning).toBe(false);
     });
   });
 
