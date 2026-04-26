@@ -20,8 +20,8 @@ const GROW_CHANCE = 0.25;
 /** Cast the imported JSON to a typed array once at module load. */
 const BUILDING_DEFS: BuildingDef[] = rawDefs as BuildingDef[];
 
-/** Registry key for a tile position. */
-function tileKey(x: number, y: number): string {
+/** Registry key for a tile position — exported for use by renderers. */
+export function tileKey(x: number, y: number): string {
   return `${x},${y}`;
 }
 
@@ -49,9 +49,12 @@ export class ZoneGrowthSystem {
     this._defs      = new Map(BUILDING_DEFS.map((d) => [d.id, d]));
     this._defsByZone = new Map<ZoneType, BuildingDef[]>();
     for (const def of BUILDING_DEFS) {
-      const bucket = this._defsByZone.get(def.zoneType) ?? [];
+      let bucket = this._defsByZone.get(def.zoneType);
+      if (!bucket) {
+        bucket = [];
+        this._defsByZone.set(def.zoneType, bucket);
+      }
       bucket.push(def);
-      this._defsByZone.set(def.zoneType, bucket);
     }
   }
 
@@ -145,8 +148,8 @@ export class ZoneGrowthSystem {
       if (!def) return;
 
       // Place the building.
-      const key: string = tileKey(tile.x, tile.y);
-      const instance: BuildingInstance = { defId: def.id, x: tile.x, y: tile.y };
+      const key = tileKey(tile.x, tile.y);
+      const instance = { defId: def.id, x: tile.x, y: tile.y };
       this.buildings.set(key, instance);
       tile.buildingId = def.id;
 

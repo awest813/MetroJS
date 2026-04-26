@@ -4,6 +4,7 @@ import { BuildingRenderer } from '../render/BuildingRenderer';
 import { TilePicker } from '../render/TilePicker';
 import { HighlightRenderer } from '../render/HighlightRenderer';
 import { CitySim } from '../sim/CitySim';
+import { tileKey } from '../sim/ZoneGrowthSystem';
 import { MAP_SIZE } from '../data/constants';
 import { InspectTool } from '../tools/InspectTool';
 import { RoadTool } from '../tools/RoadTool';
@@ -82,7 +83,7 @@ export class App {
         if (tile) {
           terrain.updateCityTile(tile);
           if (tile.buildingId !== null) {
-            const instance = sim.growth.buildings.get(`${coord.x},${coord.y}`);
+            const instance = sim.growth.buildings.get(tileKey(coord.x, coord.y));
             if (instance) {
               buildings.addBuilding(instance, tile.zoneType);
             }
