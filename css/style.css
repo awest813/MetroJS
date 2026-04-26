@@ -38,6 +38,12 @@ button, input[type="submit"] {
   font-family: sans-serif;
 }
 
+button:focus-visible, input[type="submit"]:focus-visible, input[type="range"]:focus-visible,
+input[type="text"]:focus-visible, select:focus-visible {
+  outline: 3px solid #0066cc;
+  outline-offset: 2px;
+}
+
 footer {
   position: absolute;
   left: 0;
@@ -259,7 +265,7 @@ nav li {
 }
 
 .semibold {
-  font-weight: 600px;
+  font-weight: 600;
 }
 
 .shadow, .controlShadow {
@@ -311,7 +317,7 @@ nav li {
 }
 
 #budgetForm > div:nth-child(9) {
-  align: center;
+  text-align: center;
   width: 100%;
 }
 
@@ -910,7 +916,14 @@ nav li {
 
 .info {
   width: 20%;
-  text-align: centre;
+  text-align: center;
+}
+
+.difficultyGroup {
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: inline;
 }
 
 #build {
