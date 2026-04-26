@@ -35,5 +35,14 @@
     "jobs": 2,
     "isService": true,
     "powerRadius": 8
+  },
+  {
+    "id": "small_park",
+    "name": "Small Park",
+    "zoneType": 0,
+    "population": 0,
+    "jobs": 0,
+    "isService": true,
+    "parkRadius": 6
   }
 ]

@@ -11,6 +11,7 @@ import rawDefs from '../data/buildings.json';
 import { MONTH_SECONDS } from '../data/constants';
 import { EconomySystem } from './EconomySystem';
 import { PowerSystem } from './PowerSystem';
+import { LandValueSystem } from './LandValueSystem';
 
 /** Maximum demand value (clamps residentialDemand, commercialDemand, industrialDemand). */
 const MAX_DEMAND = 100;
@@ -58,8 +59,12 @@ export class ZoneGrowthSystem {
   /** Power system — injected from CitySim so both share the same instance. */
   private readonly _power: PowerSystem;
 
-  constructor(power: PowerSystem) {
-    this._power     = power;
+  /** Land value system — injected from CitySim so both share the same instance. */
+  private readonly _landValue: LandValueSystem;
+
+  constructor(power: PowerSystem, landValue: LandValueSystem) {
+    this._power      = power;
+    this._landValue  = landValue;
     this._defs      = new Map(BUILDING_DEFS.map((d) => [d.id, d]));
     this._defsByZone = new Map<ZoneType, BuildingDef[]>();
     for (const def of BUILDING_DEFS) {
@@ -102,6 +107,9 @@ export class ZoneGrowthSystem {
 
     if (this._secondsAccumulator < MONTH_SECONDS) return false;
     this._secondsAccumulator -= MONTH_SECONDS;
+
+    // Update land value first so growth decisions use fresh values.
+    this._landValue.tick(map, this.buildings, this.defs);
 
     this._updateDemand(stats);
     this._growBuildings(map, stats, changedTiles);
@@ -177,7 +185,13 @@ export class ZoneGrowthSystem {
       if (demand <= 0) return;
 
       // Probabilistic growth — not every eligible tile grows every month.
-      if (Math.random() > GROW_CHANCE) return;
+      // Land value biases the probability: higher value → more likely to grow.
+      // lvFactor ranges from 0.5 (LV=0) through 1.0 (LV=50) to 1.5 (LV=100).
+      // With the default GROW_CHANCE of 0.25, the effective chance stays well
+      // below the 0.9 safety cap (max = 0.25 × 1.5 = 0.375).
+      const lvFactor   = 0.5 + tile.landValue / 100;
+      const growChance = Math.min(0.9, GROW_CHANCE * lvFactor);
+      if (Math.random() > growChance) return;
 
       const def = this._pickDef(tile.zoneType);
       if (!def) return;

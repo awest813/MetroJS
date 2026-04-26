@@ -2,6 +2,7 @@ import { createScene } from '../render/SceneSetup';
 import { TerrainRenderer } from '../render/TerrainRenderer';
 import { BuildingRenderer } from '../render/BuildingRenderer';
 import { PowerOverlayRenderer } from '../render/PowerOverlayRenderer';
+import { LandValueOverlayRenderer } from '../render/LandValueOverlayRenderer';
 import { TilePicker } from '../render/TilePicker';
 import { HighlightRenderer } from '../render/HighlightRenderer';
 import { CitySim } from '../sim/CitySim';
@@ -16,6 +17,7 @@ import {
 } from '../tools/ZoneBrushTool';
 import { BulldozeTool } from '../tools/BulldozeTool';
 import { PlacePowerPlantTool } from '../tools/PlacePowerPlantTool';
+import { PlaceParkTool } from '../tools/PlaceParkTool';
 import { ToolController } from '../tools/ToolController';
 import { Toolbar } from '../ui/Toolbar';
 import { CityHUD } from '../ui/CityHUD';
@@ -53,6 +55,7 @@ export class App {
     const industrialTool    = createIndustrialLightBrush();
     const bulldozeTool      = new BulldozeTool();
     const powerPlantTool    = new PlacePowerPlantTool();
+    const parkTool          = new PlaceParkTool();
 
     const allTools = [
       inspectTool,
@@ -62,6 +65,7 @@ export class App {
       industrialTool,
       bulldozeTool,
       powerPlantTool,
+      parkTool,
     ];
 
     const toolController = new ToolController(inspectTool);
@@ -76,6 +80,8 @@ export class App {
     const buildings    = new BuildingRenderer(scene);
     const powerOverlay = new PowerOverlayRenderer(scene);
     powerOverlay.build(sim.map);
+    const landValueOverlay = new LandValueOverlayRenderer(scene);
+    landValueOverlay.build(sim.map);
 
     const highlight = new HighlightRenderer(scene);
     const picker    = new TilePicker(scene);
@@ -127,6 +133,11 @@ export class App {
       refreshPowerVisuals();
     };
 
+    // ── Land value system fires when values change (monthly or on park placement)
+    sim.onLandValueChanged = () => {
+      if (landValueOverlay.isVisible) landValueOverlay.refresh(sim.map);
+    };
+
     // ── Advance the simulation clock every rendered frame ────────────────────
     scene.onBeforeRenderObservable.add(() => {
       sim.tick(engine.getDeltaTime() / 1000);
@@ -147,7 +158,7 @@ export class App {
       if (pickData) {
         info += `  ·  Building: ${pickData.buildingId}`;
       } else if (tile) {
-        info += `  ·  zone=${tile.zoneType} road=${tile.roadType}`;
+        info += `  ·  zone=${tile.zoneType} road=${tile.roadType} lv=${tile.landValue}`;
       }
 
       statusEl.textContent = info;
@@ -171,6 +182,19 @@ export class App {
       if (next) refreshPowerVisuals();
     });
     toolbarEl.appendChild(overlayBtn);
+
+    // Land value overlay toggle button.
+    const lvOverlayBtn = document.createElement('button');
+    lvOverlayBtn.id          = 'lv-overlay-btn';
+    lvOverlayBtn.textContent = '🏡 Land Value: OFF';
+    lvOverlayBtn.addEventListener('click', () => {
+      const next = !landValueOverlay.isVisible;
+      landValueOverlay.setVisible(next);
+      lvOverlayBtn.textContent = `🏡 Land Value: ${next ? 'ON' : 'OFF'}`;
+      lvOverlayBtn.classList.toggle('active', next);
+      if (next) landValueOverlay.refresh(sim.map);
+    });
+    toolbarEl.appendChild(lvOverlayBtn);
 
     // ── City HUD ─────────────────────────────────────────────────────────────
     const hud = new CityHUD(hudEl);

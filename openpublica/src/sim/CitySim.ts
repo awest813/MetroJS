@@ -6,6 +6,7 @@ import { CityTile, RoadType, ZoneType } from './CityTile';
 import { SimulationClock } from './SimulationClock';
 import { ZoneGrowthSystem } from './ZoneGrowthSystem';
 import { PowerSystem } from './PowerSystem';
+import { LandValueSystem } from './LandValueSystem';
 import { tileKey } from './ZoneGrowthSystem';
 
 /** Aggregate statistics for the city, updated each tick. */
@@ -42,11 +43,12 @@ export interface CityStats {
  *   sim.tick(1);
  */
 export class CitySim {
-  readonly map:    CityMap;
-  readonly clock:  SimulationClock;
-  readonly stats:  CityStats;
-  readonly growth: ZoneGrowthSystem;
-  readonly power:  PowerSystem;
+  readonly map:       CityMap;
+  readonly clock:     SimulationClock;
+  readonly stats:     CityStats;
+  readonly growth:    ZoneGrowthSystem;
+  readonly power:     PowerSystem;
+  readonly landValue: LandValueSystem;
 
   /**
    * Called after each monthly growth tick with the list of tiles that received a
@@ -61,11 +63,19 @@ export class CitySim {
    */
   onPowerChanged: (() => void) | null = null;
 
+  /**
+   * Called after land value is recalculated — on a monthly tick or immediately
+   * after a park is placed.  Wire this up in App.ts to refresh the land value
+   * overlay.
+   */
+  onLandValueChanged: (() => void) | null = null;
+
   private constructor(map: CityMap) {
-    this.map    = map;
-    this.clock  = new SimulationClock();
-    this.power  = new PowerSystem();
-    this.growth = new ZoneGrowthSystem(this.power);
+    this.map        = map;
+    this.clock      = new SimulationClock();
+    this.power      = new PowerSystem();
+    this.landValue  = new LandValueSystem();
+    this.growth     = new ZoneGrowthSystem(this.power, this.landValue);
     this.stats  = {
       population:        0,
       jobs:              0,
@@ -146,8 +156,12 @@ export class CitySim {
 
     // Immediately recalculate power so nearby buildings become powered at once.
     this.power.tick(this.map, this.growth.buildings, this.growth.defs);
-
     if (this.onPowerChanged) this.onPowerChanged();
+
+    // Immediately recalculate land value so park effects are visible at once.
+    this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
+    if (this.onLandValueChanged) this.onLandValueChanged();
+
     return true;
   }
 
@@ -184,6 +198,11 @@ export class CitySim {
     // Power is recalculated inside growth.tick() each month; notify listeners.
     if (monthTicked && this.onPowerChanged) {
       this.onPowerChanged();
+    }
+
+    // Land value is also recalculated monthly; notify listeners.
+    if (monthTicked && this.onLandValueChanged) {
+      this.onLandValueChanged();
     }
   }
 }
