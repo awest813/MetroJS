@@ -1,6 +1,16 @@
 // ⚠️  This file must NOT import anything from @babylonjs/core.
 //     All simulation logic must remain renderer-agnostic.
 
+import { MONTH_SECONDS } from '../data/constants';
+
+const MONTH_NAMES = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+] as const;
+
+/** Starting calendar year for the simulation. */
+const START_YEAR = 2000;
+
 /**
  * Tracks elapsed simulation time and tick count.
  * Completely independent of wall-clock or rendering frame time.
@@ -28,5 +38,20 @@ export class SimulationClock {
   /** Number of times tick() has been called. */
   get ticks(): number {
     return this._ticks;
+  }
+
+  /** Total number of simulated months elapsed. */
+  get monthsPassed(): number {
+    return Math.floor(this._totalSeconds / MONTH_SECONDS);
+  }
+
+  /** Current in-game month name (e.g. "Jan", "Feb", …). */
+  get monthName(): string {
+    return MONTH_NAMES[this.monthsPassed % 12];
+  }
+
+  /** Current in-game year (starts at START_YEAR). */
+  get year(): number {
+    return START_YEAR + Math.floor(this.monthsPassed / 12);
   }
 }

@@ -14,6 +14,16 @@ export interface CityStats {
   residentialDemand: number;
   commercialDemand:  number;
   industrialDemand:  number;
+  /** Residential tax rate, 0–20 (percentage). Default 9. */
+  resTaxRate:        number;
+  /** Commercial tax rate, 0–20 (percentage). Default 9. */
+  comTaxRate:        number;
+  /** Industrial tax rate, 0–20 (percentage). Default 9. */
+  indTaxRate:        number;
+  /** Net income collected last simulated month. */
+  monthlyIncome:     number;
+  /** Expenses paid last simulated month. */
+  monthlyExpenses:   number;
 }
 
 /**
@@ -50,6 +60,11 @@ export class CitySim {
       residentialDemand: 0,
       commercialDemand:  0,
       industrialDemand:  20, // industrial starts with a modest positive demand
+      resTaxRate:        9,
+      comTaxRate:        9,
+      indTaxRate:        9,
+      monthlyIncome:     0,
+      monthlyExpenses:   0,
     };
   }
 

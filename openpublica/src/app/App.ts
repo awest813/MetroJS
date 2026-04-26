@@ -16,6 +16,8 @@ import {
 import { BulldozeTool } from '../tools/BulldozeTool';
 import { ToolController } from '../tools/ToolController';
 import { Toolbar } from '../ui/Toolbar';
+import { CityHUD } from '../ui/CityHUD';
+import { BudgetPanel } from '../ui/BudgetPanel';
 
 /**
  * Top-level application coordinator.
@@ -26,9 +28,16 @@ export class App {
     const canvas    = document.getElementById('game-canvas');
     const toolbarEl = document.getElementById('toolbar');
     const statusEl  = document.getElementById('status-bar');
+    const hudEl     = document.getElementById('city-hud');
+    const budgetEl  = document.getElementById('budget-panel');
 
-    if (!(canvas instanceof HTMLCanvasElement) || !toolbarEl || !statusEl) {
-      throw new Error('Required DOM elements not found: #game-canvas, #toolbar, #status-bar');
+    if (
+      !(canvas instanceof HTMLCanvasElement) ||
+      !toolbarEl || !statusEl || !hudEl || !budgetEl
+    ) {
+      throw new Error(
+        'Required DOM elements not found: #game-canvas, #toolbar, #status-bar, #city-hud, #budget-panel',
+      );
     }
 
     // ── Simulation (no Babylon dependency) ──────────────────────────────────
@@ -123,5 +132,25 @@ export class App {
     // ── Toolbar UI ───────────────────────────────────────────────────────────
     const toolbar = new Toolbar(toolbarEl, toolController);
     toolbar.build(allTools);
+
+    // ── City HUD ─────────────────────────────────────────────────────────────
+    const hud = new CityHUD(hudEl);
+    hud.update(sim.stats, sim.clock);
+
+    // ── Budget panel ─────────────────────────────────────────────────────────
+    const budgetPanel = new BudgetPanel(budgetEl);
+    budgetPanel.update(sim.stats);
+    budgetPanel.onTaxChange((res, com, ind) => {
+      sim.stats.resTaxRate = res;
+      sim.stats.comTaxRate = com;
+      sim.stats.indTaxRate = ind;
+    });
+
+    // ── Periodic HUD refresh (every second) ──────────────────────────────────
+    setInterval(() => {
+      hud.update(sim.stats, sim.clock);
+      budgetPanel.update(sim.stats);
+    }, 1000);
   }
 }
+

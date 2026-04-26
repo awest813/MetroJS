@@ -8,8 +8,7 @@ import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 import rawDefs from '../data/buildings.json';
 
-/** Seconds of simulation time that equal one "month". */
-const MONTH_SECONDS = 30;
+import { MONTH_SECONDS } from '../data/constants';
 
 /** Maximum demand value (clamps residentialDemand, commercialDemand, industrialDemand). */
 const MAX_DEMAND = 100;
@@ -86,31 +85,39 @@ export class ZoneGrowthSystem {
     this._updateDemand(stats);
     this._growBuildings(map, stats, changedTiles);
     this._recalcStats(stats);
+    this._recalcBudget(stats);
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────
 
   /**
-   * Adjusts demand values based on the current population/jobs balance.
+   * Adjusts demand values based on the current population/jobs balance
+   * and tax rates.
    *
    * Rules (simple, readable):
    * - residential demand rises when jobs > workers (population).
    * - commercial demand rises when population grows.
    * - industrial demand starts modestly positive and decays slowly toward 20.
+   * - higher tax rates suppress demand (penalty); lower rates boost it.
    */
   private _updateDemand(stats: CityStats): void {
+    // Each tax point above 9% reduces demand by 2; below 9% adds 1.
+    const resTaxMod = (9 - stats.resTaxRate) * 2;
+    const comTaxMod = (9 - stats.comTaxRate) * 2;
+    const indTaxMod = (9 - stats.indTaxRate) * 2;
+
     // Residential: people move in when there are more jobs than workers.
     const jobBalance = stats.jobs - stats.population;
     stats.residentialDemand = Math.max(
       0,
-      Math.min(MAX_DEMAND, stats.residentialDemand + (jobBalance > 0 ? 5 : -2)),
+      Math.min(MAX_DEMAND, stats.residentialDemand + (jobBalance > 0 ? 5 : -2) + resTaxMod),
     );
 
     // Commercial: shops open when there are more residents to serve.
     const popGrowthBoost = stats.population > 0 ? 3 : -1;
     stats.commercialDemand = Math.max(
       0,
-      Math.min(MAX_DEMAND, stats.commercialDemand + popGrowthBoost),
+      Math.min(MAX_DEMAND, stats.commercialDemand + popGrowthBoost + comTaxMod),
     );
 
     // Industrial: starts at a modest positive level, slowly converges to 20.
@@ -118,7 +125,7 @@ export class ZoneGrowthSystem {
     const industrialDelta  = stats.industrialDemand < industrialTarget ? 2 : -1;
     stats.industrialDemand = Math.max(
       0,
-      Math.min(MAX_DEMAND, stats.industrialDemand + industrialDelta),
+      Math.min(MAX_DEMAND, stats.industrialDemand + industrialDelta + indTaxMod),
     );
   }
 
@@ -171,6 +178,34 @@ export class ZoneGrowthSystem {
 
     stats.population = population;
     stats.jobs       = jobs;
+  }
+
+  /**
+   * Compute monthly income and expenses, then update the city treasury.
+   *
+   * Income  = population × resTaxRate × 0.5
+   *         + commercial jobs × comTaxRate × 0.4
+   *         + industrial jobs × indTaxRate × 0.3
+   * Expenses = 50 base + population × 0.3 + total jobs × 0.1
+   */
+  private _recalcBudget(stats: CityStats): void {
+    let comJobs = 0;
+    let indJobs = 0;
+
+    for (const instance of this.buildings.values()) {
+      const def = this._defs.get(instance.defId);
+      if (!def) continue;
+      if (def.zoneType === ZoneType.Commercial)  comJobs += def.jobs;
+      if (def.zoneType === ZoneType.Industrial)  indJobs += def.jobs;
+    }
+
+    stats.monthlyIncome = Math.floor(
+      stats.population * stats.resTaxRate * 0.5 +
+      comJobs          * stats.comTaxRate * 0.4 +
+      indJobs          * stats.indTaxRate * 0.3,
+    );
+    stats.monthlyExpenses = Math.floor(50 + stats.population * 0.3 + stats.jobs * 0.1);
+    stats.money += stats.monthlyIncome - stats.monthlyExpenses;
   }
 
   /** Returns true if any orthogonal neighbour has a road. */
