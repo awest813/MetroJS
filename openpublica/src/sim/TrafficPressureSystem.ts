@@ -103,6 +103,13 @@ export class TrafficPressureSystem {
         pressure = COMMERCIAL_BASE_PRESSURE;
       } else if (def.zoneType === ZoneType.Industrial) {
         pressure = INDUSTRIAL_BASE_PRESSURE;
+      } else if (def.zoneType === ZoneType.MixedUse) {
+        // Mixed-use: residents generate commute trips and commercial activity
+        // draws visitors — combine both contributions at a slight discount to
+        // reflect the shorter distances in walkable main-street areas.
+        const resPressure = Math.ceil(def.population * RESIDENTIAL_TRIP_RATE);
+        const comPressure = Math.round(COMMERCIAL_BASE_PRESSURE * 0.75);
+        pressure = resPressure + comPressure;
       } else {
         // Service / no-zone buildings don't generate traffic.
         continue;

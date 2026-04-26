@@ -203,7 +203,7 @@ export class ZoneGrowthSystem {
       // zones, reflecting the real-world tendency for main-street corridors to form
       // in already-active neighbourhoods.
       const mixedBoost = (tile.zoneType === ZoneType.MixedUse &&
-        this._hasAdjacentResOrCom(map, tile.x, tile.y)) ? 1.3 : 1.0;
+        this._hasAdjacentActiveZone(map, tile.x, tile.y)) ? 1.3 : 1.0;
       const growChance = Math.min(0.9, GROW_CHANCE * lvFactor * mixedBoost);
       if (Math.random() > growChance) return;
 
@@ -252,9 +252,10 @@ export class ZoneGrowthSystem {
 
   /**
    * Returns true if any orthogonal neighbour is zoned Residential, Commercial,
-   * or MixedUse.  Used to give mixed-use tiles a growth bonus in active areas.
+   * or MixedUse — any "active" (people/jobs-generating) zone type.
+   * Used to give mixed-use tiles a growth bonus in already-active neighbourhoods.
    */
-  private _hasAdjacentResOrCom(map: CityMap, x: number, y: number): boolean {
+  private _hasAdjacentActiveZone(map: CityMap, x: number, y: number): boolean {
     const neighbours = [
       map.getTile(x,     y - 1),
       map.getTile(x,     y + 1),
