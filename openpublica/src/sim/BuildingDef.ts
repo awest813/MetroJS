@@ -30,4 +30,10 @@ export interface BuildingDef {
    * Omit or set to 0 for non-generating buildings.
    */
   readonly powerRadius?: number;
+  /**
+   * Radius (in tiles) within which this building increases land value.
+   * Only meaningful for park / green-space service buildings.
+   * Omit or set to 0 for non-park buildings.
+   */
+  readonly parkRadius?: number;
 }
