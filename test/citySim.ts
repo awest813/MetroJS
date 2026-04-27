@@ -35,6 +35,7 @@ describe('CitySim', () => {
       expect(sim.stats.happiness).toBe(100);
       expect(sim.stats.walkability).toBe(0);
       expect(sim.stats.transitAccess).toBe(0);
+      expect(sim.stats.pollutionAverage).toBe(0);
       expect(sim.stats.resTaxRate).toBe(9);
       expect(sim.stats.comTaxRate).toBe(9);
       expect(sim.stats.indTaxRate).toBe(9);

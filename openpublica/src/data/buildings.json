@@ -25,7 +25,9 @@
     "name": "Light Workshop",
     "zoneType": 3,
     "population": 0,
-    "jobs": 5
+    "jobs": 5,
+    "pollutionOutput": 35,
+    "pollutionRadius": 6
   },
   {
     "id": "small_power_plant",
@@ -34,7 +36,9 @@
     "population": 0,
     "jobs": 2,
     "isService": true,
-    "powerRadius": 8
+    "powerRadius": 8,
+    "pollutionOutput": 60,
+    "pollutionRadius": 8
   },
   {
     "id": "small_park",

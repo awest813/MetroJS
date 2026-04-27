@@ -10,6 +10,7 @@ import { LandValueSystem } from './LandValueSystem';
 import { TrafficPressureSystem } from './TrafficPressureSystem';
 import { WalkabilitySystem } from './WalkabilitySystem';
 import { TransitSystem } from './TransitSystem';
+import { PollutionSystem } from './PollutionSystem';
 import { tileKey } from './ZoneGrowthSystem';
 
 /** Aggregate statistics for the city, updated each tick. */
@@ -50,6 +51,11 @@ export interface CityStats {
    * Higher values mean residents live near trolley corridors.
    */
   transitAccess: number;
+  /**
+   * City-wide pollution score [0–100]. Average pollution across polluted
+   * tiles, computed by PollutionSystem each month.
+   */
+  pollutionAverage: number;
 }
 
 /**
@@ -70,6 +76,7 @@ export class CitySim {
   readonly growth:       ZoneGrowthSystem;
   readonly power:        PowerSystem;
   readonly landValue:    LandValueSystem;
+  readonly pollution:    PollutionSystem;
   readonly traffic:      TrafficPressureSystem;
   readonly walkability:  WalkabilitySystem;
   readonly transit:      TransitSystem;
@@ -116,11 +123,12 @@ export class CitySim {
     this.map          = map;
     this.clock        = new SimulationClock();
     this.power        = new PowerSystem();
+    this.pollution    = new PollutionSystem();
     this.landValue    = new LandValueSystem();
     this.traffic      = new TrafficPressureSystem();
     this.walkability  = new WalkabilitySystem();
     this.transit      = new TransitSystem();
-    this.growth       = new ZoneGrowthSystem(this.power, this.landValue, this.traffic, this.walkability, this.transit);
+    this.growth       = new ZoneGrowthSystem(this.power, this.pollution, this.landValue, this.traffic, this.walkability, this.transit);
     this.stats  = {
       population:        0,
       jobs:              0,
@@ -137,6 +145,7 @@ export class CitySim {
       happiness:         100,
       walkability:       0,
       transitAccess:     0,
+      pollutionAverage:  0,
     };
   }
 
@@ -207,6 +216,7 @@ export class CitySim {
     if (this.onPowerChanged) this.onPowerChanged();
 
     // Immediately recalculate land value so park effects are visible at once.
+    this.pollution.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
     this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
     if (this.onLandValueChanged) this.onLandValueChanged();
 

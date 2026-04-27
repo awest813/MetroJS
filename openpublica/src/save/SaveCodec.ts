@@ -57,6 +57,7 @@ export class SaveCodec {
         happiness:         sim.stats.happiness,
         walkability:       sim.stats.walkability,
         transitAccess:     sim.stats.transitAccess,
+        pollutionAverage:  sim.stats.pollutionAverage,
       },
       tiles,
       buildings,
@@ -108,6 +109,7 @@ export class SaveCodec {
     sim.stats.happiness         = s.happiness         ?? 100;
     sim.stats.walkability       = s.walkability       ?? 0;
     sim.stats.transitAccess     = s.transitAccess     ?? 0;
+    sim.stats.pollutionAverage  = s.pollutionAverage  ?? 0;
 
     // ── Clock ────────────────────────────────────────────────────────────────
     sim.clock.restore(save.clockTotalSeconds ?? 0);

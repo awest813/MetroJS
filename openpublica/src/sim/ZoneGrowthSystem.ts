@@ -11,6 +11,7 @@ import rawDefs from '../data/buildings.json';
 import { MONTH_SECONDS } from '../data/constants';
 import { EconomySystem } from './EconomySystem';
 import { PowerSystem } from './PowerSystem';
+import { PollutionSystem } from './PollutionSystem';
 import { LandValueSystem } from './LandValueSystem';
 import { TrafficPressureSystem } from './TrafficPressureSystem';
 import { WalkabilitySystem } from './WalkabilitySystem';
@@ -65,6 +66,9 @@ export class ZoneGrowthSystem {
   /** Land value system — injected from CitySim so both share the same instance. */
   private readonly _landValue: LandValueSystem;
 
+  /** Pollution system — injected from CitySim so both share the same instance. */
+  private readonly _pollution: PollutionSystem;
+
   /** Traffic pressure system — injected from CitySim so both share the same instance. */
   private readonly _traffic: TrafficPressureSystem;
 
@@ -74,8 +78,9 @@ export class ZoneGrowthSystem {
   /** Transit system — injected from CitySim so both share the same instance. */
   private readonly _transit: TransitSystem;
 
-  constructor(power: PowerSystem, landValue: LandValueSystem, traffic: TrafficPressureSystem, walkability: WalkabilitySystem, transit: TransitSystem) {
+  constructor(power: PowerSystem, pollution: PollutionSystem, landValue: LandValueSystem, traffic: TrafficPressureSystem, walkability: WalkabilitySystem, transit: TransitSystem) {
     this._power       = power;
+    this._pollution   = pollution;
     this._landValue   = landValue;
     this._traffic     = traffic;
     this._walkability = walkability;
@@ -123,7 +128,11 @@ export class ZoneGrowthSystem {
     if (this._secondsAccumulator < MONTH_SECONDS) return false;
     this._secondsAccumulator -= MONTH_SECONDS;
 
-    // Update land value first so growth decisions use fresh values.
+    // Pollution runs before land value so desirability reflects the previous
+    // month's traffic plus the current building layout.
+    this._pollution.tick(map, this.buildings, this.defs, stats);
+
+    // Update land value before growth so growth decisions use fresh values.
     this._landValue.tick(map, this.buildings, this.defs);
 
     this._updateDemand(stats);
