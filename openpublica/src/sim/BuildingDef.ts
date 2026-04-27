@@ -44,4 +44,16 @@ export interface BuildingDef {
    * Omit or set to 0 for non-mixed-use buildings.
    */
   readonly walkabilityRadius?: number;
+  /**
+   * Base pollution emitted by this building each month.
+   * PollutionSystem spreads this value radially from the building tile.
+   * Omit or set to 0 for non-polluting buildings.
+   */
+  readonly pollutionOutput?: number;
+  /**
+   * Radius (in tiles) within which this building's pollution spreads.
+   * Only meaningful when pollutionOutput is positive.
+   * Omit or set to 0 for non-polluting buildings.
+   */
+  readonly pollutionRadius?: number;
 }
