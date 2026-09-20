@@ -101,7 +101,7 @@ const KITS: BuildingKit[] = [
     shape: BUILDING_SHAPES.small_house,
     parts: [
       box('body', 0.46, 0.24, 0.42, 0, 0.12, 0),
-      prism('roof', 0.52, 0.16, 0.46, 0, 0.32, 0),
+      prism('roof', 0.56, 0.18, 0.48, 0, 0.34, 0),
       box('accent', 0.08, 0.12, 0.03, 0, 0.08, 0.22),
       box('glass', 0.10, 0.08, 0.02, -0.14, 0.14, 0.215),
       box('glass', 0.10, 0.08, 0.02, 0.14, 0.14, 0.215),
@@ -144,11 +144,11 @@ const KITS: BuildingKit[] = [
     defId: 'small_power_plant',
     shape: BUILDING_SHAPES.small_power_plant,
     parts: [
-      box('body', 0.72, 0.28, 0.62, 0, 0.14, 0),
-      box('trim', 0.74, 0.05, 0.64, 0, 0.30, 0),
-      cylinder('stack', 0.13, 0.42, -0.16, 0.43, 0.08),
-      cylinder('stack', 0.13, 0.36, 0.18, 0.40, 0.08),
-      box('accent', 0.72, 0.04, 0.04, 0, 0.22, 0.32),
+      box('body', 0.74, 0.34, 0.64, 0, 0.17, 0),
+      box('trim', 0.76, 0.05, 0.66, 0, 0.36, 0),
+      cylinder('stack', 0.14, 0.52, -0.16, 0.52, 0.08),
+      cylinder('stack', 0.14, 0.44, 0.18, 0.48, 0.08),
+      box('accent', 0.74, 0.04, 0.04, 0, 0.26, 0.33),
     ],
   },
   {
@@ -244,18 +244,18 @@ export function kitPalette(kind: 'zone' | 'service' | 'warning', zoneType: ZoneT
       roof:   { r: 0.55, g: 0.28, b: 0.06 },
       trim:   { r: 0.85, g: 0.85, b: 0.80 },
       accent: { r: 0.90, g: 0.15, b: 0.08 },
-      stack:  { r: 0.38, g: 0.38, b: 0.40 },
-      glass:  { r: 0.20, g: 0.22, b: 0.24 },
+      stack:  { r: 0.30, g: 0.32, b: 0.34 },
+      glass:  { r: 0.16, g: 0.18, b: 0.20 },
     };
   }
   const body = ZONE_BODY[zoneType] ?? ZONE_BODY[ZoneType.None];
   return {
     body,
-    roof:   shade(body, 0.55),
-    trim:   shade(body, 1.15),
-    accent: { r: 0.42, g: 0.28, b: 0.18 },
-    stack:  { r: 0.32, g: 0.32, b: 0.34 },
-    glass:  { r: 0.18, g: 0.28, b: 0.38 },
+    roof:   shade(body, 0.42),
+    trim:   shade(body, 1.12),
+    accent: { r: 0.38, g: 0.24, b: 0.14 },
+    stack:  { r: 0.28, g: 0.28, b: 0.30 },
+    glass:  { r: 0.10, g: 0.18, b: 0.28 },
   };
 }
 

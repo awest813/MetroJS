@@ -29,10 +29,10 @@ export class WaterRenderer {
     this._mesh.isPickable = false;
 
     const mat = new StandardMaterial('water-mat', scene);
-    mat.diffuseColor = new Color3(0.10, 0.38, 0.58);
-    mat.specularColor = new Color3(0.55, 0.70, 0.80);
-    mat.emissiveColor = new Color3(0.02, 0.06, 0.10);
-    mat.alpha = 0.58;
+    mat.diffuseColor = new Color3(0.08, 0.42, 0.62);
+    mat.specularColor = new Color3(0.70, 0.85, 0.95);
+    mat.emissiveColor = new Color3(0.03, 0.08, 0.12);
+    mat.alpha = 0.66;
     mat.backFaceCulling = false;
     this._mesh.material = mat;
   }

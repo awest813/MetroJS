@@ -37,7 +37,7 @@ export class RoadRenderer {
     this._scene = scene;
     this._shadows = shadowGenerator;
 
-    this._streetMat = this._mat('road-street', new Color3(0.38, 0.39, 0.41), new Color3(0.12, 0.12, 0.12));
+    this._streetMat = this._mat('road-street', new Color3(0.44, 0.45, 0.47), new Color3(0.14, 0.14, 0.14));
     this._highwayMat = this._mat('road-highway', new Color3(0.22, 0.23, 0.25), new Color3(0.08, 0.08, 0.08));
     this._trolleyMat = this._mat('road-trolley', new Color3(0.62, 0.34, 0.18), new Color3(0.18, 0.08, 0.04));
     this._railMat = this._mat('road-rail', new Color3(0.55, 0.58, 0.62), new Color3(0.45, 0.45, 0.48));

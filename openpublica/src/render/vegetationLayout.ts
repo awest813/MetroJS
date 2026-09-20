@@ -31,7 +31,7 @@ export function parkTreeSlots(x: number, y: number): TreeSlot[] {
     slots.push({
       dx: Math.cos(ang) * rad,
       dz: Math.sin(ang) * rad,
-      scale: 0.78 + unit(hi >>> 7) * 0.45,
+      scale: 1.12 + unit(hi >>> 7) * 0.55,
     });
   }
   return slots;
@@ -58,11 +58,11 @@ export function streetTreeSlot(
   return {
     dx: eastWest ? along : side * curb,
     dz: eastWest ? side * curb : along,
-    scale: 0.65 + unit(h >>> 11) * 0.25,
+    scale: 0.95 + unit(h >>> 11) * 0.28,
   };
 }
 
 export const POWER_PLANT_SMOKE: ReadonlyArray<{ x: number; y: number; z: number }> = [
-  { x: -0.16, y: 0.65, z: 0.08 },
-  { x: 0.18, y: 0.59, z: 0.08 },
+  { x: -0.16, y: 0.78, z: 0.08 },
+  { x: 0.18, y: 0.70, z: 0.08 },
 ];

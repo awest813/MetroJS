@@ -9,9 +9,8 @@ import {
 } from '@babylonjs/core';
 import type { CityMap } from '../sim/CityMap';
 import type { CityTile } from '../sim/CityTile';
-import { cityTileColor } from '../data/cityTileColors';
+import { tileCornerColors } from '../data/cityTileColors';
 import { TILE_SIZE } from '../data/constants';
-import type { TileColor } from '../data/tileTypes';
 import { HeightField, writeSlopedQuad } from '../sim/HeightField';
 
 /** Name of the terrain mesh — used by TilePicker to identify hits. */
@@ -24,8 +23,9 @@ export const TERRAIN_MESH_NAME = 'terrain';
 export class TerrainRenderer {
   private readonly _scene: Scene;
   private readonly _shadows: ShadowGenerator | null;
-  private _mesh: Mesh | null = null;
+    private _mesh: Mesh | null = null;
   private _mapWidth = 0;
+  private _map: CityMap | null = null;
   private _heights: HeightField | null = null;
 
   constructor(scene: Scene, shadowGenerator: ShadowGenerator | null = null) {
@@ -38,6 +38,7 @@ export class TerrainRenderer {
    */
   buildCityGrid(map: CityMap, heights: HeightField): void {
     this._mapWidth = map.width;
+    this._map = map;
     this._heights = heights;
 
     const W = map.width;
@@ -55,12 +56,12 @@ export class TerrainRenderer {
 
     map.forEach((tile) => {
       writeSlopedQuad(positions, vi, tile.x, tile.y, TILE_SIZE, heights, 0);
-      const c = cityTileColor(tile);
+      const corners = tileCornerColors(map, tile.x, tile.y);
 
       for (let v = 0; v < 4; v++) {
-        colors[ci + v * 4]     = c.r;
-        colors[ci + v * 4 + 1] = c.g;
-        colors[ci + v * 4 + 2] = c.b;
+        colors[ci + v * 4]     = corners[v].r;
+        colors[ci + v * 4 + 1] = corners[v].g;
+        colors[ci + v * 4 + 2] = corners[v].b;
         colors[ci + v * 4 + 3] = 1.0;
       }
       ci += 16;
@@ -105,29 +106,31 @@ export class TerrainRenderer {
    * Updates the vertex colors for a single CityTile after it is mutated.
    */
   updateCityTile(tile: CityTile): void {
-    this._updateColors(tile.x, tile.y, cityTileColor(tile));
+    if (!this._mesh || !this._map) return;
+    const rawColors = this._mesh.getVerticesData(VertexBuffer.ColorKind);
+    if (!rawColors) return;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const neighbour = this._map.getTile(tile.x + dx, tile.y + dy);
+        if (neighbour) this._paintCorners(rawColors, neighbour.x, neighbour.y);
+      }
+    }
+    this._mesh.updateVerticesData(VertexBuffer.ColorKind, rawColors);
   }
 
   get heights(): HeightField | null {
     return this._heights;
   }
 
-  private _updateColors(x: number, y: number, c: TileColor): void {
-    if (!this._mesh) return;
-
-    const rawColors = this._mesh.getVerticesData(VertexBuffer.ColorKind);
-    if (!rawColors) return;
-
-    const i  = y * this._mapWidth + x;
-    const ci = i * 16;
-
+  private _paintCorners(rawColors: Float32Array | number[], x: number, y: number): void {
+    if (!this._map) return;
+    const corners = tileCornerColors(this._map, x, y);
+    const ci = (y * this._mapWidth + x) * 16;
     for (let v = 0; v < 4; v++) {
-      rawColors[ci + v * 4]     = c.r;
-      rawColors[ci + v * 4 + 1] = c.g;
-      rawColors[ci + v * 4 + 2] = c.b;
+      rawColors[ci + v * 4]     = corners[v].r;
+      rawColors[ci + v * 4 + 1] = corners[v].g;
+      rawColors[ci + v * 4 + 2] = corners[v].b;
       rawColors[ci + v * 4 + 3] = 1.0;
     }
-
-    this._mesh.updateVerticesData(VertexBuffer.ColorKind, rawColors);
   }
 }

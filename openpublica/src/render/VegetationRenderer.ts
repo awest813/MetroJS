@@ -36,17 +36,18 @@ export class VegetationRenderer {
     this._shadows = shadowGenerator;
 
     const trunkMat = new StandardMaterial('veg-trunk', scene);
-    trunkMat.diffuseColor = new Color3(0.36, 0.22, 0.12);
-    trunkMat.specularColor = new Color3(0.08, 0.08, 0.08);
+    trunkMat.diffuseColor = new Color3(0.28, 0.16, 0.08);
+    trunkMat.specularColor = new Color3(0.05, 0.04, 0.03);
 
     const canopyMat = new StandardMaterial('veg-canopy', scene);
-    canopyMat.diffuseColor = new Color3(0.20, 0.46, 0.18);
-    canopyMat.specularColor = new Color3(0.06, 0.08, 0.05);
+    canopyMat.diffuseColor = new Color3(0.10, 0.32, 0.12);
+    canopyMat.specularColor = new Color3(0.04, 0.06, 0.03);
+    canopyMat.ambientColor = new Color3(0.08, 0.14, 0.06);
 
     this._trunkSrc = MeshBuilder.CreateCylinder('veg-trunk-src', {
-      diameter: 0.07,
-      height: 0.22,
-      tessellation: 6,
+      diameter: 0.09,
+      height: 0.36,
+      tessellation: 7,
     }, scene);
     this._trunkSrc.material = trunkMat;
     this._trunkSrc.isVisible = false;
@@ -54,8 +55,8 @@ export class VegetationRenderer {
     this._shadows?.addShadowCaster(this._trunkSrc);
 
     this._canopySrc = MeshBuilder.CreateSphere('veg-canopy-src', {
-      diameter: 0.32,
-      segments: 7,
+      diameter: 0.56,
+      segments: 8,
     }, scene);
     this._canopySrc.material = canopyMat;
     this._canopySrc.isVisible = false;
@@ -115,16 +116,21 @@ export class VegetationRenderer {
     for (const slot of slots) {
       const trunk = this._trunkSrc.createInstance(`veg-t-${this._seq++}`);
       const canopy = this._canopySrc.createInstance(`veg-c-${this._seq++}`);
+      const canopy2 = this._canopySrc.createInstance(`veg-c2-${this._seq++}`);
       const s = slot.scale;
       trunk.scaling.set(s, s, s);
-      canopy.scaling.set(s, s * 0.9, s);
-      trunk.position = new Vector3(ox + slot.dx, groundY + 0.11 * s, oz + slot.dz);
-      canopy.position = new Vector3(ox + slot.dx, groundY + 0.28 * s, oz + slot.dz);
+      canopy.scaling.set(s * 1.05, s * 0.72, s * 1.05);
+      canopy2.scaling.set(s * 0.72, s * 0.55, s * 0.72);
+      trunk.position = new Vector3(ox + slot.dx, groundY + 0.18 * s, oz + slot.dz);
+      canopy.position = new Vector3(ox + slot.dx, groundY + 0.42 * s, oz + slot.dz);
+      canopy2.position = new Vector3(ox + slot.dx + 0.06 * s, groundY + 0.50 * s, oz + slot.dz + 0.04 * s);
       trunk.isPickable = false;
       canopy.isPickable = false;
+      canopy2.isPickable = false;
       trunk.receiveShadows = true;
       canopy.receiveShadows = true;
-      meshes.push(trunk, canopy);
+      canopy2.receiveShadows = true;
+      meshes.push(trunk, canopy, canopy2);
     }
     this._tiles.set(key, { meshes });
   }

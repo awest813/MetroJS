@@ -1,43 +1,78 @@
 // ⚠️  This file must NOT import anything from @babylonjs/core.
 
+import type { CityMap } from '../sim/CityMap';
 import type { CityTile } from '../sim/CityTile';
 import { RoadType, ZoneType, TerrainType } from '../sim/CityTile';
 import type { TileColor } from './tileTypes';
+import { terrainHash } from '../sim/TerrainGenerator';
 
 /** Display color for each zone type (no road). */
 const ZONE_COLORS: Record<ZoneType, TileColor> = {
-  [ZoneType.None]:        { r: 0.30, g: 0.60, b: 0.22 }, // grass (default terrain)
-  [ZoneType.Residential]: { r: 0.38, g: 0.58, b: 0.82 }, // soft blue
-  [ZoneType.Commercial]:  { r: 0.90, g: 0.78, b: 0.22 }, // amber/yellow
-  [ZoneType.Industrial]:  { r: 0.62, g: 0.42, b: 0.72 }, // muted purple
-  [ZoneType.MixedUse]:    { r: 0.22, g: 0.72, b: 0.62 }, // teal
+  [ZoneType.None]:        { r: 0.28, g: 0.54, b: 0.24 },
+  [ZoneType.Residential]: { r: 0.38, g: 0.58, b: 0.82 },
+  [ZoneType.Commercial]:  { r: 0.90, g: 0.78, b: 0.22 },
+  [ZoneType.Industrial]:  { r: 0.62, g: 0.42, b: 0.72 },
+  [ZoneType.MixedUse]:    { r: 0.22, g: 0.72, b: 0.62 },
 };
 
-/** Display colour for each terrain type (used when no zone). */
 const TERRAIN_COLORS: Record<TerrainType, TileColor> = {
-  [TerrainType.Grass]: { r: 0.30, g: 0.60, b: 0.22 },
-  [TerrainType.Water]: { r: 0.28, g: 0.34, b: 0.22 },
-  [TerrainType.Dirt]:  { r: 0.60, g: 0.44, b: 0.28 },
+  [TerrainType.Grass]: { r: 0.28, g: 0.54, b: 0.24 },
+  [TerrainType.Water]: { r: 0.07, g: 0.15, b: 0.16 },
+  [TerrainType.Dirt]:  { r: 0.50, g: 0.45, b: 0.30 },
 };
 
-/** Display colour for a tile that has a building on it (darker than the zone tint). */
 const BUILDING_COLORS: Record<ZoneType, TileColor> = {
-  [ZoneType.None]:        { r: 0.30, g: 0.60, b: 0.22 }, // fallback (unused)
-  [ZoneType.Residential]: { r: 0.20, g: 0.35, b: 0.65 }, // dark blue
-  [ZoneType.Commercial]:  { r: 0.70, g: 0.55, b: 0.05 }, // dark amber
-  [ZoneType.Industrial]:  { r: 0.40, g: 0.22, b: 0.50 }, // dark purple
-  [ZoneType.MixedUse]:    { r: 0.10, g: 0.50, b: 0.42 }, // dark teal
+  [ZoneType.None]:        { r: 0.28, g: 0.54, b: 0.24 },
+  [ZoneType.Residential]: { r: 0.20, g: 0.35, b: 0.65 },
+  [ZoneType.Commercial]:  { r: 0.70, g: 0.55, b: 0.05 },
+  [ZoneType.Industrial]:  { r: 0.40, g: 0.22, b: 0.50 },
+  [ZoneType.MixedUse]:    { r: 0.10, g: 0.50, b: 0.42 },
 };
 
-/** Lush green for park tiles (no zone tint — parks are services). */
-const PARK_GROUND: TileColor = { r: 0.18, g: 0.52, b: 0.22 };
+/** Darker lawn so tree canopies read against the ground. */
+const PARK_GROUND: TileColor = { r: 0.12, g: 0.40, b: 0.16 };
+
+export function averageColors(colors: ReadonlyArray<TileColor>): TileColor {
+  if (colors.length === 0) return TERRAIN_COLORS[TerrainType.Grass];
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  for (const c of colors) {
+    r += c.r;
+    g += c.g;
+    b += c.b;
+  }
+  const n = colors.length;
+  return { r: r / n, g: g / n, b: b / n };
+}
+
+/**
+ * Colours at the four corners of tile (x, y): SW, SE, NW, NE.
+ * Averaging neighbouring tiles removes the spreadsheet grid.
+ */
+export function tileCornerColors(map: CityMap, x: number, y: number): [TileColor, TileColor, TileColor, TileColor] {
+  return [
+    _cornerColor(map, x, y),
+    _cornerColor(map, x + 1, y),
+    _cornerColor(map, x, y + 1),
+    _cornerColor(map, x + 1, y + 1),
+  ];
+}
+
+function _cornerColor(map: CityMap, cx: number, cy: number): TileColor {
+  const tiles = [
+    map.getTile(cx - 1, cy - 1),
+    map.getTile(cx, cy - 1),
+    map.getTile(cx - 1, cy),
+    map.getTile(cx, cy),
+  ].filter((t): t is CityTile => t !== undefined);
+  return averageColors(tiles.map(cityTileColor));
+}
 
 /**
  * Returns the display colour for a CityTile.
  *
  * Priority: park > zoned building > zone > terrain.
- * Roads are extruded meshes (RoadRenderer); the ground under them stays
- * a darkened terrain colour so asphalt is not painted onto the heightfield.
  */
 export function cityTileColor(tile: CityTile): TileColor {
   if (tile.buildingId === 'small_park') {
@@ -49,7 +84,15 @@ export function cityTileColor(tile: CityTile): TileColor {
   if (tile.zoneType !== ZoneType.None) {
     return ZONE_COLORS[tile.zoneType];
   }
-  const terrain = TERRAIN_COLORS[tile.terrain];
+  let terrain = TERRAIN_COLORS[tile.terrain];
+  if (tile.terrain === TerrainType.Grass) {
+    const n = terrainHash(tile.x, tile.y, 11);
+    terrain = {
+      r: terrain.r * (0.90 + n * 0.16),
+      g: terrain.g * (0.94 + n * 0.10),
+      b: terrain.b * (0.88 + n * 0.14),
+    };
+  }
   if (tile.roadType !== RoadType.None) {
     return { r: terrain.r * 0.72, g: terrain.g * 0.72, b: terrain.b * 0.72 };
   }
