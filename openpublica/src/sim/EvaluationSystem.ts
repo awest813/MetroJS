@@ -32,6 +32,9 @@ const BANKRUPT_PENALTY = 35;
 /** Flat approval hit when the city has no generator. */
 const NO_PLANT_PENALTY = 12;
 
+/** Fire/water nags wait until someone actually lives here. */
+export const SERVICE_ADVISORY_POPULATION = 40;
+
 export interface Advisory {
   readonly id: string;
   readonly message: string;
@@ -61,11 +64,16 @@ export class EvaluationSystem {
 
 interface Census {
   hasPlant: boolean;
+  hasRoad: boolean;
   buildingCount: number;
   unpoweredCount: number;
   extremeRoads: number;
   lotsNeedRoad: number;
   zonedCount: number;
+  residentialLots: number;
+  commercialLots: number;
+  industrialLots: number;
+  mixedLots: number;
   strugglingCount: number;
 }
 
@@ -90,9 +98,19 @@ function survey(
   let extremeRoads = 0;
   let lotsNeedRoad = 0;
   let zonedCount = 0;
+  let residentialLots = 0;
+  let commercialLots = 0;
+  let industrialLots = 0;
+  let mixedLots = 0;
   let strugglingCount = 0;
+  let hasRoad = false;
   map.forEach((tile) => {
+    if (tile.roadType !== RoadType.None) hasRoad = true;
     if (tile.zoneType !== ZoneType.None) zonedCount += 1;
+    if (tile.zoneType === ZoneType.Residential) residentialLots += 1;
+    if (tile.zoneType === ZoneType.Commercial) commercialLots += 1;
+    if (tile.zoneType === ZoneType.Industrial) industrialLots += 1;
+    if (tile.zoneType === ZoneType.MixedUse) mixedLots += 1;
     if (tile.neglectMonths >= 2 && tile.buildingId !== null) strugglingCount += 1;
     if (tile.roadType !== RoadType.None && tile.trafficPressure >= EXTREME_PRESSURE) {
       extremeRoads += 1;
@@ -107,7 +125,20 @@ function survey(
     }
   });
 
-  return { hasPlant, buildingCount, unpoweredCount, extremeRoads, lotsNeedRoad, zonedCount, strugglingCount };
+  return {
+    hasPlant,
+    hasRoad,
+    buildingCount,
+    unpoweredCount,
+    extremeRoads,
+    lotsNeedRoad,
+    zonedCount,
+    residentialLots,
+    commercialLots,
+    industrialLots,
+    mixedLots,
+    strugglingCount,
+  };
 }
 
 function score(stats: CityStats, census: Census): number {
@@ -143,10 +174,21 @@ function listAdvisories(stats: CityStats, census: Census): Advisory[] {
     out.push({ id: 'bankrupt', message: 'Treasury is bankrupt — cut spending or raise taxes.' });
   }
   if (!census.hasPlant) {
-    if (census.zonedCount === 0 && census.buildingCount === 0) {
-      out.push({ id: 'no-plant', message: 'Zone land and place a power plant.' });
+    if (!census.hasRoad && census.zonedCount === 0 && census.buildingCount === 0) {
+      out.push({
+        id: 'start',
+        message: 'Paint a street, zone lots beside it, then place a power plant.',
+      });
+    } else if (census.hasRoad && census.zonedCount === 0 && census.buildingCount === 0) {
+      out.push({
+        id: 'start-zone',
+        message: 'Zone empty lots beside the street, then place a power plant.',
+      });
     } else {
-      out.push({ id: 'no-plant', message: 'No power plant — lots stay dark until you place one.' });
+      out.push({
+        id: 'no-plant',
+        message: 'Place a power plant on grass — lots stay dark without one.',
+      });
     }
   }
   if (census.unpoweredCount > 0) {
@@ -179,10 +221,36 @@ function listAdvisories(stats: CityStats, census: Census): Advisory[] {
       message: `${census.lotsNeedRoad} zoned lot${census.lotsNeedRoad === 1 ? '' : 's'} need a road next door.`,
     });
   }
-  if (stats.population > 0 && stats.fireAverage < 20) {
+  if (census.hasPlant && stats.population === 0) {
+    if (
+      census.residentialLots === 0 &&
+      (census.commercialLots > 0 || census.mixedLots > 0) &&
+      census.industrialLots === 0
+    ) {
+      out.push({
+        id: 'need-housing',
+        message: 'Shops wait for residents — zone housing beside a road.',
+      });
+    } else if (census.zonedCount === 0) {
+      out.push({
+        id: 'need-zone',
+        message: 'Zone lots beside the street so houses can grow.',
+      });
+    } else if (census.lotsNeedRoad === 0) {
+      out.push({
+        id: 'waiting',
+        message: 'Waiting for growth — houses appear each month on powered lots by the road.',
+      });
+    }
+  }
+  if (stats.population >= SERVICE_ADVISORY_POPULATION && stats.fireAverage < 20) {
     out.push({ id: 'fire', message: 'Fire coverage is thin — place a powered fire station.' });
   }
-  if (census.zonedCount > 0 && stats.waterAverage < 25) {
+  if (
+    stats.population >= SERVICE_ADVISORY_POPULATION &&
+    census.zonedCount > 0 &&
+    stats.waterAverage < 25
+  ) {
     out.push({ id: 'water', message: 'Lots are dry — place a powered water tower.' });
   }
   return out;

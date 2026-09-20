@@ -10,7 +10,14 @@ describe('EvaluationSystem', () => {
   it('should start a blank city at full approval with a plant advisory', () => {
     const sim = CitySim.createCity(8, 8);
     expect(sim.stats.approval).toBe(100);
+    expect(sim.stats.advisory).toMatch(/paint a street/i);
     expect(sim.stats.advisory).toMatch(/power plant/i);
+  });
+
+  it('should ask for zones once a street exists', () => {
+    const sim = CitySim.createCity(8, 8);
+    sim.placeRoad(2, 2, RoadType.Street);
+    expect(sim.stats.advisory).toMatch(/zone empty lots/i);
   });
 
   it('should tell the player when zoned lots have no plant', () => {
@@ -103,7 +110,7 @@ describe('EvaluationSystem', () => {
     expect(sim.stats.advisory).toMatch(/traffic/i);
   });
 
-  it('should mention dry lots when zones have no water', () => {
+  it('should mention dry lots only after people live in the city', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
     sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
@@ -111,7 +118,37 @@ describe('EvaluationSystem', () => {
     sim.placeRoad(10, 10, RoadType.Street);
     sim.setZone(10, 11, ZoneType.Residential);
     sim.evaluate();
+    expect(sim.stats.advisory).toMatch(/waiting for growth/i);
+
+    sim.stats.population = 40;
+    sim.stats.fireAverage = 100;
+    sim.evaluate();
     expect(sim.stats.advisory).toMatch(/water tower/i);
+  });
+
+  it('should mention thin fire coverage only after people live in the city', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    sim.stats.pollutionAverage = 0;
+    sim.placeRoad(10, 10, RoadType.Street);
+    sim.setZone(10, 11, ZoneType.Residential);
+    sim.stats.population = 40;
+    sim.stats.fireAverage = 0;
+    sim.stats.waterAverage = 100;
+    sim.evaluate();
+    expect(sim.stats.advisory).toMatch(/fire station/i);
+  });
+
+  it('should tell shop-only cities to zone housing', () => {
+    const sim = CitySim.createCity(16, 16);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(8, 8, 'small_power_plant', 0);
+    sim.placeRoad(4, 4, RoadType.Street);
+    sim.setZone(4, 5, ZoneType.Commercial);
+    sim.stats.pollutionAverage = 0;
+    sim.evaluate();
+    expect(sim.stats.advisory).toMatch(/wait for residents/i);
   });
 
   it('should mention emptying buildings when lots are struggling', () => {

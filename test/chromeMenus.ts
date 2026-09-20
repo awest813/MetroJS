@@ -19,6 +19,8 @@ describe('chromeCopy', () => {
     expect(SETTINGS_SHORTCUTS).toMatch(/Ctrl\+S save/);
     expect(SETTINGS_SHORTCUTS).toMatch(/Esc/);
     expect(SETTINGS_SHORTCUTS).toMatch(/Home frame/);
+    expect(SETTINGS_SHORTCUTS).toMatch(/R road/);
+    expect(SETTINGS_SHORTCUTS).toMatch(/I inspect/);
   });
 
   it('should describe city file state', () => {

@@ -41,7 +41,7 @@ export class CityHUD {
         <span class="hud-item hud-muted" id="hud-water" title="Percent of zoned lots that are watered">Water 0</span>
         <span class="hud-item" id="hud-approval" title="Mayor approval">Score 100</span>
       </div>
-      <div id="hud-advisory" class="hud-advisory" title="Top city problem">Zone land and place a power plant.</div>
+        <div id="hud-advisory" class="hud-advisory" title="Top city problem">Paint a street, zone lots beside it, then place a power plant.</div>
       <div id="hud-demand" title="Zone demand">
         <div class="demand-row">
           <span class="demand-label">Res</span>

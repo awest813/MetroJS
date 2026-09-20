@@ -5,8 +5,37 @@ const TOOL_GROUPS: ReadonlyArray<ReadonlyArray<string>> = [
   ['inspect'],
   ['road', 'highway', 'trolleyAvenue', 'bulldoze'],
   ['zoneResidentialLow', 'zoneCommercialLow', 'zoneIndustrialLight', 'zoneMixedUse', 'zoneClear'],
-  ['placePowerPlant', 'placePark', 'placePoliceStation', 'placeFireStation', 'placeWaterTower'],
+  ['placePowerPlant'],
+  ['placePark', 'placePoliceStation', 'placeFireStation', 'placeWaterTower'],
 ];
+
+const TOOL_TITLES: Readonly<Record<string, string>> = {
+  inspect: 'Inspect a tile (key I)',
+  road: 'Street — $10 a tile. Houses grow on lots beside it (key R)',
+  highway: 'Highway — $25 a tile (key H)',
+  trolleyAvenue: 'Trolley avenue — $30 a tile (key T)',
+  bulldoze: 'Clear a tile — $1 (key B)',
+  zoneResidentialLow: 'Housing lots — $5. Paint beside a street, not on it (key Z)',
+  zoneCommercialLow: 'Shop lots — $5. Need residents before they fill',
+  zoneIndustrialLight: 'Factory lots — $5. Paint beside a street',
+  zoneMixedUse: 'Housing and shops on one lot — $5',
+  zoneClear: 'Remove zoning. Buildings must be bulldozed first',
+  placePowerPlant: 'Power plant — $500. Place on grass, not on the road (key G)',
+  placePark: 'Park — raises nearby land value',
+  placePoliceStation: 'Police station — coverage while powered',
+  placeFireStation: 'Fire station — coverage while powered',
+  placeWaterTower: 'Water tower — coverage while powered',
+};
+
+const TOOL_KEYS: Readonly<Record<string, string>> = {
+  i: 'inspect',
+  r: 'road',
+  h: 'highway',
+  t: 'trolleyAvenue',
+  b: 'bulldoze',
+  z: 'zoneResidentialLow',
+  g: 'placePowerPlant',
+};
 
 /**
  * Left-rail tool buttons. Owns no game state.
@@ -18,6 +47,15 @@ export class Toolbar {
   constructor(container: HTMLElement, controller: ToolController) {
     this._container  = container;
     this._controller = controller;
+
+    window.addEventListener('keydown', (event) => {
+      if (_isTypingTarget(event.target)) return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      const tool = TOOL_KEYS[event.key.toLowerCase()];
+      if (!tool) return;
+      event.preventDefault();
+      this.select(tool);
+    });
   }
 
   build(tools: Tool[]): void {
@@ -37,8 +75,12 @@ export class Toolbar {
 
     const leftovers = tools.filter((t) => !placed.has(t.name));
     if (leftovers.length > 0) this._appendGroup(leftovers);
+  }
 
-    if (tools.length > 0) this._setActiveButton(tools[0].name);
+  /** Activate a registered tool and light its button. */
+  select(name: string): void {
+    this._controller.setActiveTool(name);
+    this._setActiveButton(this._controller.activeTool.name);
   }
 
   private _appendGroup(tools: Tool[]): void {
@@ -49,12 +91,9 @@ export class Toolbar {
       btn.type = 'button';
       btn.dataset.tool = tool.name;
       btn.textContent = tool.label;
-      btn.title = tool.label;
+      btn.title = TOOL_TITLES[tool.name] ?? tool.label;
       btn.setAttribute('aria-pressed', 'false');
-      btn.addEventListener('click', () => {
-        this._controller.setActiveTool(tool.name);
-        this._setActiveButton(tool.name);
-      });
+      btn.addEventListener('click', () => this.select(tool.name));
       wrap.appendChild(btn);
     }
     this._container.appendChild(wrap);
@@ -67,4 +106,12 @@ export class Toolbar {
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
   }
+}
+
+function _isTypingTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  );
 }

@@ -77,7 +77,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Building kits + instancing (Phase D)
 - [x] Parks, street trees, and plant smoke (Phase E)
 - [x] Moving cars and trolleys on a render-only road graph (Phase F)
-- [x] Gameplay: starter housing demand, sim speed/pause, placement and growth feedback
+- [x] Gameplay: starter housing demand, sim speed/pause, placement and growth feedback, opening coach (street → lots → plant)
 - [x] Unified 3D overlay mesh including pollution (Phase G)
 - [x] Procedural sound (paint, growth, mute); unlocked on first gesture, M to mute
 - [x] Camera polish: HTML minimap, Home/Frame, sun slider, High/Low quality

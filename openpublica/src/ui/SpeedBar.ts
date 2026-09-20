@@ -3,7 +3,7 @@ export type SimSpeed = 0 | 1 | 2 | 4;
 const SPEEDS: ReadonlyArray<{ value: SimSpeed; label: string; hint: string }> = [
   { value: 0, label: 'Pause', hint: 'Freeze the month clock (key P)' },
   { value: 1, label: '1×', hint: 'Real time: one month per 30 seconds (key [ ] )' },
-  { value: 2, label: '2×', hint: 'Default play speed' },
+  { value: 2, label: '2×', hint: 'Faster months (key [ ] )' },
   { value: 4, label: '4×', hint: 'Fast-forward' },
 ];
 
@@ -12,6 +12,7 @@ const SPEEDS: ReadonlyArray<{ value: SimSpeed; label: string; hint: string }> = 
  */
 export class SpeedBar {
   private _speed: SimSpeed;
+  private _resume: SimSpeed;
   private readonly _onChange: (speed: SimSpeed) => void;
   private readonly _buttons: HTMLButtonElement[] = [];
 
@@ -21,6 +22,7 @@ export class SpeedBar {
     onChange: (speed: SimSpeed) => void,
   ) {
     this._speed = initial;
+    this._resume = initial === 0 ? 1 : initial;
     this._onChange = onChange;
 
     const split = document.createElement('span');
@@ -57,7 +59,7 @@ export class SpeedBar {
         return;
       }
       if (event.key === 'p' || event.key === 'P') {
-        this.setSpeed(this._speed === 0 ? 2 : 0);
+        this.setSpeed(this._speed === 0 ? this._resume : 0);
         return;
       }
       if (event.key === '[') {
@@ -80,6 +82,7 @@ export class SpeedBar {
       return;
     }
     this._speed = speed;
+    if (speed > 0) this._resume = speed;
     this._sync();
     this._onChange(speed);
   }

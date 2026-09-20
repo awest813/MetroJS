@@ -143,7 +143,7 @@ export class App {
     sim.onTransitChanged = () => view.overlay.refresh(sim.map);
     sim.onCrimeChanged = () => view.overlay.refresh(sim.map);
 
-    let simSpeed: SimSpeed = 2;
+    let simSpeed: SimSpeed = 1;
 
     const look = new LookPanel(lookEl, () => cameraController.resetView());
     const redrawLook = (): void => {
@@ -164,6 +164,8 @@ export class App {
 
     const toolbar = new Toolbar(toolbarEl, toolController);
     toolbar.build(allTools);
+    toolbar.select('road');
+    statusEl.textContent = `${sim.stats.advisory} R road · I inspect · P pause.`;
 
     new CameraBar(cameraEl, cameraController);
     new SpeedBar(cameraEl, simSpeed, (next) => {

@@ -131,3 +131,4 @@ GLB (C4) and SSAO (C5) stay optional. C3 skirt is optional.
 - No `@babylonjs` imports under `src/sim/`, `src/tools/`, `src/save/`.
 - Network tab still has no `tiles.png` / `sprites/`.
 - Play: grow a city, toggle Smog, Frame, Save/Load, mute, Dawn/Dusk.
+- First minutes: Road is selected; HUD coach steps street → lots → plant; fire/water nags wait until population 40.
