@@ -31,12 +31,16 @@ body {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 6px;
+  max-width: min(1100px, calc(100vw - 280px));
   background: rgba(10, 16, 24, 0.85);
   border: 1px solid #2a3d52;
   border-radius: 10px;
   padding: 8px 14px;
   backdrop-filter: blur(4px);
+  z-index: 10;
 }
 
 #toolbar button {
@@ -265,4 +269,50 @@ body {
   width: 28px;
   text-align: right;
   flex-shrink: 0;
+}
+
+/* ── Camera bar (bottom-left) ─────────────────── */
+#camera-bar,
+.camera-bar {
+  position: absolute;
+  left: 14px;
+  bottom: 36px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  background: rgba(10, 16, 24, 0.85);
+  border: 1px solid #2a3d52;
+  border-radius: 10px;
+  padding: 7px 10px;
+  backdrop-filter: blur(4px);
+  z-index: 10;
+  max-width: min(720px, calc(100vw - 28px));
+}
+
+.camera-hint {
+  font-size: 11px;
+  color: #7a99b8;
+  margin-right: 4px;
+}
+
+#camera-bar button {
+  background: #1c2d3e;
+  color: #a8c0d4;
+  border: 1px solid #2e4560;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+#camera-bar button:hover {
+  background: #263c54;
+  border-color: #3e6080;
+}
+
+#camera-bar button.active {
+  background: #1060a0;
+  border-color: #2080d0;
+  color: #ffffff;
 }

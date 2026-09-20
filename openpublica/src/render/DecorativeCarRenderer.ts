@@ -5,6 +5,7 @@ import {
   Color3,
   Mesh,
   Vector3,
+  ShadowGenerator,
 } from '@babylonjs/core';
 import type { CityMap } from '../sim/CityMap';
 import { RoadType } from '../sim/CityTile';
@@ -42,11 +43,13 @@ const CAR_Y = CAR_HEIGHT / 2 + 0.01;
  */
 export class DecorativeCarRenderer {
   private readonly _scene:    Scene;
+  private readonly _shadows:  ShadowGenerator | null;
   private readonly _mat:      StandardMaterial;
   private readonly _meshes:   Map<string, Mesh> = new Map();
 
-  constructor(scene: Scene) {
+  constructor(scene: Scene, shadowGenerator: ShadowGenerator | null = null) {
     this._scene = scene;
+    this._shadows = shadowGenerator;
 
     // Single shared material for all car boxes.
     const mat = new StandardMaterial('car-mat', scene);
@@ -99,6 +102,8 @@ export class DecorativeCarRenderer {
 
         mesh.material   = this._mat;
         mesh.isPickable = false;
+        mesh.receiveShadows = true;
+        this._shadows?.addShadowCaster(mesh);
         this._meshes.set(key, mesh);
       }
 

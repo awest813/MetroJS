@@ -25,7 +25,9 @@ import { PlacePowerPlantTool } from '../tools/PlacePowerPlantTool';
 import { PlaceParkTool } from '../tools/PlaceParkTool';
 import { TrolleyAvenueTool } from '../tools/TrolleyAvenueTool';
 import { ToolController } from '../tools/ToolController';
+import { CameraController } from '../render/CameraController';
 import { Toolbar } from '../ui/Toolbar';
+import { CameraBar } from '../ui/CameraBar';
 import { CityHUD } from '../ui/CityHUD';
 import { BudgetPanel } from '../ui/BudgetPanel';
 import { SaveSystem } from '../save/SaveSystem';
@@ -41,13 +43,14 @@ export class App {
     const statusEl  = document.getElementById('status-bar');
     const hudEl     = document.getElementById('city-hud');
     const budgetEl  = document.getElementById('budget-panel');
+    const cameraEl  = document.getElementById('camera-bar');
 
     if (
       !(canvas instanceof HTMLCanvasElement) ||
-      !toolbarEl || !statusEl || !hudEl || !budgetEl
+      !toolbarEl || !statusEl || !hudEl || !budgetEl || !cameraEl
     ) {
       throw new Error(
-        'Required DOM elements not found: #game-canvas, #toolbar, #status-bar, #city-hud, #budget-panel',
+        'Required DOM elements not found: #game-canvas, #toolbar, #status-bar, #city-hud, #budget-panel, #camera-bar',
       );
     }
 
@@ -83,12 +86,13 @@ export class App {
     allTools.slice(1).forEach((t) => toolController.register(t));
 
     // ── Babylon.js renderer ──────────────────────────────────────────────────
-    const { scene, engine } = createScene(canvas);
+    const { scene, engine, camera, shadowGenerator } = createScene(canvas);
+    const cameraController = new CameraController(canvas, camera);
 
     const terrain      = new TerrainRenderer(scene);
     terrain.buildCityGrid(sim.map);
 
-    const buildings    = new BuildingRenderer(scene);
+    const buildings    = new BuildingRenderer(scene, shadowGenerator);
     const powerOverlay = new PowerOverlayRenderer(scene);
     powerOverlay.build(sim.map);
     const landValueOverlay = new LandValueOverlayRenderer(scene);
@@ -99,10 +103,10 @@ export class App {
     walkabilityOverlay.build(sim.map);
     const transitOverlay = new TransitOverlayRenderer(scene);
     transitOverlay.build(sim.map);
-    const decorativeCars = new DecorativeCarRenderer(scene);
+    const decorativeCars = new DecorativeCarRenderer(scene, shadowGenerator);
 
     const highlight = new HighlightRenderer(scene);
-    const picker    = new TilePicker(scene);
+    const picker    = new TilePicker(scene, cameraController);
 
     // ── Helper: refresh building warning states and power overlay ────────────
     const refreshPowerVisuals = () => {
@@ -226,6 +230,8 @@ export class App {
     // ── Toolbar UI ───────────────────────────────────────────────────────────
     const toolbar = new Toolbar(toolbarEl, toolController);
     toolbar.build(allTools);
+
+    new CameraBar(cameraEl, cameraController);
 
     // Power overlay toggle button (separate from the tool buttons).
     const overlayBtn = document.createElement('button');

@@ -3,7 +3,10 @@ import {
   Scene,
   ArcRotateCamera,
   HemisphericLight,
-  Camera,
+  DirectionalLight,
+  ShadowGenerator,
+  MeshBuilder,
+  StandardMaterial,
   Vector3,
   Color3,
   Color4,
@@ -14,52 +17,67 @@ export interface SceneBundle {
   engine: Engine;
   scene: Scene;
   camera: ArcRotateCamera;
+  sun: DirectionalLight;
+  shadowGenerator: ShadowGenerator;
 }
 
 /**
- * Boots the Babylon.js engine, creates a scene with an orthographic
- * angled camera (2.5D city-builder perspective) and a soft ambient light.
+ * Boots the Babylon.js engine with a perspective city camera, sun + fill
+ * lighting, cascaded-quality shadows, fog, and a dark world ground skirt.
+ * Camera input (orbit vs paint) is wired by CameraController.
  */
 export function createScene(canvas: HTMLCanvasElement): SceneBundle {
   const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
   const scene = new Scene(engine);
 
-  scene.clearColor = new Color4(0.13, 0.18, 0.24, 1);
+  const sky = new Color3(0.42, 0.58, 0.74);
+  scene.clearColor = new Color4(sky.r, sky.g, sky.b, 1);
+  scene.fogMode = Scene.FOGMODE_LINEAR;
+  scene.fogColor = sky;
+  scene.fogStart = 70;
+  scene.fogEnd = 220;
+  scene.ambientColor = new Color3(0.18, 0.20, 0.24);
 
-  // --- Camera ---
-  // ArcRotateCamera gives an isometric-style angle in orthographic mode.
-  // alpha = -π/4  → looking from the NE corner (SE-facing grid)
-  // beta  = π/3.5 → ~51° from vertical (classic city-builder tilt)
   const mapCenter = new Vector3(MAP_SIZE / 2, 0, MAP_SIZE / 2);
-  const camera = new ArcRotateCamera('camera', -Math.PI / 4, Math.PI / 3.5, 100, mapCenter, scene);
-  camera.mode = Camera.ORTHOGRAPHIC_CAMERA;
-  camera.lowerRadiusLimit = 10;
-  camera.upperRadiusLimit = 200;
+  const camera = new ArcRotateCamera('camera', -Math.PI / 4, Math.PI / 3.5, 78, mapCenter, scene);
 
-  const applyOrtho = (): void => {
-    const aspect = canvas.clientWidth / Math.max(canvas.clientHeight, 1);
-    const halfH = 44; // half-height in world units — fits 64-tile map with margin
-    camera.orthoBottom = -halfH;
-    camera.orthoTop = halfH;
-    camera.orthoLeft = -halfH * aspect;
-    camera.orthoRight = halfH * aspect;
-  };
+  window.addEventListener('resize', () => engine.resize());
+  engine.onResizeObservable.add(() => engine.resize());
 
-  applyOrtho();
-  engine.onResizeObservable.add(applyOrtho);
-  window.addEventListener('resize', () => {
-    engine.resize();
-    applyOrtho();
-  });
+  const sun = new DirectionalLight('sun', new Vector3(-0.55, -1.15, -0.4), scene);
+  sun.position = new Vector3(MAP_SIZE * 0.95, 55, MAP_SIZE * 0.9);
+  sun.intensity = 1.15;
+  sun.diffuse = new Color3(1.0, 0.96, 0.88);
+  sun.specular = new Color3(0.45, 0.42, 0.36);
+  sun.autoCalcShadowZBounds = true;
+  sun.autoUpdateExtends = true;
 
-  // --- Lighting ---
-  // HemisphericLight gives even top-down illumination; perfectly flat for terrain.
-  const light = new HemisphericLight('ambient', new Vector3(0, 1, 0), scene);
-  light.intensity = 1.0;
-  light.groundColor = new Color3(0.35, 0.35, 0.35);
+  const fill = new HemisphericLight('fill', new Vector3(0.15, 1, 0.1), scene);
+  fill.intensity = 0.42;
+  fill.diffuse = new Color3(0.72, 0.80, 0.92);
+  fill.groundColor = new Color3(0.22, 0.24, 0.22);
 
-  // --- Render loop ---
+  const shadowGenerator = new ShadowGenerator(2048, sun);
+  shadowGenerator.usePercentageCloserFiltering = true;
+  shadowGenerator.filteringQuality = ShadowGenerator.QUALITY_MEDIUM;
+  shadowGenerator.darkness = 0.38;
+  shadowGenerator.bias = 0.0008;
+  shadowGenerator.normalBias = 0.02;
+
+  const ground = MeshBuilder.CreateGround(
+    'world-ground',
+    { width: MAP_SIZE * 6, height: MAP_SIZE * 6 },
+    scene,
+  );
+  ground.position = new Vector3(MAP_SIZE / 2, -0.08, MAP_SIZE / 2);
+  ground.isPickable = false;
+  ground.receiveShadows = true;
+  const groundMat = new StandardMaterial('world-ground-mat', scene);
+  groundMat.diffuseColor = new Color3(0.11, 0.16, 0.14);
+  groundMat.specularColor = Color3.Black();
+  ground.material = groundMat;
+
   engine.runRenderLoop(() => scene.render());
 
-  return { engine, scene, camera };
+  return { engine, scene, camera, sun, shadowGenerator };
 }

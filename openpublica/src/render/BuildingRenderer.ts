@@ -5,6 +5,7 @@ import {
   Color3,
   Mesh,
   Vector3,
+  ShadowGenerator,
 } from '@babylonjs/core';
 import type { BuildingInstance } from '../sim/BuildingInstance';
 import { ZoneType } from '../sim/CityTile';
@@ -67,6 +68,7 @@ export interface BuildingPickData {
  */
 export class BuildingRenderer {
   private readonly _scene:    Scene;
+  private readonly _shadows:  ShadowGenerator | null;
   private readonly _meshes:   Map<string, Mesh> = new Map();
   private readonly _materials: Record<ZoneType, StandardMaterial>;
   private readonly _serviceMat:  StandardMaterial;
@@ -77,8 +79,9 @@ export class BuildingRenderer {
   private readonly _warnActive:  Set<string> = new Set();
   private _selectedKey: string | null = null;
 
-  constructor(scene: Scene) {
+  constructor(scene: Scene, shadowGenerator: ShadowGenerator | null = null) {
     this._scene = scene;
+    this._shadows = shadowGenerator;
 
     // Shared materials — one per zone type.
     this._materials = {
@@ -138,6 +141,8 @@ export class BuildingRenderer {
     // Store only picking metadata — no live sim references.
     const pickData: BuildingPickData = { buildingId: instance.defId, x: instance.x, y: instance.y };
     mesh.metadata = pickData;
+    mesh.receiveShadows = true;
+    this._shadows?.addShadowCaster(mesh);
 
     this._meshes.set(key, mesh);
     this._zoneTypes.set(key, zoneType);
@@ -221,7 +226,7 @@ export class BuildingRenderer {
   private _makeMaterial(name: string, color: Color3): StandardMaterial {
     const mat = new StandardMaterial(name, this._scene);
     mat.diffuseColor  = color;
-    mat.specularColor = new Color3(0.1, 0.1, 0.1);
+    mat.specularColor = new Color3(0.22, 0.22, 0.22);
     return mat;
   }
 }

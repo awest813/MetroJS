@@ -109,6 +109,7 @@ export class TerrainRenderer {
     mat.specularColor = Color3.Black();
     mat.backFaceCulling = false;
     mesh.material = mat;
+    mesh.receiveShadows = true;
 
     this._mesh = mesh;
   }
@@ -196,6 +197,7 @@ export class TerrainRenderer {
     mat.specularColor = Color3.Black();
     mat.backFaceCulling = false;
     mesh.material = mat;
+    mesh.receiveShadows = true;
 
     this._mesh = mesh;
   }

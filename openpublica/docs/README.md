@@ -63,7 +63,8 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Tools: Inspect, Road, R/C/I/Mixed zone brushes, Bulldoze, Power plant, Park, Trolley avenue
 - [x] Overlays: power, land value, traffic, walkability, transit
 - [x] Save/load via `SaveSystem`
-- [ ] Perspective camera, shadows, heightfield, road meshes, building kits — see the 3D plan
+- [x] Perspective camera, sun/shadows, orbit vs paint input (Phase A)
+- [ ] Heightfield, road meshes, building kits — see the 3D plan
 - [ ] Map terrain generation (water/hills)
 - [ ] Sound effects
 
