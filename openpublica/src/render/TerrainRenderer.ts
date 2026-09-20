@@ -91,6 +91,8 @@ export class TerrainRenderer {
 
     const mat = new StandardMaterial('terrain-mat', this._scene);
     mat.specularColor = new Color3(0.08, 0.08, 0.08);
+    mat.diffuseColor = Color3.White();
+    mat.ambientColor = new Color3(0.35, 0.35, 0.35);
     mat.backFaceCulling = false;
     mesh.material = mat;
     mesh.receiveShadows = true;

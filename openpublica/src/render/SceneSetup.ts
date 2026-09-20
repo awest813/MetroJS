@@ -53,9 +53,9 @@ export function createScene(canvas: HTMLCanvasElement): SceneBundle {
   sun.autoUpdateExtends = true;
 
   const fill = new HemisphericLight('fill', new Vector3(0.15, 1, 0.1), scene);
-  fill.intensity = 0.42;
-  fill.diffuse = new Color3(0.72, 0.80, 0.92);
-  fill.groundColor = new Color3(0.22, 0.24, 0.22);
+  fill.intensity = 0.85;
+  fill.diffuse = new Color3(0.82, 0.88, 0.78);
+  fill.groundColor = new Color3(0.32, 0.38, 0.28);
 
   const shadowGenerator = new ShadowGenerator(2048, sun);
   shadowGenerator.usePercentageCloserFiltering = true;
