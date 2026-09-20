@@ -54,6 +54,7 @@ export class SaveCodec {
         indTaxRate:        sim.stats.indTaxRate,
         monthlyIncome:     sim.stats.monthlyIncome,
         monthlyExpenses:   sim.stats.monthlyExpenses,
+        serviceExpenses:   sim.stats.serviceExpenses,
         bankruptcyWarning: sim.stats.bankruptcyWarning,
         happiness:         sim.stats.happiness,
         walkability:       sim.stats.walkability,
@@ -112,6 +113,7 @@ export class SaveCodec {
     sim.stats.indTaxRate        = s.indTaxRate        ?? 9;
     sim.stats.monthlyIncome     = s.monthlyIncome     ?? 0;
     sim.stats.monthlyExpenses   = s.monthlyExpenses   ?? 0;
+    sim.stats.serviceExpenses   = s.serviceExpenses   ?? 0;
     sim.stats.bankruptcyWarning = s.bankruptcyWarning ?? false;
     sim.stats.happiness         = s.happiness         ?? 100;
     sim.stats.walkability       = s.walkability       ?? 0;

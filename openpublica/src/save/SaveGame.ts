@@ -35,6 +35,7 @@ export interface SavedStats {
   indTaxRate:        number;
   monthlyIncome:     number;
   monthlyExpenses:   number;
+  serviceExpenses?:  number;
   bankruptcyWarning: boolean;
   happiness:         number;
   walkability:       number;

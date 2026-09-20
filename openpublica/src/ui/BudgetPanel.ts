@@ -15,6 +15,7 @@ export class BudgetPanel {
   private readonly _root:       HTMLElement;
   private readonly _incomeEl:   HTMLElement;
   private readonly _expenseEl:  HTMLElement;
+  private readonly _serviceEl:  HTMLElement;
   private readonly _netEl:      HTMLElement;
   private readonly _resSlider:  HTMLInputElement;
   private readonly _comSlider:  HTMLInputElement;
@@ -37,6 +38,10 @@ export class BudgetPanel {
           <div class="budget-row">
             <span class="budget-key">Expenses</span>
             <span class="budget-val expense" id="budget-expense">$0/mo</span>
+          </div>
+          <div class="budget-row">
+            <span class="budget-key">Services</span>
+            <span class="budget-val expense" id="budget-services">$0/mo</span>
           </div>
           <div class="budget-row">
             <span class="budget-key">Net</span>
@@ -67,6 +72,7 @@ export class BudgetPanel {
 
     this._incomeEl  = root.querySelector('#budget-income')!;
     this._expenseEl = root.querySelector('#budget-expense')!;
+    this._serviceEl = root.querySelector('#budget-services')!;
     this._netEl     = root.querySelector('#budget-net')!;
     this._resSlider = root.querySelector<HTMLInputElement>('#tax-res')!;
     this._comSlider = root.querySelector<HTMLInputElement>('#tax-com')!;
@@ -98,6 +104,7 @@ export class BudgetPanel {
   update(stats: CityStats): void {
     this._incomeEl.textContent  = `${formatSignedMoney(stats.monthlyIncome)}/mo`;
     this._expenseEl.textContent = `${formatSignedMoney(stats.monthlyExpenses)}/mo`;
+    this._serviceEl.textContent = `${formatSignedMoney(stats.serviceExpenses)}/mo`;
     const net = stats.monthlyIncome - stats.monthlyExpenses;
     this._netEl.textContent = formatBudgetNet(stats.monthlyIncome, stats.monthlyExpenses);
     this._netEl.classList.toggle('income', net >= 0);

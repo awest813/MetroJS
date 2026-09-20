@@ -4,6 +4,7 @@
 import type { CityMap } from './CityMap';
 import type { BuildingInstance } from './BuildingInstance';
 import type { BuildingDef } from './BuildingDef';
+import { forEachTileInRadius } from './coveragePaint';
 
 /**
  * PowerSystem — radius-based power coverage simulation.
@@ -39,16 +40,9 @@ export class PowerSystem {
       if (!def?.powerRadius || def.powerRadius <= 0) continue;
 
       const r  = def.powerRadius;
-      const r2 = r * r;
-
-      for (let dy = -r; dy <= r; dy++) {
-        for (let dx = -r; dx <= r; dx++) {
-          // Use circular (Euclidean) coverage rather than a square.
-          if (dx * dx + dy * dy > r2) continue;
-          const tile = map.getTile(instance.x + dx, instance.y + dy);
-          if (tile) tile.powered = true;
-        }
-      }
+      forEachTileInRadius(map, instance.x, instance.y, r, (tile) => {
+        tile.powered = true;
+      });
     }
   }
 }

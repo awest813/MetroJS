@@ -71,6 +71,19 @@ describe('LandValueSystem', () => {
     });
   });
 
+  describe('watered lots', () => {
+    it('should raise land value on lots covered by a powered water tower', () => {
+      const sim = CitySim.createCity(24, 24);
+      sim.stats.money = 100_000;
+      sim.placeServiceBuilding(8, 8, 'small_power_plant', 0);
+      tickOneMonth(sim);
+      const before = sim.getTile(8, 10)!.landValue;
+      sim.placeServiceBuilding(8, 9, 'small_water_tower', 0);
+      expect(sim.getTile(8, 10)!.watered).toBe(true);
+      expect(sim.getTile(8, 10)!.landValue).toBeGreaterThan(before);
+    });
+  });
+
   describe('road adjacency bonus', () => {
     it('should give road-adjacent tiles a higher land value than isolated tiles', () => {
       const sim = CitySim.createCity(8, 8);

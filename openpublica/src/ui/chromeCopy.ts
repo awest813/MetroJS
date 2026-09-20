@@ -3,7 +3,7 @@
  */
 
 export const SETTINGS_SHORTCUTS =
-  'R road · I inspect · Z zone · G plant · 1–3 views · P pause · [ ] speed · M mute · Ctrl+S save · Esc · Home frame';
+  'R road · I inspect · Z zone · G plant · O police · F fire · W water · K park · 1–3 views · P pause · [ ] speed · M mute · Ctrl+S save · Esc · Home frame';
 
 export function cityFileNote(hasSave: boolean, justSaved: boolean): string {
   if (justSaved) return 'Saved in this browser.';

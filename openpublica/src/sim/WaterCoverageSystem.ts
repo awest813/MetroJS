@@ -5,10 +5,12 @@ import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 import type { CityStats } from './CitySim';
 import { ZoneType } from './CityTile';
+import { forEachTileInRadius } from './coveragePaint';
 
 /**
  * Writes `tile.watered` from powered towers with waterRadius.
- * Unpowered towers contribute nothing. Does not change growth formulas.
+ * Unpowered towers contribute nothing. Does not change growth/tax/power formulas.
+ * LandValueSystem may read `tile.watered` as a small lot bonus.
  *
  * `stats.waterAverage` is the percent of zoned tiles that are watered.
  */
@@ -30,17 +32,9 @@ export class WaterCoverageSystem {
       const tower = map.getTile(instance.x, instance.y);
       if (!tower?.powered) continue;
 
-      const r = def.waterRadius;
-      const r2 = r * r;
-
-      for (let dy = -r; dy <= r; dy++) {
-        for (let dx = -r; dx <= r; dx++) {
-          const dist2 = dx * dx + dy * dy;
-          if (dist2 > r2) continue;
-          const tile = map.getTile(instance.x + dx, instance.y + dy);
-          if (tile) tile.watered = true;
-        }
-      }
+      forEachTileInRadius(map, instance.x, instance.y, def.waterRadius, (tile) => {
+        tile.watered = true;
+      });
     }
 
     let zoned = 0;

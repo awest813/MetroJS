@@ -3,6 +3,7 @@
 import type { CityMap } from './CityMap';
 import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
+import { coverageAtDistance, forEachTileInRadius } from './coveragePaint';
 
 /**
  * Writes `tile.policeCoverage` [0–100] from powered stations with policeRadius.
@@ -26,19 +27,10 @@ export class PoliceCoverageSystem {
       if (!station?.powered) continue;
 
       const r = def.policeRadius;
-      const r2 = r * r;
-
-      for (let dy = -r; dy <= r; dy++) {
-        for (let dx = -r; dx <= r; dx++) {
-          const dist2 = dx * dx + dy * dy;
-          if (dist2 > r2) continue;
-          const tile = map.getTile(instance.x + dx, instance.y + dy);
-          if (!tile) continue;
-          const dist = Math.sqrt(dist2);
-          const coverage = Math.round(100 * (1 - dist / r));
-          if (coverage > tile.policeCoverage) tile.policeCoverage = coverage;
-        }
-      }
+      forEachTileInRadius(map, instance.x, instance.y, r, (tile, dist) => {
+        const coverage = coverageAtDistance(dist, r);
+        if (coverage > tile.policeCoverage) tile.policeCoverage = coverage;
+      });
     }
   }
 }

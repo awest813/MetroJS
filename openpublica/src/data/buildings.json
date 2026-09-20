@@ -38,7 +38,8 @@
     "isService": true,
     "powerRadius": 8,
     "pollutionOutput": 60,
-    "pollutionRadius": 8
+    "pollutionRadius": 8,
+    "monthlyCost": 80
   },
   {
     "id": "small_police_station",
@@ -47,7 +48,8 @@
     "population": 0,
     "jobs": 4,
     "isService": true,
-    "policeRadius": 10
+    "policeRadius": 10,
+    "monthlyCost": 60
   },
   {
     "id": "small_fire_station",
@@ -56,7 +58,8 @@
     "population": 0,
     "jobs": 4,
     "isService": true,
-    "fireRadius": 10
+    "fireRadius": 10,
+    "monthlyCost": 60
   },
   {
     "id": "small_water_tower",
@@ -65,7 +68,8 @@
     "population": 0,
     "jobs": 2,
     "isService": true,
-    "waterRadius": 10
+    "waterRadius": 10,
+    "monthlyCost": 40
   },
   {
     "id": "small_park",
@@ -74,7 +78,8 @@
     "population": 0,
     "jobs": 0,
     "isService": true,
-    "parkRadius": 6
+    "parkRadius": 6,
+    "monthlyCost": 20
   },
   {
     "id": "shopfront_apartments",

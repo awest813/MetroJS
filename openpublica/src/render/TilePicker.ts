@@ -15,8 +15,10 @@ export class TilePicker {
   private readonly _scene: Scene;
   private readonly _camera: CameraController;
   private _onPickCallback: ((coord: TileCoord, via: 'down' | 'drag') => void) | undefined;
+  private _onHoverCallback: ((coord: TileCoord | null) => void) | undefined;
   private _onDragEndCallback: (() => void) | undefined;
   private _isDragging = false;
+  private _hoverKey = '';
 
   constructor(scene: Scene, camera: CameraController) {
     this._scene = scene;
@@ -33,9 +35,12 @@ export class TilePicker {
           break;
 
         case PointerEventTypes.POINTERMOVE:
-          if (!this._isDragging) return;
-          if (this._camera.shouldIgnoreToolPointer(event)) return;
-          this._handlePick('drag');
+          if (this._isDragging) {
+            if (this._camera.shouldIgnoreToolPointer(event)) return;
+            this._handlePick('drag');
+          } else if (!this._camera.shouldIgnoreToolPointer(event)) {
+            this._handleHover();
+          }
           break;
 
         case PointerEventTypes.POINTERUP:
@@ -50,6 +55,10 @@ export class TilePicker {
 
   onPick(callback: (coord: TileCoord, via: 'down' | 'drag') => void): void {
     this._onPickCallback = callback;
+  }
+
+  onHover(callback: (coord: TileCoord | null) => void): void {
+    this._onHoverCallback = callback;
   }
 
   onDragEnd(callback: () => void): void {
@@ -70,5 +79,33 @@ export class TilePicker {
     if (x >= 0 && x < MAP_SIZE && y >= 0 && y < MAP_SIZE) {
       this._onPickCallback?.({ x, y }, via);
     }
+  }
+
+  private _handleHover(): void {
+    const result = this._scene.pick(
+      this._scene.pointerX,
+      this._scene.pointerY,
+      (mesh) => mesh.name === TERRAIN_MESH_NAME || mesh.name === WATER_MESH_NAME,
+    );
+    if (!result.hit || !result.pickedPoint) {
+      if (this._hoverKey !== '') {
+        this._hoverKey = '';
+        this._onHoverCallback?.(null);
+      }
+      return;
+    }
+    const x = Math.floor(result.pickedPoint.x);
+    const y = Math.floor(result.pickedPoint.z);
+    if (x < 0 || x >= MAP_SIZE || y < 0 || y >= MAP_SIZE) {
+      if (this._hoverKey !== '') {
+        this._hoverKey = '';
+        this._onHoverCallback?.(null);
+      }
+      return;
+    }
+    const key = `${x},${y}`;
+    if (key === this._hoverKey) return;
+    this._hoverKey = key;
+    this._onHoverCallback?.({ x, y });
   }
 }

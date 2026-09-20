@@ -1,17 +1,12 @@
 // ⚠️  This file must NOT import anything from @babylonjs/core.
 
-import type { Tool } from './Tool';
-import type { TileCoord } from '../data/types';
-import type { CitySim } from '../sim/CitySim';
+import { PlaceServiceTool } from './PlaceServiceTool';
+import { FIRE_SERVICE } from './serviceCatalog';
 
-/** Cost in city funds to place a small fire station. */
-export const FIRE_STATION_COST = 400;
+export { FIRE_STATION_COST } from './serviceCatalog';
 
-export class PlaceFireStationTool implements Tool {
-  readonly name  = 'placeFireStation';
-  readonly label = 'Fire';
-
-  apply(coord: TileCoord, sim: CitySim): boolean {
-    return sim.placeServiceBuilding(coord.x, coord.y, 'small_fire_station', FIRE_STATION_COST);
+export class PlaceFireStationTool extends PlaceServiceTool {
+  constructor() {
+    super(FIRE_SERVICE);
   }
 }

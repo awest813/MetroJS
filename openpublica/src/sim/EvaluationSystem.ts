@@ -67,6 +67,7 @@ interface Census {
   hasRoad: boolean;
   buildingCount: number;
   unpoweredCount: number;
+  unpoweredStations: number;
   extremeRoads: number;
   lotsNeedRoad: number;
   zonedCount: number;
@@ -85,6 +86,7 @@ function survey(
   let hasPlant = false;
   let buildingCount = 0;
   let unpoweredCount = 0;
+  let unpoweredStations = 0;
 
   for (const instance of buildings.values()) {
     const def = defs.get(instance.defId);
@@ -92,7 +94,10 @@ function survey(
     if (instance.defId === 'small_park') continue;
     buildingCount += 1;
     const tile = map.getTile(instance.x, instance.y);
-    if (tile && !tile.powered) unpoweredCount += 1;
+    if (tile && !tile.powered) {
+      unpoweredCount += 1;
+      if (def?.isService && !def.powerRadius) unpoweredStations += 1;
+    }
   }
 
   let extremeRoads = 0;
@@ -130,6 +135,7 @@ function survey(
     hasRoad,
     buildingCount,
     unpoweredCount,
+    unpoweredStations,
     extremeRoads,
     lotsNeedRoad,
     zonedCount,
@@ -190,6 +196,12 @@ function listAdvisories(stats: CityStats, census: Census): Advisory[] {
         message: 'Place a power plant on grass — lots stay dark without one.',
       });
     }
+  }
+  if (census.unpoweredStations > 0) {
+    out.push({
+      id: 'dark-station',
+      message: `${census.unpoweredStations} station${census.unpoweredStations === 1 ? '' : 's'} unpowered — coverage is off until a plant reaches them.`,
+    });
   }
   if (census.unpoweredCount > 0) {
     out.push({

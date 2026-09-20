@@ -40,6 +40,12 @@ import { formatGrowthHint } from '../sim/zoneGrowthHints';
 import { applyDaylight } from '../render/daylight';
 import { CityView } from './CityView';
 import { mountCityMenu } from './cityFile';
+import {
+  formatServiceHint,
+  serviceRadius,
+  serviceSpecForDef,
+  serviceSpecForTool,
+} from '../tools/serviceCatalog';
 
 /**
  * Top-level application coordinator.
@@ -162,6 +168,37 @@ export class App {
     cameraController.onModeChange(() => redrawLook());
     view.picker.onDragEnd(() => toolController.resetDrag());
 
+    const previewCoverage = (coord: { x: number; y: number } | null): void => {
+      if (!coord) {
+        view.highlight.hideCoverage();
+        return;
+      }
+      const tool = toolController.activeTool;
+      let spec = serviceSpecForTool(tool.name);
+      let defId = spec?.defId;
+      if (!spec) {
+        const hover = sim.getTile(coord.x, coord.y);
+        defId = hover?.buildingId ?? undefined;
+        if (defId) spec = serviceSpecForDef(defId);
+      }
+      if (!spec || !defId) {
+        view.highlight.hideCoverage();
+        return;
+      }
+      view.highlight.showCoverage(
+        coord,
+        serviceRadius(sim.growth.defs.get(defId)),
+        spec.preview,
+        view.heights,
+      );
+    };
+
+    view.picker.onHover((coord) => {
+      if (coord) view.highlight.show(coord, view.heights);
+      else view.highlight.hide();
+      previewCoverage(coord);
+    });
+
     const toolbar = new Toolbar(toolbarEl, toolController);
     toolbar.build(allTools);
     toolbar.select('road');
@@ -240,6 +277,7 @@ export class App {
     view.picker.onPick((coord, via) => {
       const result = toolController.applyToTile(coord, sim);
       view.highlight.show(coord, view.heights);
+      previewCoverage(coord);
       hud.update(sim.stats, sim.clock);
       budgetPanel.update(sim.stats);
 
@@ -260,7 +298,15 @@ export class App {
       const voice = sfxForTool(tool.name);
       if (result === 'applied' && voice) audio.playPaint(voice);
 
-      const hint = tile ? formatGrowthHint(tile, sim.map, sim.stats) : null;
+      const placing = serviceSpecForTool(tool.name);
+      const inspectDef = tile?.buildingId
+        ? sim.growth.defs.get(tile.buildingId)
+        : placing
+          ? sim.growth.defs.get(placing.defId)
+          : undefined;
+      const serviceHint = formatServiceHint(inspectDef, tile?.powered ?? false);
+      const growthHint = tile ? formatGrowthHint(tile, sim.map, sim.stats) : null;
+      const hint = [serviceHint, growthHint].filter((part): part is string => Boolean(part)).join(' · ') || null;
       statusEl.textContent = formatInspectStatus(
         tool.label,
         tile ?? undefined,

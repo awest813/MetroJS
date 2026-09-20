@@ -94,6 +94,17 @@ describe('EconomySystem income', () => {
     expect(sim.stats.monthlyExpenses).toBe(8);
   });
 
+  it('should charge each service building its own monthly cost', () => {
+    const sim = CitySim.createCity(8, 8);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(2, 2, 'small_power_plant', 0);
+    sim.placeServiceBuilding(3, 3, 'small_park', 0);
+    tickOneMonth(sim);
+    // plant $80 + park $20
+    expect(sim.stats.serviceExpenses).toBe(100);
+    expect(sim.stats.monthlyExpenses).toBe(100);
+  });
+
   it('should set bankruptcyWarning when treasury goes negative', () => {
     const sim = CitySim.createCity(8, 8);
     // Place enough streets to drain all money before income arrives.

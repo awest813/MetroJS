@@ -49,6 +49,9 @@ const INDUSTRIAL_PENALTY = 25;
 /** Flat land value bonus for any tile that is orthogonally adjacent to a road. */
 const ROAD_BONUS = 8;
 
+/** Modest lot bonus for watered tiles. Does not change demand formulas. */
+export const WATERED_LAND_VALUE_BONUS = 8;
+
 /**
  * Multiplier applied to `tile.pollution` when computing the land value penalty.
  * Kept low because pollution is populated by future systems and may reach large values.
@@ -85,6 +88,7 @@ const DOWNTOWN_BONUS = 16;
  *   acting as a pollution/noise proxy, decaying linearly with distance.
  * - **Road access**: tiles adjacent to at least one road tile receive a small
  *   flat bonus.
+ * - **Watered lots**: powered water-tower coverage adds a small lot bonus.
  * - **Downtown**: once enough houses exist, commercial and mixed lots near
  *   the residential centroid get a decaying land-value boost (shops want to
  *   sit next to people). Does not change demand formulas.
@@ -194,6 +198,9 @@ export class LandValueSystem {
       // Road access bonus — any orthogonal neighbour with a road qualifies.
       if (_hasAdjacentRoad(map, tile.x, tile.y)) {
         tile.landValue += ROAD_BONUS;
+      }
+      if (tile.watered) {
+        tile.landValue += WATERED_LAND_VALUE_BONUS;
       }
 
       // Pollution and traffic penalties (populated by other future systems).

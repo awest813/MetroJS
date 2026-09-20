@@ -96,7 +96,7 @@ describe('WalkabilitySystem', () => {
       const stats = {
         population: 0, jobs: 0, money: 0, residentialDemand: 0, commercialDemand: 0,
         industrialDemand: 0, resTaxRate: 9, comTaxRate: 9, indTaxRate: 9,
-        monthlyIncome: 0, monthlyExpenses: 0, bankruptcyWarning: false,
+        monthlyIncome: 0, monthlyExpenses: 0, serviceExpenses: 0, bankruptcyWarning: false,
         happiness: 100, walkability: 0, transitAccess: 0, pollutionAverage: 0, crimeAverage: 0, fireAverage: 0, waterAverage: 0, approval: 100, advisory: '',
       };
 

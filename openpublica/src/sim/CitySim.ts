@@ -38,6 +38,8 @@ export interface CityStats {
   monthlyIncome:     number;
   /** Expenses paid last simulated month. */
   monthlyExpenses:   number;
+  /** Operating cost of service buildings last month. */
+  serviceExpenses:   number;
   /** True whenever the city treasury is negative. */
   bankruptcyWarning: boolean;
   /**
@@ -187,6 +189,7 @@ export class CitySim {
       indTaxRate:        9,
       monthlyIncome:     0,
       monthlyExpenses:   0,
+      serviceExpenses:   0,
       bankruptcyWarning: false,
       happiness:         100,
       walkability:       0,
@@ -281,12 +284,12 @@ export class CitySim {
     this.power.tick(this.map, this.growth.buildings, this.growth.defs);
     if (this.onPowerChanged) this.onPowerChanged();
 
-    // Immediately recalculate land value so park effects are visible at once.
     this.pollution.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+    this._refreshCityHealth(false);
+    // Land value after water/police so watered lots and parks apply this click.
     this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
     if (this.onLandValueChanged) this.onLandValueChanged();
-
-    this._refreshCityHealth(false);
+    this.evaluate();
     return true;
   }
 

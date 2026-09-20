@@ -54,10 +54,7 @@ const HIGHWAY_MAINTENANCE_PER_TILE = 4;
 const TROLLEY_MAINTENANCE_PER_TILE = 5;
 
 /**
- * Monthly operating cost (dollars) per service building (e.g. fire station,
- * school).  Applied for each building whose BuildingDef.isService is true.
- *
- * Expense_services = serviceBuildingCount × SERVICE_BUILDING_MONTHLY_COST
+ * Monthly operating cost (dollars) used when a service building omits monthlyCost.
  */
 const SERVICE_BUILDING_MONTHLY_COST = 50;
 
@@ -79,7 +76,7 @@ const SERVICE_BUILDING_MONTHLY_COST = 50;
  * monthlyExpenses = streetTileCount   × ROAD_MAINTENANCE_PER_TILE
  *                 + highwayTileCount  × HIGHWAY_MAINTENANCE_PER_TILE
  *                 + trolleyTileCount  × TROLLEY_MAINTENANCE_PER_TILE
- *                 + serviceBuildingCount × SERVICE_BUILDING_MONTHLY_COST
+ *                 + sum(service.monthlyCost)
  * ```
  *
  * ## Treasury update
@@ -109,7 +106,7 @@ export class EconomySystem {
     // ── Income ─────────────────────────────────────────────────────────────
     let comJobs             = 0;
     let indJobs             = 0;
-    let serviceBuildingCount = 0;
+    let serviceExpenses     = 0;
 
     for (const instance of buildings.values()) {
       const def = defs.get(instance.defId);
@@ -117,7 +114,9 @@ export class EconomySystem {
 
       if (def.zoneType === ZoneType.Commercial || def.zoneType === ZoneType.MixedUse) comJobs += def.jobs;
       if (def.zoneType === ZoneType.Industrial) indJobs += def.jobs;
-      if (def.isService)                        serviceBuildingCount += 1;
+      if (def.isService) {
+        serviceExpenses += def.monthlyCost ?? SERVICE_BUILDING_MONTHLY_COST;
+      }
     }
 
     // Income = population × resTaxRate × factor
@@ -144,11 +143,12 @@ export class EconomySystem {
       }
     });
 
+    stats.serviceExpenses = serviceExpenses;
     stats.monthlyExpenses = Math.floor(
       streetTileCount  * ROAD_MAINTENANCE_PER_TILE    +
       highwayTileCount * HIGHWAY_MAINTENANCE_PER_TILE +
       trolleyTileCount * TROLLEY_MAINTENANCE_PER_TILE +
-      serviceBuildingCount * SERVICE_BUILDING_MONTHLY_COST,
+      serviceExpenses,
     );
 
     // ── Apply to treasury ──────────────────────────────────────────────────

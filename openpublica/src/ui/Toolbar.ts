@@ -20,11 +20,11 @@ const TOOL_TITLES: Readonly<Record<string, string>> = {
   zoneIndustrialLight: 'Factory lots — $5. Paint beside a street',
   zoneMixedUse: 'Housing and shops on one lot — $5',
   zoneClear: 'Remove zoning. Buildings must be bulldozed first',
-  placePowerPlant: 'Power plant — $500. Place on grass, not on the road (key G)',
-  placePark: 'Park — raises nearby land value',
-  placePoliceStation: 'Police station — coverage while powered',
-  placeFireStation: 'Fire station — coverage while powered',
-  placeWaterTower: 'Water tower — coverage while powered',
+  placePowerPlant: 'Power plant — $500, $80/mo. Place on grass. Disc shows power radius (key G)',
+  placePark: 'Park — $200, $20/mo. Raises nearby land value (key K)',
+  placePoliceStation: 'Police — $400, $60/mo. Coverage only while powered (key O)',
+  placeFireStation: 'Fire — $400, $60/mo. Coverage only while powered (key F)',
+  placeWaterTower: 'Water tower — $350, $40/mo. Coverage only while powered (key W)',
 };
 
 const TOOL_KEYS: Readonly<Record<string, string>> = {
@@ -35,6 +35,10 @@ const TOOL_KEYS: Readonly<Record<string, string>> = {
   b: 'bulldoze',
   z: 'zoneResidentialLow',
   g: 'placePowerPlant',
+  k: 'placePark',
+  o: 'placePoliceStation',
+  f: 'placeFireStation',
+  w: 'placeWaterTower',
 };
 
 /**

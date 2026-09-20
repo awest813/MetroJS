@@ -70,4 +70,9 @@ export interface BuildingDef {
    * Writes `tile.watered`; does not change growth formulas.
    */
   readonly waterRadius?: number;
+  /**
+   * Monthly operating cost while this service building exists.
+   * EconomySystem sums these instead of a flat per-service fee.
+   */
+  readonly monthlyCost?: number;
 }

@@ -166,6 +166,17 @@ describe('EvaluationSystem', () => {
     expect(sim.stats.advisory).toMatch(/emptying/i);
   });
 
+  it('should warn when a station sits outside the plant radius', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    sim.placeServiceBuilding(20, 20, 'small_police_station', 0);
+    sim.stats.pollutionAverage = 0;
+    sim.evaluate();
+    expect(sim.stats.advisory).toMatch(/unpowered/i);
+    expect(sim.stats.advisory).toMatch(/coverage is off/i);
+  });
+
   it('should keep approval in 0–100 after a dirty month', () => {
     const sim = CitySim.createCity(8, 8);
     sim.stats.pollutionAverage = 100;
