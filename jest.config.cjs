@@ -17,5 +17,8 @@ module.exports = {
   testMatch: ["**/test/*.ts", "**/test/**/*.ts"],
   transform: {
     "^.+\\.ts$": "ts-jest"
-  }
+  },
+  moduleNameMapper: {
+    "^simplex-noise$": "<rootDir>/openpublica/node_modules/simplex-noise/dist/cjs/simplex-noise.js",
+  },
 };

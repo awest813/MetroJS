@@ -3,3 +3,7 @@ declare module '*.css' {
   const _: string;
   export default _;
 }
+
+declare module 'alea' {
+  export default function Alea(...seed: Array<string | number>): () => number;
+}

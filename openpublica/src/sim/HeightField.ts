@@ -2,8 +2,11 @@
 
 import { TerrainType } from './CityTile';
 import type { CityMap } from './CityMap';
-import { DEFAULT_TERRAIN_SEED, terrainHash } from './TerrainGenerator';
+import { DEFAULT_TERRAIN_SEED } from './TerrainGenerator';
 import { TILE_SIZE } from '../data/constants';
+import { createSeededNoise2D } from '../math/seededNoise';
+
+type Noise2 = (x: number, y: number) => number;
 
 /** World Y of the water surface plane. Land stays above this. */
 export const WATER_SURFACE_Y = 0.06;
@@ -15,8 +18,8 @@ const LAND_BASE_Y = 0.20;
 const HILL_AMPLITUDE = 0.70;
 
 /**
- * Corner-sampled height map derived from terrain types plus seeded noise.
- * Render-only: does not affect simulation numbers.
+ * Corner-sampled height map derived from terrain types plus seeded simplex FBM
+ * (`simplex-noise` + `alea`). Render-only: does not affect simulation numbers.
  */
 export class HeightField {
   readonly width: number;
@@ -34,9 +37,10 @@ export class HeightField {
     const height = map.height;
     const corners = new Float32Array((width + 1) * (height + 1));
 
+    const noise2D = createSeededNoise2D(`openpublica-hills-${seed}`);
     for (let cy = 0; cy <= height; cy++) {
       for (let cx = 0; cx <= width; cx++) {
-        corners[cy * (width + 1) + cx] = _cornerHeight(map, cx, cy, seed);
+        corners[cy * (width + 1) + cx] = _cornerHeight(map, cx, cy, noise2D);
       }
     }
 
@@ -95,9 +99,9 @@ export function writeSlopedQuad(
   positions[p + 9] = x1; positions[p + 10] = heights.sample(x1, z1) + lift; positions[p + 11] = z1;
 }
 
-function _cornerHeight(map: CityMap, cx: number, cy: number, seed: number): number {
+function _cornerHeight(map: CityMap, cx: number, cy: number, noise2D: Noise2): number {
   const wet = _waterWeight(map, cx, cy);
-  const land = LAND_BASE_Y + HILL_AMPLITUDE * _fbm(cx, cy, seed);
+  const land = LAND_BASE_Y + HILL_AMPLITUDE * _fbm(cx, cy, noise2D);
   if (wet <= 0) return land;
   const shore = WATER_SURFACE_Y - 0.12;
   return shore + (WATER_BED_Y - shore) * wet;
@@ -121,16 +125,12 @@ function _waterWeight(map: CityMap, cx: number, cy: number): number {
   return water / count;
 }
 
-function _fbm(x: number, y: number, seed: number): number {
+function _fbm(x: number, y: number, noise2D: Noise2): number {
   let total = 0;
   let amplitude = 0.5;
   let frequency = 0.13;
   for (let i = 0; i < 4; i++) {
-    total += amplitude * (terrainHash(
-      Math.floor(x * frequency * 10),
-      Math.floor(y * frequency * 10),
-      seed + i * 19,
-    ) * 2 - 1);
+    total += amplitude * noise2D(x * frequency, y * frequency);
     amplitude *= 0.5;
     frequency *= 2;
   }

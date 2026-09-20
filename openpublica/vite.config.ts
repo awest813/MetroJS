@@ -11,6 +11,6 @@ export default defineConfig({
     // hundreds of raw ESM files (that stalls Chrome). Do not `exclude` core
     // on Vite 6 — that path is only a workaround for Vite 8 Rolldown, which
     // crashes with MatrixTrackPrecisionChange.
-    include: ['@babylonjs/core'],
+    include: ['@babylonjs/core', 'simplex-noise', 'alea'],
   },
 });

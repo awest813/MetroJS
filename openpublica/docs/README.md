@@ -13,6 +13,9 @@ This software is free software: you can redistribute it and/or modify it under t
 the GNU General Public License as published by the Free Software Foundation, either version 3
 of the License, or (at your option) any later version.
 
+Hill noise and tree jitter use the MIT-licensed [`simplex-noise`](https://github.com/jwagner/simplex-noise.js)
+and [`alea`](https://github.com/coverslide/node-alea) packages. See [THIRD_PARTY.md](./THIRD_PARTY.md).
+
 ## Quick Start
 
 ```bash
@@ -77,6 +80,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Procedural sound (paint, growth, mute); unlocked on first gesture, M to mute
 - [x] Camera polish: HTML minimap, Home/Frame, sun slider, High/Low quality
 - [x] City menu + Settings: save/load confirms, mute/quality/sun, key list (Look is minimap + Frame)
+- [x] MIT `simplex-noise` + `alea` for seeded hills and tree jitter (lakes still use `terrainHash`)
 
 ## 3D port
 

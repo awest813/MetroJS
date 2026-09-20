@@ -46,6 +46,15 @@ describe('generateTerrain', () => {
 });
 
 describe('HeightField', () => {
+  it('should be deterministic for a seed', () => {
+    const map = new CityMap(24, 24);
+    generateTerrain(map, 11);
+    const a = HeightField.fromMap(map, 11);
+    const b = HeightField.fromMap(map, 11);
+    expect(a.tileCenter(3, 4)).toBe(b.tileCenter(3, 4));
+    expect(a.sample(3.25, 4.5)).toBe(b.sample(3.25, 4.5));
+  });
+
   it('should keep land above the water surface and beds below it', () => {
     const map = new CityMap(64, 64);
     generateTerrain(map, 2026);
