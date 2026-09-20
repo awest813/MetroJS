@@ -104,7 +104,8 @@ export class SettingsPanel {
       handlers.onSun(day);
     };
     slider.addEventListener('input', applySun);
-    dawn.addEventListener('click', () => {
+    dawn.addEventListener('pointerdown', (event) => {
+      event.stopPropagation();
       slider.value = '0';
       applySun();
     });
@@ -113,7 +114,8 @@ export class SettingsPanel {
     dusk.className = 'look-sun-end';
     dusk.textContent = 'Dusk';
     dusk.title = 'Cool evening light';
-    dusk.addEventListener('click', () => {
+    dusk.addEventListener('pointerdown', (event) => {
+      event.stopPropagation();
       slider.value = '100';
       applySun();
     });
