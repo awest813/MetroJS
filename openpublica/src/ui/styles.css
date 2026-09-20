@@ -84,6 +84,22 @@ input:focus-visible {
   gap: 4px;
 }
 
+#overlay-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+#overlay-bar .rail-label {
+  grid-column: 1 / -1;
+}
+
+#overlay-bar button {
+  text-align: center;
+  padding: 5px 6px;
+  font-size: 11px;
+}
+
 #toolbar {
   overflow-y: auto;
 }
