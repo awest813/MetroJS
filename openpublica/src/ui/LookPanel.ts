@@ -48,7 +48,7 @@ export class LookPanel {
     container.classList.add('look-panel');
 
     const heading = document.createElement('div');
-    heading.className = 'rail-label';
+    heading.className = 'look-heading';
     heading.textContent = 'Look';
     container.appendChild(heading);
 
@@ -84,14 +84,14 @@ export class LookPanel {
     sunRow.className = 'look-sun';
     sunRow.title = 'Sun angle only — does not change the simulation';
     const sunCaption = document.createElement('span');
-    sunCaption.textContent = 'Sun';
+    sunCaption.textContent = 'Dawn';
     const slider = document.createElement('input');
     slider.type = 'range';
     slider.min = '0';
     slider.max = '100';
     slider.step = '1';
     slider.value = String(Math.round(initial.sun * 100));
-    slider.setAttribute('aria-label', 'Sun angle');
+    slider.setAttribute('aria-label', 'Sun angle from dawn to dusk');
     slider.addEventListener('input', () => {
       const day = Number(slider.value) / 100;
       try {
@@ -101,7 +101,9 @@ export class LookPanel {
       }
       handlers.onSun(day);
     });
-    sunRow.append(sunCaption, slider);
+    const duskCaption = document.createElement('span');
+    duskCaption.textContent = 'Dusk';
+    sunRow.append(sunCaption, slider, duskCaption);
     container.appendChild(sunRow);
   }
 

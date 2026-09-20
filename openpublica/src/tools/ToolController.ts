@@ -5,6 +5,8 @@ import type { Tool } from './Tool';
 import type { TileCoord } from '../data/types';
 import type { CitySim } from '../sim/CitySim';
 
+export type ToolApplyResult = 'applied' | 'unchanged' | 'repeat';
+
 /**
  * Manages the active player tool and routes tile interactions to it.
  *
@@ -56,21 +58,22 @@ export class ToolController {
    * Deduplicates drag events — the same tile is only processed once per
    * continuous drag stroke (pointer-down → pointer-up).
    */
-  applyToTile(coord: TileCoord, sim: CitySim): boolean {
+  applyToTile(coord: TileCoord, sim: CitySim): ToolApplyResult {
     if (
       this._lastDragCoord &&
       this._lastDragCoord.x === coord.x &&
       this._lastDragCoord.y === coord.y
     ) {
-      return false;
+      return 'repeat';
     }
     this._lastDragCoord = coord;
 
     const changed = this._activeTool.apply(coord, sim);
     if (changed) {
       this._onTileChangedCb?.(coord);
+      return 'applied';
     }
-    return changed;
+    return 'unchanged';
   }
 
   /**

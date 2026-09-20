@@ -466,7 +466,7 @@ input:focus-visible {
   position: absolute;
   right: var(--gap);
   bottom: calc(var(--status-h) + var(--gap));
-  width: 168px;
+  width: 176px;
   background: var(--chrome-bg);
   border: 1px solid var(--chrome-border);
   border-radius: var(--radius);
@@ -476,6 +476,15 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.look-heading {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 2px 2px;
 }
 
 .minimap-canvas {
@@ -614,7 +623,10 @@ input:focus-visible {
 
   #camera-bar {
     left: var(--gap);
+    right: 148px;
     bottom: calc(var(--status-h) + 58px);
+    flex-wrap: wrap;
+    max-width: calc(100vw - 156px);
   }
 
   #look-panel {

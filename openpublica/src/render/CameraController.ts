@@ -35,7 +35,7 @@ export class CameraController {
   private _mode: CameraViewMode = 'iso';
   private _spaceDown = false;
   private _altDown = false;
-  private _onModeChange: ((mode: CameraViewMode) => void) | undefined;
+  private readonly _onModeChange = new Set<(mode: CameraViewMode) => void>();
 
   constructor(canvas: HTMLCanvasElement, camera: ArcRotateCamera) {
     this.camera = camera;
@@ -139,7 +139,7 @@ export class CameraController {
   }
 
   onModeChange(callback: (mode: CameraViewMode) => void): void {
-    this._onModeChange = callback;
+    this._onModeChange.add(callback);
   }
 
   applyPreset(mode: CameraViewMode): void {
@@ -164,7 +164,7 @@ export class CameraController {
         break;
     }
 
-    this._onModeChange?.(mode);
+    for (const fn of this._onModeChange) fn(mode);
   }
 
   /** Iso, framed on the whole map. */
@@ -173,8 +173,8 @@ export class CameraController {
   }
 
   /** Pan the look-at point to a tile without changing orbit angles. */
-  lookAtTile(x: number, y: number): void {
-    this.camera.setTarget(new Vector3(x + 0.5, 0, y + 0.5));
+  lookAtTile(x: number, y: number, groundY = 0): void {
+    this.camera.setTarget(new Vector3(x + 0.5, groundY, y + 0.5));
   }
 
   private _configurePointers(): void {

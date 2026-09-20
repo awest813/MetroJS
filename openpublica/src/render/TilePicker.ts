@@ -14,7 +14,7 @@ import { WATER_MESH_NAME } from './WaterRenderer';
 export class TilePicker {
   private readonly _scene: Scene;
   private readonly _camera: CameraController;
-  private _onPickCallback: ((coord: TileCoord) => void) | undefined;
+  private _onPickCallback: ((coord: TileCoord, via: 'down' | 'drag') => void) | undefined;
   private _onDragEndCallback: (() => void) | undefined;
   private _isDragging = false;
 
@@ -29,13 +29,13 @@ export class TilePicker {
         case PointerEventTypes.POINTERDOWN:
           if (this._camera.shouldIgnoreToolPointer(event)) return;
           this._isDragging = true;
-          this._handlePick();
+          this._handlePick('down');
           break;
 
         case PointerEventTypes.POINTERMOVE:
           if (!this._isDragging) return;
           if (this._camera.shouldIgnoreToolPointer(event)) return;
-          this._handlePick();
+          this._handlePick('drag');
           break;
 
         case PointerEventTypes.POINTERUP:
@@ -48,7 +48,7 @@ export class TilePicker {
     });
   }
 
-  onPick(callback: (coord: TileCoord) => void): void {
+  onPick(callback: (coord: TileCoord, via: 'down' | 'drag') => void): void {
     this._onPickCallback = callback;
   }
 
@@ -56,7 +56,7 @@ export class TilePicker {
     this._onDragEndCallback = callback;
   }
 
-  private _handlePick(): void {
+  private _handlePick(via: 'down' | 'drag'): void {
     const result = this._scene.pick(
       this._scene.pointerX,
       this._scene.pointerY,
@@ -68,7 +68,7 @@ export class TilePicker {
     const y = Math.floor(result.pickedPoint.z);
 
     if (x >= 0 && x < MAP_SIZE && y >= 0 && y < MAP_SIZE) {
-      this._onPickCallback?.({ x, y });
+      this._onPickCallback?.({ x, y }, via);
     }
   }
 }

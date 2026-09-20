@@ -62,9 +62,9 @@ export class MiniMap {
     const mx = this._markX + 0.5;
     const my = MAP_SIZE - (this._markY + 0.5);
     ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-    ctx.lineWidth = 1.25;
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(mx, my, 3.2, 0, Math.PI * 2);
+    ctx.arc(mx, my, 2, 0, Math.PI * 2);
     ctx.stroke();
   }
 }
@@ -91,6 +91,6 @@ function _miniColor(
   if (zone === ZoneType.Commercial) return [230, 200, 70];
   if (zone === ZoneType.Industrial) return [170, 120, 196];
   if (zone === ZoneType.MixedUse) return [70, 190, 170];
-  if (terrain === TerrainType.Dirt) return [130, 112, 78];
+  if (terrain === TerrainType.Dirt) return [86, 112, 64];
   return [52, 108, 52];
 }

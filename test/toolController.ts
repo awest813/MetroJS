@@ -96,6 +96,17 @@ describe('ToolController', () => {
       expect(changed).toHaveLength(1);
     });
 
+    it('should report repeat vs unchanged vs applied', () => {
+      const road = new RoadTool();
+      const ctrl = new ToolController(road);
+      const sim  = makeSim();
+
+      expect(ctrl.applyToTile(TILE_A, sim)).toBe('applied');
+      expect(ctrl.applyToTile(TILE_A, sim)).toBe('repeat');
+      ctrl.resetDrag();
+      expect(ctrl.applyToTile(TILE_A, sim)).toBe('unchanged');
+    });
+
     it('should allow different tiles during the same drag', () => {
       const road = new RoadTool();
       const ctrl = new ToolController(road);

@@ -70,8 +70,10 @@ export class VegetationRenderer {
     this._heights = heights;
   }
 
-  setStreetTrees(on: boolean): void {
+  setStreetTrees(on: boolean): boolean {
+    if (this._streetTrees === on) return false;
     this._streetTrees = on;
+    return true;
   }
 
   rebuild(map: CityMap, heights: HeightField): void {

@@ -136,10 +136,12 @@ export class App {
     smoke.rebuild(sim.map, heights);
 
     const applyQuality = (level: QualityLevel): void => {
-      scene.shadowsEnabled = level === 'high';
-      smoke.setEnabled(level === 'high');
-      vegetation.setStreetTrees(level === 'high');
-      vegetation.rebuild(sim.map, heights);
+      const high = level === 'high';
+      scene.shadowsEnabled = high;
+      smoke.setEnabled(high);
+      if (vegetation.setStreetTrees(high)) {
+        vegetation.rebuild(sim.map, heights);
+      }
     };
     applyQuality(readStoredQuality());
 
@@ -264,10 +266,12 @@ export class App {
     redrawLook();
 
     look.minimap.onJump((x, y) => {
-      cameraController.lookAtTile(x, y);
+      cameraController.lookAtTile(x, y, heights.tileCenter(x, y));
       highlight.show({ x, y }, heights);
       redrawLook();
     });
+
+    cameraController.onModeChange(() => redrawLook());
 
     picker.onDragEnd(() => toolController.resetDrag());
 
@@ -330,7 +334,6 @@ export class App {
         }
         wasBankrupt = sim.stats.bankruptcyWarning;
       }
-      hud.update(sim.stats, sim.clock);
     });
 
     const budgetPanel = new BudgetPanel(budgetEl);
@@ -341,8 +344,8 @@ export class App {
       sim.stats.indTaxRate = ind;
     });
 
-    picker.onPick((coord) => {
-      const applied = toolController.applyToTile(coord, sim);
+    picker.onPick((coord, via) => {
+      const result = toolController.applyToTile(coord, sim);
       highlight.show(coord, heights);
       hud.update(sim.stats, sim.clock);
       budgetPanel.update(sim.stats);
@@ -351,14 +354,18 @@ export class App {
       const pickData = buildings.selectBuilding(coord.x, coord.y);
       const tool     = toolController.activeTool;
 
-      if (!applied && tool.name !== 'inspect') {
-        audio.play(FAIL_VOICE, 'fail');
-        statusEl.textContent = explainToolFailure(tool.name, coord, sim);
+      if (result === 'repeat') return;
+
+      if (result === 'unchanged' && tool.name !== 'inspect') {
+        if (via === 'down') {
+          audio.play(FAIL_VOICE, 'fail');
+          statusEl.textContent = explainToolFailure(tool.name, coord, sim);
+        }
         return;
       }
 
       const voice = sfxForTool(tool.name);
-      if (applied && voice) audio.playPaint(voice);
+      if (result === 'applied' && voice) audio.playPaint(voice);
 
       const hint = tile ? formatGrowthHint(tile, sim.map, sim.stats) : null;
       statusEl.textContent = formatInspectStatus(
