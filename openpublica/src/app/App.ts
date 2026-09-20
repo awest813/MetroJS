@@ -7,6 +7,7 @@ import { TrafficOverlayRenderer } from '../render/TrafficOverlayRenderer';
 import { WalkabilityOverlayRenderer } from '../render/WalkabilityOverlayRenderer';
 import { TransitOverlayRenderer } from '../render/TransitOverlayRenderer';
 import { DecorativeCarRenderer } from '../render/DecorativeCarRenderer';
+import { RoadRenderer } from '../render/RoadRenderer';
 import { TilePicker } from '../render/TilePicker';
 import { HighlightRenderer } from '../render/HighlightRenderer';
 import { WaterRenderer } from '../render/WaterRenderer';
@@ -111,6 +112,8 @@ export class App {
     const transitOverlay = new TransitOverlayRenderer(scene);
     transitOverlay.build(sim.map, heights);
     const decorativeCars = new DecorativeCarRenderer(scene, shadowGenerator);
+    const roads = new RoadRenderer(scene, shadowGenerator);
+    roads.rebuild(sim.map, heights);
 
     const highlight = new HighlightRenderer(scene);
     const picker    = new TilePicker(scene, cameraController);
@@ -133,6 +136,7 @@ export class App {
       trafficOverlay.build(sim.map, heights);
       walkabilityOverlay.build(sim.map, heights);
       transitOverlay.build(sim.map, heights);
+      roads.rebuild(sim.map, heights);
 
       sim.map.forEach((tile) => buildings.removeBuilding(tile.x, tile.y));
       for (const instance of sim.growth.buildings.values()) {
@@ -149,6 +153,7 @@ export class App {
       const tile = sim.getTile(coord.x, coord.y);
       if (tile) {
         terrain.updateCityTile(tile);
+        roads.updateAround(sim.map, coord);
         if (tile.buildingId === null) {
           buildings.removeBuilding(coord.x, coord.y);
         } else {

@@ -66,7 +66,8 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Perspective camera, sun/shadows, orbit vs paint input (Phase A)
 - [x] Heightfield, water basins, height-aware picking (Phase B)
 - [x] Map terrain generation (lakes, river, dirt beaches)
-- [ ] Road meshes, building kits — see the 3D plan
+- [x] Extruded road / trolley meshes (Phase C)
+- [ ] Building kits — see the 3D plan
 - [ ] Sound effects
 
 ## 3D port

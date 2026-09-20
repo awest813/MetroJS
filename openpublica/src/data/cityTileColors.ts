@@ -13,15 +13,7 @@ const ZONE_COLORS: Record<ZoneType, TileColor> = {
   [ZoneType.MixedUse]:    { r: 0.22, g: 0.72, b: 0.62 }, // teal
 };
 
-/** Display color for each road type. */
-const ROAD_COLORS: Record<RoadType, TileColor> = {
-  [RoadType.None]:          { r: 0, g: 0, b: 0 },           // unused; road=None falls through to terrain
-  [RoadType.Street]:        { r: 0.42, g: 0.42, b: 0.42 },  // grey asphalt
-  [RoadType.Highway]:       { r: 0.25, g: 0.25, b: 0.25 },  // dark concrete
-  [RoadType.TrolleyAvenue]: { r: 0.70, g: 0.38, b: 0.18 },  // warm terracotta (clearly distinct)
-};
-
-/** Display colour for each terrain type (used when no road or zone). */
+/** Display colour for each terrain type (used when no zone). */
 const TERRAIN_COLORS: Record<TerrainType, TileColor> = {
   [TerrainType.Grass]: { r: 0.30, g: 0.60, b: 0.22 },
   [TerrainType.Water]: { r: 0.28, g: 0.34, b: 0.22 },
@@ -40,17 +32,20 @@ const BUILDING_COLORS: Record<ZoneType, TileColor> = {
 /**
  * Returns the display colour for a CityTile.
  *
- * Priority: road > building > zone > terrain.
+ * Priority: building > zone > terrain.
+ * Roads are extruded meshes (RoadRenderer); the ground under them stays
+ * a darkened terrain colour so asphalt is not painted onto the heightfield.
  */
 export function cityTileColor(tile: CityTile): TileColor {
-  if (tile.roadType !== RoadType.None) {
-    return ROAD_COLORS[tile.roadType];
-  }
   if (tile.buildingId !== null && tile.zoneType !== ZoneType.None) {
     return BUILDING_COLORS[tile.zoneType];
   }
   if (tile.zoneType !== ZoneType.None) {
     return ZONE_COLORS[tile.zoneType];
   }
-  return TERRAIN_COLORS[tile.terrain];
+  const terrain = TERRAIN_COLORS[tile.terrain];
+  if (tile.roadType !== RoadType.None) {
+    return { r: terrain.r * 0.72, g: terrain.g * 0.72, b: terrain.b * 0.72 };
+  }
+  return terrain;
 }

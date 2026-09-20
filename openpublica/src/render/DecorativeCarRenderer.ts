@@ -11,6 +11,8 @@ import type { CityMap } from '../sim/CityMap';
 import { RoadType } from '../sim/CityTile';
 import { TILE_SIZE } from '../data/constants';
 import type { HeightField } from '../sim/HeightField';
+import { roadNeighbors, roadHeading, roadProfile } from '../sim/roadConnections';
+import { ROAD_DECK_LIFT } from './RoadRenderer';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -28,8 +30,8 @@ const CAR_WIDTH  = 0.20;
 const CAR_HEIGHT = 0.12;
 const CAR_DEPTH  = 0.35;
 
-/** Y offset — sit the car on top of the road surface. */
-const CAR_Y = CAR_HEIGHT / 2 + 0.01;
+/** Y offset above the road deck. */
+const CAR_CLEARANCE = 0.02;
 
 // ── Renderer ──────────────────────────────────────────────────────────────────
 
@@ -91,15 +93,15 @@ export class DecorativeCarRenderer {
         const offsetX = (_tileRand(tile.x + 1, tile.y)     - 0.5) * (TILE_SIZE * 0.35);
         const offsetZ = (_tileRand(tile.x,     tile.y + 1) - 0.5) * (TILE_SIZE * 0.35);
 
+        const neighbors = roadNeighbors(map, tile.x, tile.y);
+        const deck = roadProfile(tile.roadType);
         mesh.position = new Vector3(
           tile.x * TILE_SIZE + TILE_SIZE / 2 + offsetX,
-          CAR_Y + (heights?.tileCenter(tile.x, tile.y) ?? 0),
+          (heights?.tileCenter(tile.x, tile.y) ?? 0) + ROAD_DECK_LIFT + deck.thickness + CAR_HEIGHT / 2 + CAR_CLEARANCE,
           tile.y * TILE_SIZE + TILE_SIZE / 2 + offsetZ,
         );
 
-        // Random heading in 45° increments for variety.
-        const headingSteps = Math.floor(_tileRand(tile.x + 3, tile.y + 7) * 8);
-        mesh.rotation.y = (headingSteps * Math.PI) / 4;
+        mesh.rotation.y = roadHeading(neighbors);
 
         mesh.material   = this._mat;
         mesh.isPickable = false;
