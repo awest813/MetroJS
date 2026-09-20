@@ -19,6 +19,7 @@ import { CrimeSystem } from './CrimeSystem';
 import { EvaluationSystem } from './EvaluationSystem';
 import { tileKey } from './ZoneGrowthSystem';
 import { STARTER_RESIDENTIAL_DEMAND } from './zoneGrowthHints';
+import { serviceUpkeep } from './EconomySystem';
 
 /** Aggregate statistics for the city, updated each tick. */
 export interface CityStats {
@@ -252,6 +253,7 @@ export class CitySim {
       this.growth.removeAt(x, y);
       tile.neglectMonths = 0;
       this._refreshWater();
+      this.stats.serviceExpenses = serviceUpkeep(this.growth.buildings, this.growth.defs);
     }
   }
 
@@ -289,6 +291,7 @@ export class CitySim {
     // Land value after water/police so watered lots and parks apply this click.
     this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
     if (this.onLandValueChanged) this.onLandValueChanged();
+    this.stats.serviceExpenses = serviceUpkeep(this.growth.buildings, this.growth.defs);
     this.evaluate();
     return true;
   }

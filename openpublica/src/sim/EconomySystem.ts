@@ -85,6 +85,18 @@ const SERVICE_BUILDING_MONTHLY_COST = 50;
  * ```
  * If `money` drops below zero, `stats.bankruptcyWarning` is set to `true`.
  */
+export function serviceUpkeep(
+  buildings: ReadonlyMap<string, BuildingInstance>,
+  defs: ReadonlyMap<string, BuildingDef>,
+): number {
+  let total = 0;
+  for (const instance of buildings.values()) {
+    const def = defs.get(instance.defId);
+    if (def?.isService) total += def.monthlyCost ?? SERVICE_BUILDING_MONTHLY_COST;
+  }
+  return total;
+}
+
 export class EconomySystem {
   /**
    * Run one monthly budget cycle.
@@ -106,7 +118,6 @@ export class EconomySystem {
     // ── Income ─────────────────────────────────────────────────────────────
     let comJobs             = 0;
     let indJobs             = 0;
-    let serviceExpenses     = 0;
 
     for (const instance of buildings.values()) {
       const def = defs.get(instance.defId);
@@ -114,10 +125,9 @@ export class EconomySystem {
 
       if (def.zoneType === ZoneType.Commercial || def.zoneType === ZoneType.MixedUse) comJobs += def.jobs;
       if (def.zoneType === ZoneType.Industrial) indJobs += def.jobs;
-      if (def.isService) {
-        serviceExpenses += def.monthlyCost ?? SERVICE_BUILDING_MONTHLY_COST;
-      }
     }
+
+    const serviceExpenses = serviceUpkeep(buildings, defs);
 
     // Income = population × resTaxRate × factor
     //        + commercial jobs × comTaxRate × factor

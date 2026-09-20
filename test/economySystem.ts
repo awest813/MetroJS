@@ -99,6 +99,7 @@ describe('EconomySystem income', () => {
     sim.stats.money = 100_000;
     sim.placeServiceBuilding(2, 2, 'small_power_plant', 0);
     sim.placeServiceBuilding(3, 3, 'small_park', 0);
+    expect(sim.stats.serviceExpenses).toBe(100);
     tickOneMonth(sim);
     // plant $80 + park $20
     expect(sim.stats.serviceExpenses).toBe(100);
