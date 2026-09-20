@@ -42,6 +42,13 @@ describe('formatInspectStatus', () => {
     expect(formatInspectStatus('Inspect', tile, null)).toContain('watered');
   });
 
+  it('should call out an empty zoned lot', () => {
+    const map = new CityMap(4, 4);
+    const tile = map.getTile(2, 2)!;
+    tile.zoneType = ZoneType.Commercial;
+    expect(formatInspectStatus('C Zone', tile, null)).toContain('empty lot');
+  });
+
   it('should mention trolley without repeating HUD money', () => {
     const map = new CityMap(4, 4);
     const tile = map.getTile(0, 0)!;

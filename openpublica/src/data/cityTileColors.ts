@@ -54,15 +54,31 @@ export function averageColors(colors: ReadonlyArray<TileColor>): TileColor {
 
 /**
  * Colours at the four corners of tile (x, y): SW, SE, NW, NE.
- * Averaging neighbouring tiles removes the spreadsheet grid.
+ * Averaging neighbouring tiles removes the spreadsheet grid on terrain.
+ * Empty zoned lots keep a hard plat so R/C/I/M still read after blending.
  */
 export function tileCornerColors(map: CityMap, x: number, y: number): [TileColor, TileColor, TileColor, TileColor] {
+  const tile = map.getTile(x, y);
+  if (tile && isEmptyZonePlat(tile)) {
+    const plat = cityTileColor(tile);
+    return [plat, plat, plat, plat];
+  }
   return [
     _cornerColor(map, x, y),
     _cornerColor(map, x + 1, y),
     _cornerColor(map, x, y + 1),
     _cornerColor(map, x + 1, y + 1),
   ];
+}
+
+/** Empty zoned lots (no building, no road) painted as a hard-edged plat. */
+export function isEmptyZonePlat(tile: CityTile): boolean {
+  return (
+    tile.zoneType !== ZoneType.None &&
+    tile.buildingId === null &&
+    tile.roadType === RoadType.None &&
+    tile.terrain !== TerrainType.Water
+  );
 }
 
 function _cornerColor(map: CityMap, cx: number, cy: number): TileColor {

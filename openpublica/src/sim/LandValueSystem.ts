@@ -62,6 +62,15 @@ const POLLUTION_PENALTY_MULTIPLIER = 0.5;
  */
 const TRAFFIC_PENALTY_MULTIPLIER = 5;
 
+/** Minimum residential buildings before a downtown centroid is computed. */
+const DOWNTOWN_MIN_HOMES = 8;
+
+/** Radius (in tiles) of the commercial/mixed downtown land-value boost. */
+const DOWNTOWN_RADIUS = 10;
+
+/** Peak land-value bonus at the residential centroid for commercial/mixed lots. */
+const DOWNTOWN_BONUS = 16;
+
 // ──────────────────────────────────────────────────────────────────────────
 
 /**
@@ -76,8 +85,9 @@ const TRAFFIC_PENALTY_MULTIPLIER = 5;
  *   acting as a pollution/noise proxy, decaying linearly with distance.
  * - **Road access**: tiles adjacent to at least one road tile receive a small
  *   flat bonus.
- * - **Pollution & traffic**: raw `tile.pollution` and `tile.trafficPressure`
- *   values subtract from land value (populated by other future systems).
+ * - **Downtown**: once enough houses exist, commercial and mixed lots near
+ *   the residential centroid get a decaying land-value boost (shops want to
+ *   sit next to people). Does not change demand formulas.
  */
 export class LandValueSystem {
   /**
@@ -164,6 +174,21 @@ export class LandValueSystem {
       }
     }
 
+    // ── Downtown centroid (commercial / mixed near housing) ────────────────
+    const downtown = _residentialCentroid(buildings, defs);
+    if (downtown) {
+      map.forEach((tile) => {
+        if (tile.zoneType !== ZoneType.Commercial && tile.zoneType !== ZoneType.MixedUse) {
+          return;
+        }
+        const dx = tile.x - downtown.x;
+        const dy = tile.y - downtown.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist >= DOWNTOWN_RADIUS) return;
+        tile.landValue += Math.round(DOWNTOWN_BONUS * (1 - dist / DOWNTOWN_RADIUS));
+      });
+    }
+
     // ── Per-tile modifiers and clamping ────────────────────────────────────
     map.forEach((tile) => {
       // Road access bonus — any orthogonal neighbour with a road qualifies.
@@ -192,6 +217,24 @@ export class LandValueSystem {
 }
 
 // ── Module-level helpers ───────────────────────────────────────────────────
+
+function _residentialCentroid(
+  buildings: ReadonlyMap<string, BuildingInstance>,
+  defs: ReadonlyMap<string, BuildingDef>,
+): { x: number; y: number } | null {
+  let sx = 0;
+  let sy = 0;
+  let n = 0;
+  for (const instance of buildings.values()) {
+    const def = defs.get(instance.defId);
+    if (!def || def.zoneType !== ZoneType.Residential || def.population <= 0) continue;
+    sx += instance.x;
+    sy += instance.y;
+    n += 1;
+  }
+  if (n < DOWNTOWN_MIN_HOMES) return null;
+  return { x: sx / n, y: sy / n };
+}
 
 function _hasAdjacentRoad(map: CityMap, x: number, y: number): boolean {
   const n = [

@@ -65,6 +65,8 @@ export function sfxForTool(toolName: string): Voice | null {
       return { kind: 'blip', freq: 311, duration: 0.055, gain: 0.045, type: 'triangle' };
     case 'zoneMixedUse':
       return { kind: 'blip', freq: 440, duration: 0.05, gain: 0.045, type: 'sine' };
+    case 'zoneClear':
+      return { kind: 'blip', freq: 220, duration: 0.045, gain: 0.04, type: 'triangle' };
     case 'bulldoze':
       return { kind: 'noise', freq: 90, duration: 0.11, gain: 0.07 };
     case 'placePowerPlant':

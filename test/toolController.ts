@@ -10,6 +10,7 @@ import {
   createResidentialLowBrush,
   createCommercialLowBrush,
   createIndustrialLightBrush,
+  createClearZoneBrush,
 } from '../openpublica/src/tools/ZoneBrushTool';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -285,6 +286,34 @@ describe('ZoneBrushTool', () => {
     const tool = createIndustrialLightBrush();
     tool.apply(ORIGIN, sim);
     expect(sim.getTile(0, 0)?.zoneType).toBe(ZoneType.Industrial);
+  });
+
+  it('should not zone a road tile', () => {
+    const sim  = makeSim(1_000);
+    sim.placeRoad(0, 0, RoadType.Street);
+    const money = sim.stats.money;
+    expect(createResidentialLowBrush().apply(ORIGIN, sim)).toBe(false);
+    expect(sim.getTile(0, 0)?.zoneType).toBe(ZoneType.None);
+    expect(sim.stats.money).toBe(money);
+  });
+
+  it('should not rezone a building', () => {
+    const sim  = makeSim(1_000);
+    sim.placeServiceBuilding(0, 0, 'small_park', 0);
+    const money = sim.stats.money;
+    expect(createCommercialLowBrush().apply(ORIGIN, sim)).toBe(false);
+    expect(sim.getTile(0, 0)?.zoneType).toBe(ZoneType.None);
+    expect(sim.stats.money).toBe(money);
+  });
+
+  it('should dezone an empty lot for free', () => {
+    const sim  = makeSim(1_000);
+    createResidentialLowBrush().apply(ORIGIN, sim);
+    const money = sim.stats.money;
+    expect(createClearZoneBrush().name).toBe('zoneClear');
+    expect(createClearZoneBrush().apply(ORIGIN, sim)).toBe(true);
+    expect(sim.getTile(0, 0)?.zoneType).toBe(ZoneType.None);
+    expect(sim.stats.money).toBe(money);
   });
 
   it('ZoneBrushTool with ZoneType.None should not charge', () => {

@@ -67,7 +67,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] 64×64 `CityMap` with monthly sim (growth, power, economy, land value, traffic, walkability, transit, pollution)
 - [x] Procedural kit buildings (instanced) and vertex-coloured heightfield (no Micropolis tile sheets)
 - [x] Mouse tile picking via terrain/water ray hits
-- [x] Tools: Inspect, Road, Highway, R/C/I/Mixed zone brushes, Bulldoze, Power plant, Park, Police, Fire, Water, Trolley avenue
+- [x] Tools: Inspect, Road, Highway, R/C/I/Mixed/Dezone brushes, Bulldoze, Power plant, Park, Police, Fire, Water, Trolley avenue
 - [x] Overlays: power, land value, traffic, walkability, transit, pollution, crowd, crime, fire, water (one height-aware mesh)
 - [x] Save/load via `SaveSystem`
 - [x] Perspective camera, sun/shadows, orbit vs paint input (Phase A)
@@ -84,7 +84,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] City menu + Settings: save/load confirms, mute/quality/sun, key list (Look is minimap + Frame)
 - [x] MIT `simplex-noise` + `alea` for seeded hills and tree jitter (lakes still use `terrainHash`)
 
-Follow [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md) for degradation, and optional PBR/sky/GLB. City-health, mayor Score/advisory, highways, and water towers are in the HUD.
+Follow [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md) for degradation, and optional PBR/sky/GLB. City-health, mayor Score/advisory, highways, water towers, and zoning plats/downtown are in the HUD.
 
 ## 3D port
 

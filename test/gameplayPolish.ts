@@ -104,4 +104,10 @@ describe('explainToolFailure', () => {
     expect(new BulldozeTool().apply({ x: 0, y: 0 }, sim)).toBe(false);
     expect(sim.stats.money).toBe(money);
   });
+
+  it('should refuse to zone a street', () => {
+    const sim = CitySim.createCity(8, 8);
+    sim.placeRoad(0, 0, RoadType.Street);
+    expect(explainToolFailure('zoneResidentialLow', { x: 0, y: 0 }, sim)).toMatch(/beside the street/);
+  });
 });

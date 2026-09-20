@@ -108,6 +108,23 @@ describe('LandValueSystem', () => {
     });
   });
 
+  describe('downtown centroid', () => {
+    it('should raise commercial land value near a cluster of houses', () => {
+      const sim = CitySim.createCity(24, 24);
+      for (let i = 0; i < 8; i++) {
+        const x = 12 + (i % 3);
+        const y = 12 + Math.floor(i / 3);
+        sim.growth.buildings.set(`${x},${y}`, { defId: 'small_house', x, y });
+        sim.getTile(x, y)!.buildingId = 'small_house';
+        sim.getTile(x, y)!.zoneType = ZoneType.Residential;
+      }
+      sim.getTile(12, 15)!.zoneType = ZoneType.Commercial;
+      sim.getTile(0, 0)!.zoneType = ZoneType.Commercial;
+      tickOneMonth(sim);
+      expect(sim.getTile(12, 15)!.landValue).toBeGreaterThan(sim.getTile(0, 0)!.landValue);
+    });
+  });
+
   describe('onLandValueChanged callback', () => {
     it('should fire onLandValueChanged on monthly tick', () => {
       const sim = CitySim.createCity(8, 8);

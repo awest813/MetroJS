@@ -3,7 +3,7 @@
 import type { Tool } from './Tool';
 import type { TileCoord } from '../data/types';
 import type { CitySim } from '../sim/CitySim';
-import { ZoneType, TerrainType } from '../sim/CityTile';
+import { ZoneType, TerrainType, RoadType } from '../sim/CityTile';
 
 /** Cost in city funds to zone one tile (any zone type). */
 export const ZONE_COST = 5;
@@ -19,17 +19,18 @@ export const ZONE_TOOL_NAMES = {
 
 /** Labels shown in the toolbar for each zone type. */
 const ZONE_LABELS: Record<ZoneType, string> = {
-  [ZoneType.None]:        '✖ Clear Zone',
-  [ZoneType.Residential]: '🏠 Residential',
-  [ZoneType.Commercial]:  '🏢 Commercial',
-  [ZoneType.Industrial]:  '🏭 Industrial',
-  [ZoneType.MixedUse]:    '🏪 Mixed-Use',
+  [ZoneType.None]:        'Dezone',
+  [ZoneType.Residential]: 'R Zone',
+  [ZoneType.Commercial]:  'C Zone',
+  [ZoneType.Industrial]:  'I Zone',
+  [ZoneType.MixedUse]:    'Mixed',
 };
 
 /**
  * A brush tool that paints a specific zone type onto tiles.
  * Supports click-and-drag placement over multiple tiles.
  * Deducts ZONE_COST per tile; rejects if funds are insufficient.
+ * Empty lots only — buildings and roads must be cleared first.
  */
 export class ZoneBrushTool implements Tool {
   readonly name: string;
@@ -49,6 +50,13 @@ export class ZoneBrushTool implements Tool {
 
     // Skip if tile already has the correct zone — no cost, no mutation.
     if (tile.zoneType === this._zoneType) return false;
+
+    if (tile.buildingId !== null) return false;
+
+    // Buildings grow beside streets, never on the road itself.
+    if (this._zoneType !== ZoneType.None && tile.roadType !== RoadType.None) {
+      return false;
+    }
 
     const cost = this._zoneType === ZoneType.None ? 0 : ZONE_COST;
     if (cost > 0 && !sim.deductMoney(cost)) {
@@ -83,4 +91,9 @@ export function createIndustrialLightBrush(): ZoneBrushTool {
 /** Mixed-use main-street zone brush. */
 export function createMixedUseBrush(): ZoneBrushTool {
   return new ZoneBrushTool(ZoneType.MixedUse);
+}
+
+/** Free brush that removes zoning from an empty lot. */
+export function createClearZoneBrush(): ZoneBrushTool {
+  return new ZoneBrushTool(ZoneType.None);
 }

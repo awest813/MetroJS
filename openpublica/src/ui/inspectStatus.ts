@@ -49,6 +49,12 @@ export function formatInspectStatus(
     parts.push(prettyDefId(buildingId));
   } else if (tile.buildingId === 'small_park') {
     parts.push('park');
+  } else if (
+    tile.zoneType !== ZoneType.None &&
+    tile.buildingId === null &&
+    tile.roadType === RoadType.None
+  ) {
+    parts.push('empty lot');
   }
   parts.push(`LV ${tile.landValue}`);
   if (tile.populationDensity > 0) parts.push(`density ${tile.populationDensity}`);

@@ -59,8 +59,29 @@ export function explainToolFailure(
     case 'zoneCommercialLow':
     case 'zoneIndustrialLight':
     case 'zoneMixedUse':
+      if (tile.zoneType === ZoneType.Residential && toolName === 'zoneResidentialLow') {
+        return 'Already this zone.';
+      }
+      if (tile.zoneType === ZoneType.Commercial && toolName === 'zoneCommercialLow') {
+        return 'Already this zone.';
+      }
+      if (tile.zoneType === ZoneType.Industrial && toolName === 'zoneIndustrialLight') {
+        return 'Already this zone.';
+      }
+      if (tile.zoneType === ZoneType.MixedUse && toolName === 'zoneMixedUse') {
+        return 'Already this zone.';
+      }
+      if (tile.buildingId !== null) return 'Bulldoze the building before rezoning.';
+      if (tile.roadType !== RoadType.None) {
+        return 'Zone the empty lot beside the street, not the road.';
+      }
       if (!sim.canAfford(ZONE_COST)) return fundsLine(ZONE_COST, sim.stats.money);
-      return 'Already this zone.';
+      return 'Could not zone this lot.';
+
+    case 'zoneClear':
+      if (tile.zoneType === ZoneType.None) return 'Nothing to dezone.';
+      if (tile.buildingId !== null) return 'Bulldoze the building before dezoning.';
+      return 'Could not dezone this lot.';
 
     case 'bulldoze': {
       const empty =

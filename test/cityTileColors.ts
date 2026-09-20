@@ -59,4 +59,19 @@ describe('terrain colour blending', () => {
     grass.terrain = TerrainType.Grass;
     expect(cityTileColor(tower).b).toBeGreaterThan(cityTileColor(grass).b);
   });
+
+  it('should paint empty zone plats with hard corners', () => {
+    const map = new CityMap(4, 4);
+    const lot = map.getTile(1, 1)!;
+    lot.zoneType = ZoneType.Residential;
+    const plat = cityTileColor(lot);
+    const corners = tileCornerColors(map, 1, 1);
+    for (const c of corners) {
+      expect(c.r).toBeCloseTo(plat.r);
+      expect(c.g).toBeCloseTo(plat.g);
+      expect(c.b).toBeCloseTo(plat.b);
+    }
+    const grassCorner = tileCornerColors(map, 2, 1)[0];
+    expect(grassCorner.b).toBeLessThan(plat.b);
+  });
 });

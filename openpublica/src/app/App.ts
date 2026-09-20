@@ -23,6 +23,7 @@ import {
   createCommercialLowBrush,
   createIndustrialLightBrush,
   createMixedUseBrush,
+  createClearZoneBrush,
 } from '../tools/ZoneBrushTool';
 import { BulldozeTool } from '../tools/BulldozeTool';
 import { PlacePowerPlantTool } from '../tools/PlacePowerPlantTool';
@@ -99,6 +100,7 @@ export class App {
     const commercialTool    = createCommercialLowBrush();
     const industrialTool    = createIndustrialLightBrush();
     const mixedUseTool      = createMixedUseBrush();
+    const clearZoneTool     = createClearZoneBrush();
     const bulldozeTool      = new BulldozeTool();
     const powerPlantTool    = new PlacePowerPlantTool();
     const parkTool          = new PlaceParkTool();
@@ -115,6 +117,7 @@ export class App {
       commercialTool,
       industrialTool,
       mixedUseTool,
+      clearZoneTool,
       bulldozeTool,
       powerPlantTool,
       parkTool,

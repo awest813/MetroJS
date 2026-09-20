@@ -70,7 +70,7 @@ Buildings do not shrink when demand, power, pollution, or access fail. Status te
 |---|---|
 | B1 Advisory **shipped** | Structured messages (no power plant, bankrupt, smog spike, no road access) in the HUD feed |
 | B2 Degradation | Existing buildings can downgrade or vanish after sustained bad conditions (tune slowly; keep formulas documented) |
-| B3 Downtown | Optional commercial/mixed boost from a computed city centroid |
+| B3 Downtown **shipped** | Commercial/mixed land-value boost from the residential centroid; honest zone plats (no painting roads/buildings) |
 
 **Exit:** A player who never places a plant sees a clear advisory, then empty lots, not a silent stall.
 
@@ -116,9 +116,10 @@ Unchanged from the 3D plan:
 2. ~~**Fire coverage** (A4).~~ Shipped: Fire tool, overlay, HUD Fire (no disasters).
 3. ~~**Evaluation + advisory** (A5 + B1).~~ Shipped: HUD Score + mayor alert line.
 4. ~~**Highways + water towers** (A6).~~ Shipped: Highway tool, Water HUD/overlay, dry-lots advisory.
-5. **PBR + sky** (C1–C2) — visual, no sim.
-6. **App.ts split** (D2) whenever the next feature would add another 80 lines to the constructor.
-7. **Degradation** (B2) after advisory, so the player is told why lots empty.
+5. ~~**Zoning plats + downtown** (B3).~~ Shipped: Dezone, hard empty-lot colours, C/M land value near housing.
+6. **PBR + sky** (C1–C2) — visual, no sim.
+7. **App.ts split** (D2) whenever the next feature would add another 80 lines to the constructor.
+8. **Degradation** (B2) after advisory, so the player is told why lots empty.
 
 GLB (C4) and SSAO (C5) stay optional after C1–C2.
 
