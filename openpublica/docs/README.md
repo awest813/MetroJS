@@ -33,6 +33,7 @@ openpublica/
 │   ├── render/   Babylon.js rendering layer (scene, terrain, picking, highlight)
 │   ├── tools/    Player tools (Inspect, Road, Residential, Bulldoze)
 │   ├── ui/       HTML/CSS user interface (Toolbar, styles)
+│   ├── audio/    Procedural Web Audio (no sample files, no Babylon)
 │   ├── data/     Shared constants, enums, and types
 │   └── save/     Save/load (SaveSystem / SaveCodec)
 ├── docs/         Documentation
@@ -50,6 +51,7 @@ The project enforces a strict boundary between simulation and rendering:
 | Simulation | `src/sim/` | ❌ not allowed |
 | Tools | `src/tools/` | ❌ not allowed |
 | Renderer | `src/render/` | ✅ only here |
+| Audio | `src/audio/` | ❌ (Web Audio only; original oscillators, never Micropolis clips) |
 | UI | `src/ui/` | ❌ not allowed |
 | Coordinator | `src/app/App.ts` | ✅ wires both sides |
 
@@ -72,7 +74,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Moving cars and trolleys on a render-only road graph (Phase F)
 - [x] Gameplay: starter housing demand, sim speed/pause, placement and growth feedback
 - [x] Unified 3D overlay mesh including pollution (Phase G)
-- [ ] Sound effects
+- [x] Procedural sound (paint, growth, mute); unlocked on first gesture, M to mute
 
 ## 3D port
 

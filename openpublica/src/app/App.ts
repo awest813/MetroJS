@@ -38,6 +38,9 @@ import { BudgetPanel } from '../ui/BudgetPanel';
 import { formatInspectStatus } from '../ui/inspectStatus';
 import { SaveSystem } from '../save/SaveSystem';
 import { SpeedBar, type SimSpeed } from '../ui/SpeedBar';
+import { SoundBar } from '../ui/SoundBar';
+import { AudioBus } from '../audio/AudioBus';
+import { BANKRUPT_VOICE, FAIL_VOICE, GROWTH_VOICE, sfxForTool } from '../audio/voices';
 import { explainToolFailure } from '../tools/toolFeedback';
 import { formatGrowthHint } from '../sim/zoneGrowthHints';
 
@@ -70,6 +73,14 @@ export class App {
     const sim = CitySim.createCity(MAP_SIZE, MAP_SIZE);
     generateTerrain(sim.map);
     let heights = HeightField.fromMap(sim.map);
+
+    // ── Audio (Web Audio only; silent until a pointer/key gesture) ──────────
+    const audio = new AudioBus();
+    const unlockAudio = (): void => {
+      audio.unlock();
+    };
+    window.addEventListener('pointerdown', unlockAudio, { capture: true });
+    window.addEventListener('keydown', unlockAudio, { capture: true });
 
     // ── Tools ────────────────────────────────────────────────────────────────
     const inspectTool       = new InspectTool();
@@ -190,6 +201,7 @@ export class App {
           }
         }
       }
+      if (changed.length > 0) audio.play(GROWTH_VOICE, 'growth');
     };
 
     // ── Power system fires when coverage changes (monthly or on placement) ───
@@ -233,6 +245,7 @@ export class App {
       simSpeed = next;
       if (next === 0) statusEl.textContent = 'Paused. P resumes. ] speeds up.';
     });
+    new SoundBar(cameraEl, audio);
 
     const overlaySpec = (
       id: string,
@@ -265,11 +278,22 @@ export class App {
     const hud = new CityHUD(hudEl);
     hud.update(sim.stats, sim.clock);
 
+    let wasBankrupt = sim.stats.bankruptcyWarning;
+    const syncAmbient = (): void => {
+      const size = (sim.stats.population + sim.stats.jobs) / 3500;
+      audio.setAmbientLevel(size);
+    };
+    syncAmbient();
+
     scene.onBeforeRenderObservable.add(() => {
       const dt = engine.getDeltaTime() / 1000;
       if (simSpeed > 0) {
         sim.tick(dt * simSpeed);
         trafficVehicles.update(dt);
+        if (sim.stats.bankruptcyWarning && !wasBankrupt) {
+          audio.play(BANKRUPT_VOICE, 'warn');
+        }
+        wasBankrupt = sim.stats.bankruptcyWarning;
       }
       hud.update(sim.stats, sim.clock);
     });
@@ -293,9 +317,13 @@ export class App {
       const tool     = toolController.activeTool;
 
       if (!applied && tool.name !== 'inspect') {
+        audio.play(FAIL_VOICE, 'fail');
         statusEl.textContent = explainToolFailure(tool.name, coord, sim);
         return;
       }
+
+      const voice = sfxForTool(tool.name);
+      if (applied && voice) audio.playPaint(voice);
 
       const hint = tile ? formatGrowthHint(tile, sim.map, sim.stats) : null;
       statusEl.textContent = formatInspectStatus(
@@ -333,6 +361,7 @@ export class App {
     setInterval(() => {
       hud.update(sim.stats, sim.clock);
       budgetPanel.update(sim.stats);
+      syncAmbient();
     }, 1000);
   }
 }

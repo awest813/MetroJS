@@ -58,7 +58,7 @@ OpenPublica TypeScript implementation under `openpublica/`.
 | Low | Infrastructure gates | stadium/seaport/airport cap messages | No stadium, seaport, airport, or demand caps. This may remain intentionally omitted. |
 | Low | Road decay | `road.js` | Roads/trolley avenues charge maintenance but never degrade when underfunded. |
 | Low | Disasters and repair | `disasterManager.js`, `repairManager.js` | No fire/flood/tornado/monster events or repair manager. |
-| Low | Audio | sound event strings | No audio playback or bundled sound assets in OpenPublica. |
+| Low | Audio | sound event strings | OpenPublica uses original Web Audio oscillators (`src/audio/`); Micropolis `SOUND_*` strings remain unused. |
 
 ---
 
@@ -107,7 +107,7 @@ OpenPublica TypeScript implementation under `openpublica/`.
 | 13 | Road decay | Add optional underfunded-road degradation if maintenance quality becomes a mechanic. |
 | 14 | Infrastructure gates | Only add stadium/seaport/airport if OpenPublica intentionally wants Micropolis-style milestone blockers. |
 | 15 | Disasters/repair | Add pure-sim disasters with renderer-side effects after city health/evaluation systems exist. |
-| 16 | Audio | Add original/licensed audio only after a licensing review. |
+| 16 | Audio | Original procedural SFX shipped in OpenPublica; do not import Micropolis clips. |
 
 ---
 

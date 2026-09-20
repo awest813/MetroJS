@@ -282,13 +282,16 @@ remains in the distribution.
 
 ## 10. Risk: Future Audio Assets — No Existing License Baseline
 
-**Severity: LOW now, POTENTIALLY HIGH if audio is added**
+**Severity: LOW** (OpenPublica uses original oscillators; no sample files)
 
-There are currently no audio files in the repository. However, 12 sound event
-constants are defined in `src/messages.ts` (e.g., `SOUND_EXPLOSION_HIGH`,
-`SOUND_POLICE_SIR`, `SOUND_FIRE_SIREN`) with no playback implementation.
+There are currently no audio files in the repository. Micropolis still defines
+12 unused `SOUND_*` event strings in `src/messages.ts`.
 
-If audio assets are added in the future:
+OpenPublica plays original Web Audio oscillators and filtered noise from
+`openpublica/src/audio/` (GPLv3 with the rest of OpenPublica). That layer must
+not load Micropolis, SimCity, or third-party clips.
+
+If sample files are added later:
 - Their license provenance must be documented before they are committed.
 - The original Micropolis project may have had associated audio whose license
   status would require the same review as the graphics.

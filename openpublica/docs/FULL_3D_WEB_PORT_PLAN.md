@@ -87,7 +87,7 @@ That is the correct split. A fully 3D port is almost entirely `src/render/` + `S
 | Picking | `scene.pick` → `floor(x), floor(z)` assuming Y = 0 | Fails on slopes, water, and tall building occlusion if camera can pitch. |
 | Materials | `StandardMaterial` only | No PBR, textures, or environment lighting. |
 | Post-process / sky | Solid `clearColor` | No skybox, fog, SSAO, or horizon. |
-| Audio | None | Out of scope for geometry, but 3D will feel empty without later SFX. |
+| Audio | Procedural Web Audio in `openpublica/src/audio/` | No Micropolis samples; mute + gesture unlock. Geometry remains independent. |
 
 `BuildingRenderer` shape table (all boxes):
 

@@ -517,7 +517,7 @@ granted by **Micropolis GmbH** (Netherlands). Key obligations for any fork/deriv
 | Mixed JS/TS source | `src/` | ~80 % of source files are plain `.js` with no type-checking. Only data-layer modules have been migrated to TypeScript. |
 | jQuery dependency | `package.json`, many `src/*.js` files | jQuery is used pervasively for DOM manipulation and event wiring. It is a production dependency (~31 KB gzipped). |
 | Single localStorage save slot | `src/storage.js` | Only one game can be saved at a time. |
-| No audio | whole codebase | Sound event constants exist in `messages.ts` (`SOUND_*`) but no audio playback is implemented. |
+| No bundled audio files | whole codebase | Micropolis `SOUND_*` strings are unused. OpenPublica plays original Web Audio oscillators (`openpublica/src/audio/`) with no sample files. |
 | `// TODO` comments | `src/simulation.js`, `src/infoBar.js`, `src/tileValues.ts`, others | Several open TODOs: graphs not implemented, L20N not implemented, some tile values undocumented. |
 | `// XXX` comments | `src/micropolis.js`, `src/game.js` | `onFallbackError` uses `alert()` (marked for replacement); date-change listener (`DATE_UPDATED`) is commented out. |
 | Hardcoded map size | `src/gameMap.js` | Default is 120 × 100; changing it requires updating numerous hard-coded references. |

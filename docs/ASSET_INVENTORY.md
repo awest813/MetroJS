@@ -180,7 +180,10 @@ Sprite type mapping (from `src/spriteConstants.ts`):
 
 **There are no audio files in the repository.**
 
-The codebase does define sound event constants in `src/messages.ts`:
+OpenPublica generates short original tones at runtime (`openpublica/src/audio/`)
+instead of shipping `.wav` / `.mp3` / `.ogg` assets.
+
+The canvas Micropolis game still defines unused sound event constants in `src/messages.ts`:
 
 ```
 SOUND_EXPLOSION_LOW, SOUND_EXPLOSION_HIGH, SOUND_POLICE_SIR, SOUND_FIRE_SIREN,
@@ -238,7 +241,7 @@ distribution.
 | index.html | `/` | App shell | GPL v3 + EA terms | `LICENSE` / `COPYING` |
 | about.html | `/` | About page | GPL v3 + EA terms | `LICENSE` / `COPYING` |
 | name_license.html | `/` | Name license page | GPL v3 + EA terms | `LICENSE` / `COPYING` |
-| (no audio files) | — | Sound / music | N/A | N/A |
+| Audio (OpenPublica) | Procedural Web Audio in `openpublica/src/audio/` | OpenPublica SFX | **GPLv3 with the game** | Original oscillators/noise; no sample files |
 | jquery 3.7.1 | npm | Runtime library | MIT | `node_modules/jquery` |
 | "MICROPOLIS" name | (trademark) | Trademark | Non-commercial only | `MicropolisPublicNameLicense.md` |
 | "SimCity" name | (trademark) | EA trademark | No rights granted | `LICENSE` |

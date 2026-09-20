@@ -456,6 +456,10 @@ input:focus-visible {
   gap: 4px;
 }
 
+#camera-bar .sound-toggle {
+  min-width: 58px;
+}
+
 /* ── Status bar ───────────────────────────────── */
 #status-bar {
   position: absolute;
