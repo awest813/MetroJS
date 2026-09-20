@@ -26,6 +26,7 @@ export class WaterRenderer {
     );
     this._mesh.position = new Vector3(MAP_SIZE / 2, WATER_SURFACE_Y, MAP_SIZE / 2);
     this._mesh.receiveShadows = true;
+    this._mesh.isPickable = false;
 
     const mat = new StandardMaterial('water-mat', scene);
     mat.diffuseColor = new Color3(0.10, 0.38, 0.58);
