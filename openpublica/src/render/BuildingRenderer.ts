@@ -26,6 +26,7 @@ import {
   type BuildingKit,
   type KitPart,
   type KitPalette,
+} from './buildingVisuals';
 import { vertexColorPbr } from './pbrSurfaces';
 
 type KitVariant = 'zone' | 'service' | 'civic' | 'fire' | 'water' | 'warning';

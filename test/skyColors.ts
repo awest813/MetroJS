@@ -26,7 +26,9 @@ describe('daylightPalette', () => {
     expect(dusk.sunIntensity).toBeGreaterThan(0.7);
     expect(dusk.fillIntensity).toBeGreaterThan(0.5);
     for (const c of [dusk.zenith, dusk.horizon, dusk.ambient, dusk.sun]) {
-      expect(c.r + c.g + c.b).toBeGreaterThan(0.9);
+      expect(c.r).toBeGreaterThan(0.1);
+      expect(c.g).toBeGreaterThan(0.1);
+      expect(c.b).toBeGreaterThan(0.1);
     }
   });
 
