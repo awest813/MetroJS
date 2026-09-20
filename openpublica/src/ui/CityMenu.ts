@@ -1,3 +1,5 @@
+import { cityFileNote } from './chromeCopy';
+
 /**
  * Save / load / new city, with in-chrome confirms (no window.confirm).
  */
@@ -8,6 +10,7 @@ export class CityMenu {
   private readonly _loadConfirm: HTMLDivElement;
   private readonly _newConfirm: HTMLDivElement;
   private _hasSave: boolean;
+  private _justSaved = false;
 
   constructor(
     container: HTMLElement,
@@ -38,10 +41,13 @@ export class CityMenu {
     saveBtn.id = 'save-btn';
     saveBtn.textContent = 'Save';
     saveBtn.title = 'Save this city in the browser (Ctrl+S)';
+    saveBtn.setAttribute('aria-keyshortcuts', 'Control+S Meta+S');
     saveBtn.addEventListener('click', () => {
       this._hideConfirms();
       handlers.onSave();
       this.setHasSave(true);
+      this._justSaved = true;
+      this._syncLoad();
     });
     actions.appendChild(saveBtn);
 
@@ -60,6 +66,7 @@ export class CityMenu {
 
     this._note = document.createElement('p');
     this._note.className = 'city-menu-note';
+    this._note.setAttribute('aria-live', 'polite');
     container.appendChild(this._note);
 
     this._loadConfirm = _makeConfirm(
@@ -78,17 +85,20 @@ export class CityMenu {
       this._newConfirm.hidden = true;
       this._newBtn.disabled = false;
       this._loadConfirm.hidden = false;
+      this._loadBtn.disabled = true;
     });
     this._loadConfirm.querySelector('.confirm-cancel')!.addEventListener('click', () => {
       this._hideConfirms();
     });
     this._loadConfirm.querySelector('.confirm-ok')!.addEventListener('click', () => {
+      this._justSaved = false;
       this._hideConfirms();
       handlers.onLoad();
     });
 
     this._newBtn.addEventListener('click', () => {
       this._loadConfirm.hidden = true;
+      this._loadBtn.disabled = !this._hasSave;
       this._newConfirm.hidden = false;
       this._newBtn.disabled = true;
     });
@@ -96,6 +106,7 @@ export class CityMenu {
       this._hideConfirms();
     });
     this._newConfirm.querySelector('.confirm-ok')!.addEventListener('click', () => {
+      this._hideConfirms();
       handlers.onNewCity();
     });
 
@@ -106,6 +117,8 @@ export class CityMenu {
         this._hideConfirms();
         handlers.onSave();
         this.setHasSave(true);
+        this._justSaved = true;
+        this._syncLoad();
         return;
       }
       if (event.key === 'Escape') this._hideConfirms();
@@ -127,11 +140,12 @@ export class CityMenu {
   }
 
   private _syncLoad(): void {
-    this._loadBtn.disabled = !this._hasSave;
+    const confirmingLoad = !this._loadConfirm.hidden;
+    this._loadBtn.disabled = !this._hasSave || confirmingLoad;
     this._loadBtn.title = this._hasSave
       ? 'Replace this city with the last save'
       : 'No save in this browser yet';
-    this._note.textContent = this._hasSave ? 'Save kept in this browser.' : 'No save yet.';
+    this._note.textContent = cityFileNote(this._hasSave, this._justSaved);
   }
 }
 

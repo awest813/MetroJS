@@ -23,6 +23,7 @@ export class LookPanel {
     frame.className = 'look-frame';
     frame.textContent = 'Frame city';
     frame.title = 'Reset to the iso city view (Home)';
+    frame.setAttribute('aria-keyshortcuts', 'Home');
     frame.addEventListener('click', () => onFrame());
     container.appendChild(frame);
   }

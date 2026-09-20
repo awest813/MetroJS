@@ -1,4 +1,5 @@
 import type { AudioBus } from '../audio/AudioBus';
+import { SETTINGS_SHORTCUTS } from './chromeCopy';
 import {
   type QualityLevel,
   readStoredQuality,
@@ -34,6 +35,7 @@ export class SettingsPanel {
 
     const summary = document.createElement('summary');
     summary.textContent = 'Settings';
+    summary.setAttribute('aria-label', 'Settings');
     fold.appendChild(summary);
 
     const body = document.createElement('div');
@@ -103,28 +105,36 @@ export class SettingsPanel {
       writeStoredSun(day);
       handlers.onSun(day);
     };
-    slider.addEventListener('input', applySun);
-    dawn.addEventListener('pointerdown', (event) => {
-      event.stopPropagation();
+    const snapDawn = (): void => {
       slider.value = '0';
       applySun();
+    };
+    const snapDusk = (): void => {
+      slider.value = '100';
+      applySun();
+    };
+    slider.addEventListener('input', applySun);
+    dawn.addEventListener('click', snapDawn);
+    dawn.addEventListener('pointerdown', (event) => {
+      event.stopPropagation();
+      snapDawn();
     });
     const dusk = document.createElement('button');
     dusk.type = 'button';
     dusk.className = 'look-sun-end';
     dusk.textContent = 'Dusk';
     dusk.title = 'Cool evening light';
+    dusk.addEventListener('click', snapDusk);
     dusk.addEventListener('pointerdown', (event) => {
       event.stopPropagation();
-      slider.value = '100';
-      applySun();
+      snapDusk();
     });
     sunRow.append(dawn, slider, dusk);
     body.appendChild(sunRow);
 
     const keys = document.createElement('p');
     keys.className = 'settings-keys';
-    keys.textContent = '1–3 views · P pause · [ ] speed · M mute · Home frame';
+    keys.textContent = SETTINGS_SHORTCUTS;
     body.appendChild(keys);
 
     container.appendChild(fold);

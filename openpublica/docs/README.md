@@ -81,7 +81,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Unified 3D overlay mesh including pollution (Phase G)
 - [x] Procedural sound (paint, growth, mute); unlocked on first gesture, M to mute
 - [x] Camera polish: HTML minimap, Home/Frame, sun slider, High/Low quality
-- [x] City menu + Settings: save/load confirms, mute/quality/sun, key list (Look is minimap + Frame)
+- [x] City menu + Settings: save/load confirms, mute/quality/sun, Ctrl+S, budget net (Look is minimap + Frame)
 - [x] MIT `simplex-noise` + `alea` for seeded hills and tree jitter (lakes still use `terrainHash`)
 
 Follow [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md) for optional PBR/sky/GLB. City-health, mayor Score/advisory, highways, water, zoning plats/downtown, and building degradation are in the HUD.

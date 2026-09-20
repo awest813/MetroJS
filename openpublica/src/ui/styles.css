@@ -87,6 +87,7 @@ input:focus-visible {
 
 #city-menu {
   position: relative;
+  flex-shrink: 0;
 }
 
 #overlay-bar {
@@ -172,13 +173,8 @@ input:focus-visible {
 }
 
 #city-menu .rail-confirm {
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  top: 26px;
+  position: relative;
   z-index: 4;
-  margin-top: 0;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
 }
 
 .rail-confirm p {
@@ -199,6 +195,14 @@ input:focus-visible {
 .confirm-ok {
   background: #6b2a18 !important;
   border-color: #a04020 !important;
+}
+
+#budget-panel.budget-bankrupt .budget-fold {
+  border-color: #6a3020;
+}
+
+#budget-panel.budget-bankrupt summary {
+  color: var(--danger);
 }
 
 .city-file-actions {

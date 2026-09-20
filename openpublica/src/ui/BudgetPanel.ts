@@ -1,4 +1,5 @@
 import type { CityStats } from '../sim/CitySim';
+import { formatBudgetNet, formatSignedMoney } from './chromeCopy';
 
 type TaxChangeCallback = (
   resTaxRate: number,
@@ -11,8 +12,10 @@ type TaxChangeCallback = (
  * Collapsed behind a summary so it does not cover the map by default on small widths.
  */
 export class BudgetPanel {
+  private readonly _root:       HTMLElement;
   private readonly _incomeEl:   HTMLElement;
   private readonly _expenseEl:  HTMLElement;
+  private readonly _netEl:      HTMLElement;
   private readonly _resSlider:  HTMLInputElement;
   private readonly _comSlider:  HTMLInputElement;
   private readonly _indSlider:  HTMLInputElement;
@@ -22,6 +25,7 @@ export class BudgetPanel {
   private _onTaxChange: TaxChangeCallback | null = null;
 
   constructor(root: HTMLElement) {
+    this._root = root;
     root.innerHTML = `
       <details class="budget-fold" open>
         <summary id="budget-header">Budget</summary>
@@ -33,6 +37,10 @@ export class BudgetPanel {
           <div class="budget-row">
             <span class="budget-key">Expenses</span>
             <span class="budget-val expense" id="budget-expense">$0/mo</span>
+          </div>
+          <div class="budget-row">
+            <span class="budget-key">Net</span>
+            <span class="budget-val income" id="budget-net">$0/mo</span>
           </div>
           <div class="budget-divider"></div>
           <div class="tax-row">
@@ -54,8 +62,12 @@ export class BudgetPanel {
       </details>
     `;
 
+    const fold = root.querySelector<HTMLDetailsElement>('.budget-fold')!;
+    if (window.matchMedia('(max-width: 900px)').matches) fold.open = false;
+
     this._incomeEl  = root.querySelector('#budget-income')!;
     this._expenseEl = root.querySelector('#budget-expense')!;
+    this._netEl     = root.querySelector('#budget-net')!;
     this._resSlider = root.querySelector<HTMLInputElement>('#tax-res')!;
     this._comSlider = root.querySelector<HTMLInputElement>('#tax-com')!;
     this._indSlider = root.querySelector<HTMLInputElement>('#tax-ind')!;
@@ -84,8 +96,13 @@ export class BudgetPanel {
   }
 
   update(stats: CityStats): void {
-    this._incomeEl.textContent  = `$${stats.monthlyIncome.toLocaleString()}/mo`;
-    this._expenseEl.textContent = `$${stats.monthlyExpenses.toLocaleString()}/mo`;
+    this._incomeEl.textContent  = `${formatSignedMoney(stats.monthlyIncome)}/mo`;
+    this._expenseEl.textContent = `${formatSignedMoney(stats.monthlyExpenses)}/mo`;
+    const net = stats.monthlyIncome - stats.monthlyExpenses;
+    this._netEl.textContent = formatBudgetNet(stats.monthlyIncome, stats.monthlyExpenses);
+    this._netEl.classList.toggle('income', net >= 0);
+    this._netEl.classList.toggle('expense', net < 0);
+    this._root.classList.toggle('budget-bankrupt', stats.bankruptcyWarning);
   }
 
   syncTaxSliders(stats: CityStats): void {
