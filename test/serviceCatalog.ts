@@ -1,6 +1,7 @@
 import { CityMap } from '../openpublica/src/sim/CityMap';
 import { coverageAtDistance, forEachTileInRadius } from '../openpublica/src/sim/coveragePaint';
 import {
+  createServiceTools,
   formatServiceHint,
   POWER_PLANT_COST,
   serviceRadius,
@@ -31,6 +32,16 @@ describe('serviceCatalog', () => {
   it('should keep plant placement at $500', () => {
     expect(POWER_PLANT_COST).toBe(500);
     expect(serviceSpecForTool('placePowerPlant')?.defId).toBe('small_power_plant');
+  });
+
+  it('should build one tool per catalog spec', () => {
+    expect(createServiceTools().map((tool) => tool.name)).toEqual([
+      'placePowerPlant',
+      'placePark',
+      'placePoliceStation',
+      'placeFireStation',
+      'placeWaterTower',
+    ]);
   });
 
   it('should describe dark stations vs live radii', () => {

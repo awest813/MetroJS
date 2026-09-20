@@ -15,11 +15,6 @@ import {
   createClearZoneBrush,
 } from '../tools/ZoneBrushTool';
 import { BulldozeTool } from '../tools/BulldozeTool';
-import { PlacePowerPlantTool } from '../tools/PlacePowerPlantTool';
-import { PlaceParkTool } from '../tools/PlaceParkTool';
-import { PlacePoliceStationTool } from '../tools/PlacePoliceStationTool';
-import { PlaceFireStationTool } from '../tools/PlaceFireStationTool';
-import { PlaceWaterTowerTool } from '../tools/PlaceWaterTowerTool';
 import { TrolleyAvenueTool } from '../tools/TrolleyAvenueTool';
 import { ToolController } from '../tools/ToolController';
 import { CameraController } from '../render/CameraController';
@@ -41,6 +36,7 @@ import { applyDaylight } from '../render/daylight';
 import { CityView } from './CityView';
 import { mountCityMenu } from './cityFile';
 import {
+  createServiceTools,
   formatServiceHint,
   serviceRadius,
   serviceSpecForDef,
@@ -94,12 +90,8 @@ export class App {
     const mixedUseTool      = createMixedUseBrush();
     const clearZoneTool     = createClearZoneBrush();
     const bulldozeTool      = new BulldozeTool();
-    const powerPlantTool    = new PlacePowerPlantTool();
-    const parkTool          = new PlaceParkTool();
-    const policeTool        = new PlacePoliceStationTool();
-    const fireTool          = new PlaceFireStationTool();
-    const waterTool         = new PlaceWaterTowerTool();
     const trolleyAvenueTool = new TrolleyAvenueTool();
+    const serviceTools      = createServiceTools();
 
     const allTools = [
       inspectTool,
@@ -111,11 +103,7 @@ export class App {
       mixedUseTool,
       clearZoneTool,
       bulldozeTool,
-      powerPlantTool,
-      parkTool,
-      policeTool,
-      fireTool,
-      waterTool,
+      ...serviceTools,
       trolleyAvenueTool,
     ];
 

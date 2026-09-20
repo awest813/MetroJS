@@ -35,12 +35,13 @@ export class HighlightRenderer {
     mat.backFaceCulling = false;
     this._mesh.material = mat;
 
-    this._cover = MeshBuilder.CreateGround(
+    this._cover = MeshBuilder.CreateCylinder(
       'service-cover',
-      { width: 1, height: 1 },
+      { diameter: 1, height: 0.02, tessellation: 48 },
       scene,
     );
     this._cover.isPickable = false;
+    this._cover.receiveShadows = false;
     this._cover.isVisible = false;
     this._coverMat = new StandardMaterial('service-cover-mat', scene);
     this._coverMat.alpha = 0.18;
