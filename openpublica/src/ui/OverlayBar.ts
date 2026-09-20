@@ -7,14 +7,14 @@ export interface OverlaySpec {
 }
 
 /**
- * Map overlay toggles. Independent of build tools so "Power on" is not
- * cleared when the player picks Road.
+ * Map overlays. Exclusive — one tint at a time — so they stay readable in 3D.
+ * Independent of build tools so Power stays on when the player picks Road.
  */
 export class OverlayBar {
   constructor(container: HTMLElement, specs: readonly OverlaySpec[]) {
     container.innerHTML = '';
     container.classList.add('rail-group');
-    container.setAttribute('role', 'group');
+    container.setAttribute('role', 'radiogroup');
     container.setAttribute('aria-label', 'Map overlays');
 
     const heading = document.createElement('div');
@@ -22,20 +22,36 @@ export class OverlayBar {
     heading.textContent = 'Maps';
     container.appendChild(heading);
 
+    const buttons: HTMLButtonElement[] = [];
+
+    const sync = (): void => {
+      for (let i = 0; i < specs.length; i++) {
+        const on = specs[i].getOn();
+        buttons[i].classList.toggle('active', on);
+        buttons[i].setAttribute('aria-pressed', on ? 'true' : 'false');
+        buttons[i].setAttribute('aria-checked', on ? 'true' : 'false');
+      }
+    };
+
     for (const spec of specs) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.id = spec.id;
       btn.textContent = spec.label;
       btn.title = spec.title;
-      btn.setAttribute('aria-pressed', spec.getOn() ? 'true' : 'false');
+      btn.setAttribute('role', 'radio');
       btn.addEventListener('click', () => {
-        const next = !spec.getOn();
-        spec.setOn(next);
-        btn.classList.toggle('active', next);
-        btn.setAttribute('aria-pressed', next ? 'true' : 'false');
+        const turningOn = !spec.getOn();
+        for (const other of specs) {
+          if (other !== spec) other.setOn(false);
+        }
+        spec.setOn(turningOn);
+        sync();
       });
       container.appendChild(btn);
+      buttons.push(btn);
     }
+
+    sync();
   }
 }

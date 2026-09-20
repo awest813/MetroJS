@@ -61,7 +61,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Procedural kit buildings (instanced) and vertex-coloured heightfield (no Micropolis tile sheets)
 - [x] Mouse tile picking via terrain/water ray hits
 - [x] Tools: Inspect, Road, R/C/I/Mixed zone brushes, Bulldoze, Power plant, Park, Trolley avenue
-- [x] Overlays: power, land value, traffic, walkability, transit
+- [x] Overlays: power, land value, traffic, walkability, transit, pollution (one height-aware mesh)
 - [x] Save/load via `SaveSystem`
 - [x] Perspective camera, sun/shadows, orbit vs paint input (Phase A)
 - [x] Heightfield, water basins, height-aware picking (Phase B)
@@ -71,6 +71,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Parks, street trees, and plant smoke (Phase E)
 - [x] Moving cars and trolleys on a render-only road graph (Phase F)
 - [x] Gameplay: starter housing demand, sim speed/pause, placement and growth feedback
+- [x] Unified 3D overlay mesh including pollution (Phase G)
 - [ ] Sound effects
 
 ## 3D port

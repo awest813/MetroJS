@@ -342,7 +342,7 @@ When/if map size grows, add chunked terrain and distance culling (skip instances
 | `render/TerrainRenderer.ts` | Heightfield; stop using roads as the only visual language. Remove dead `buildGrid(GameMap)`. |
 | `render/BuildingRenderer.ts` | Kits + instances; keep `BuildingPickData`. |
 | `render/TrafficVehicleRenderer.ts` | Moving instances on a render-only road graph (Phase F). |
-| `render/*OverlayRenderer.ts` | Merge in Phase G; until then offset by sampled height. |
+| `render/OverlayRenderer.ts` | One height-sampled overlay mesh; modes include pollution (Phase G). |
 | `render/HighlightRenderer.ts` | Follow height. |
 | `app/App.ts` | Wire camera vs tools; stop growing overlay button soup. |
 | `data/buildings.json` | Optional `visualRef` only in D3. |

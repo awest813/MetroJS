@@ -12,6 +12,7 @@ export class CityHUD {
   private readonly _happiness:     HTMLElement;
   private readonly _walkability:   HTMLElement;
   private readonly _transitAccess: HTMLElement;
+  private readonly _pollution:     HTMLElement;
   private readonly _resFill: HTMLElement;
   private readonly _comFill: HTMLElement;
   private readonly _indFill: HTMLElement;
@@ -29,6 +30,7 @@ export class CityHUD {
         <span class="hud-item hud-muted" id="hud-happiness" title="Happiness">Happy 100</span>
         <span class="hud-item hud-muted" id="hud-walkability" title="Walkability">Walk 0</span>
         <span class="hud-item hud-muted" id="hud-transit" title="Transit access">Transit 0</span>
+        <span class="hud-item hud-muted" id="hud-pollution" title="Average pollution">Poll 0</span>
       </div>
       <div id="hud-demand" title="Zone demand">
         <div class="demand-row">
@@ -62,6 +64,7 @@ export class CityHUD {
     this._happiness     = root.querySelector('#hud-happiness')!;
     this._walkability   = root.querySelector('#hud-walkability')!;
     this._transitAccess = root.querySelector('#hud-transit')!;
+    this._pollution     = root.querySelector('#hud-pollution')!;
     this._resFill  = root.querySelector('#hud-res-fill')!;
     this._comFill  = root.querySelector('#hud-com-fill')!;
     this._indFill  = root.querySelector('#hud-ind-fill')!;
@@ -81,6 +84,7 @@ export class CityHUD {
     this._happiness.textContent     = `Happy ${stats.happiness}`;
     this._walkability.textContent   = `Walk ${stats.walkability}`;
     this._transitAccess.textContent = `Transit ${stats.transitAccess}`;
+    this._pollution.textContent     = `Poll ${stats.pollutionAverage}`;
 
     this._setBar(this._resFill, this._resLabel, stats.residentialDemand);
     this._setBar(this._comFill, this._comLabel, stats.commercialDemand);
