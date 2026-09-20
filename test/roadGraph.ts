@@ -1,0 +1,91 @@
+import { CityMap } from '../openpublica/src/sim/CityMap';
+import { RoadType } from '../openpublica/src/sim/CityTile';
+import {
+  buildRoadGraph,
+  buildTrolleyGraph,
+  edgeExists,
+  edgePressure,
+  edgeSpeedTilesPerSec,
+  nodeKey,
+  pickNext,
+  summarizeTraffic,
+  trolleyTargetCount,
+  undirectedEdgeCount,
+  vehicleTargetCount,
+} from '../openpublica/src/render/roadGraph';
+
+function paintLine(map: CityMap, coords: Array<[number, number]>, type: RoadType = RoadType.Street): void {
+  for (const [x, y] of coords) {
+    map.getTile(x, y)!.roadType = type;
+  }
+}
+
+describe('roadGraph', () => {
+  it('should give an isolated road tile a node and no edges', () => {
+    const map = new CityMap(8, 8);
+    map.getTile(3, 3)!.roadType = RoadType.Street;
+    const graph = buildRoadGraph(map);
+    expect(graph.nodes.size).toBe(1);
+    expect(graph.adj.get(nodeKey(3, 3))).toEqual([]);
+    expect(undirectedEdgeCount(graph)).toBe(0);
+  });
+
+  it('should connect a 3-tile line with two undirected edges', () => {
+    const map = new CityMap(8, 8);
+    paintLine(map, [[1, 2], [2, 2], [3, 2]]);
+    const graph = buildRoadGraph(map);
+    expect(graph.nodes.size).toBe(3);
+    expect(undirectedEdgeCount(graph)).toBe(2);
+    expect(edgeExists(graph, nodeKey(1, 2), nodeKey(2, 2))).toBe(true);
+    expect(edgeExists(graph, nodeKey(2, 2), nodeKey(3, 2))).toBe(true);
+    expect(edgeExists(graph, nodeKey(1, 2), nodeKey(3, 2))).toBe(false);
+  });
+
+  it('should u-turn at a dead-end when the only neighbour is prev', () => {
+    const map = new CityMap(8, 8);
+    paintLine(map, [[0, 0], [1, 0]]);
+    const graph = buildRoadGraph(map);
+    const next = pickNext(graph, nodeKey(1, 0), nodeKey(0, 0), () => 0);
+    expect(next).toBe(nodeKey(1, 0));
+  });
+
+  it('should not reverse at an interior node when another hop exists', () => {
+    const map = new CityMap(8, 8);
+    paintLine(map, [[1, 2], [2, 2], [3, 2]]);
+    const graph = buildRoadGraph(map);
+    const next = pickNext(graph, nodeKey(1, 2), nodeKey(2, 2), () => 0);
+    expect(next).toBe(nodeKey(3, 2));
+  });
+
+  it('should scale density from pressure and still seed a short street', () => {
+    expect(vehicleTargetCount(0, 3)).toBe(0);
+    expect(vehicleTargetCount(0, 4)).toBe(2);
+    expect(vehicleTargetCount(20, 10)).toBe(7);
+    expect(vehicleTargetCount(400, 64)).toBe(48);
+  });
+
+  it('should spawn trolleys only on a connected trolley avenue', () => {
+    expect(trolleyTargetCount(3)).toBe(0);
+    expect(trolleyTargetCount(4)).toBe(1);
+    expect(trolleyTargetCount(8)).toBe(2);
+
+    const map = new CityMap(8, 8);
+    paintLine(map, [[0, 1], [1, 1], [2, 1], [3, 1]], RoadType.TrolleyAvenue);
+    map.getTile(1, 2)!.roadType = RoadType.Street;
+    const trolley = buildTrolleyGraph(map);
+    expect(trolley.nodes.size).toBe(4);
+    expect(trolley.adj.get(nodeKey(1, 1))?.includes(nodeKey(1, 2))).toBe(false);
+    expect(summarizeTraffic(map).trolleyTileCount).toBe(4);
+  });
+
+  it('should raise speed with edge pressure without writing tiles', () => {
+    const map = new CityMap(4, 4);
+    map.getTile(0, 0)!.roadType = RoadType.Street;
+    map.getTile(1, 0)!.roadType = RoadType.Street;
+    map.getTile(0, 0)!.trafficPressure = 10;
+    map.getTile(1, 0)!.trafficPressure = 10;
+    expect(edgePressure(map, nodeKey(0, 0), nodeKey(1, 0))).toBe(10);
+    expect(edgeSpeedTilesPerSec(10)).toBeCloseTo(1.2 * 1.5);
+    expect(map.getTile(0, 0)!.trafficPressure).toBe(10);
+  });
+});

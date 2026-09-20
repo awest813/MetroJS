@@ -69,6 +69,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Extruded road / trolley meshes (Phase C)
 - [x] Building kits + instancing (Phase D)
 - [x] Parks, street trees, and plant smoke (Phase E)
+- [x] Moving cars and trolleys on a render-only road graph (Phase F)
 - [ ] Sound effects
 
 ## 3D port

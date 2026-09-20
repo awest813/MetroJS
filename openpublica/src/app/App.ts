@@ -6,7 +6,7 @@ import { LandValueOverlayRenderer } from '../render/LandValueOverlayRenderer';
 import { TrafficOverlayRenderer } from '../render/TrafficOverlayRenderer';
 import { WalkabilityOverlayRenderer } from '../render/WalkabilityOverlayRenderer';
 import { TransitOverlayRenderer } from '../render/TransitOverlayRenderer';
-import { DecorativeCarRenderer } from '../render/DecorativeCarRenderer';
+import { TrafficVehicleRenderer } from '../render/TrafficVehicleRenderer';
 import { RoadRenderer } from '../render/RoadRenderer';
 import { VegetationRenderer } from '../render/VegetationRenderer';
 import { SmokeRenderer } from '../render/SmokeRenderer';
@@ -119,7 +119,8 @@ export class App {
     walkabilityOverlay.build(sim.map, heights);
     const transitOverlay = new TransitOverlayRenderer(scene);
     transitOverlay.build(sim.map, heights);
-    const decorativeCars = new DecorativeCarRenderer(scene, shadowGenerator);
+    const trafficVehicles = new TrafficVehicleRenderer(scene, shadowGenerator);
+    trafficVehicles.rebuildGraph(sim.map, heights);
     const roads = new RoadRenderer(scene, shadowGenerator);
     roads.rebuild(sim.map, heights);
     const vegetation = new VegetationRenderer(scene, shadowGenerator);
@@ -160,7 +161,7 @@ export class App {
       }
 
       refreshPowerVisuals();
-      decorativeCars.refresh(sim.map, heights);
+      trafficVehicles.rebuildGraph(sim.map, heights);
     };
 
     // ── Renderer reacts to tile mutations via ToolController callback ─────────
@@ -170,6 +171,7 @@ export class App {
         terrain.updateCityTile(tile);
         roads.updateAround(sim.map, coord);
         vegetation.updateAround(sim.map, coord);
+        trafficVehicles.rebuildGraph(sim.map, heights);
         if (tile.buildingId === 'small_power_plant' || tile.buildingId === null) {
           smoke.rebuild(sim.map, heights);
         }
@@ -215,7 +217,7 @@ export class App {
     // ── Traffic system fires monthly when pressure is recalculated ────────────
     sim.onTrafficChanged = () => {
       if (trafficOverlay.isVisible) trafficOverlay.refresh(sim.map);
-      decorativeCars.refresh(sim.map, heights);
+      trafficVehicles.syncDensity(sim.map);
       vegetation.refreshStreets(sim.map);
     };
 
@@ -231,7 +233,9 @@ export class App {
 
     // ── Advance the simulation clock every rendered frame ────────────────────
     scene.onBeforeRenderObservable.add(() => {
-      sim.tick(engine.getDeltaTime() / 1000);
+      const dt = engine.getDeltaTime() / 1000;
+      sim.tick(dt);
+      trafficVehicles.update(dt);
     });
 
     // ── Wire interactions ────────────────────────────────────────────────────

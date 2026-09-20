@@ -123,7 +123,7 @@ OpenPublica TypeScript implementation under `openpublica/`.
 | `src/residential.js` | `ZoneGrowthSystem.ts`, `buildings.json` | ✅ Reimplemented |
 | `src/commercial.js` | `ZoneGrowthSystem.ts`, `buildings.json` | ✅ Reimplemented |
 | `src/industrial.js` | `ZoneGrowthSystem.ts`, `buildings.json` | ✅ Reimplemented |
-| `src/traffic.js` | `TrafficPressureSystem.ts`, `DecorativeCarRenderer.ts` | ✅ Reimplemented |
+| `src/traffic.js` | `TrafficPressureSystem.ts`, `TrafficVehicleRenderer.ts` | ✅ Reimplemented |
 | `src/blockMapUtils.js` — land value | `LandValueSystem.ts` | ✅ Partial |
 | `src/blockMapUtils.js` — pollution | None | ❌ Missing |
 | `src/blockMapUtils.js` — population density | None | ❌ Missing |

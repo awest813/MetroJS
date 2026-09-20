@@ -341,7 +341,7 @@ When/if map size grows, add chunked terrain and distance culling (skip instances
 | `render/TilePicker.ts` | Button filter; heightfield hit; optional building inspect pick. |
 | `render/TerrainRenderer.ts` | Heightfield; stop using roads as the only visual language. Remove dead `buildGrid(GameMap)`. |
 | `render/BuildingRenderer.ts` | Kits + instances; keep `BuildingPickData`. |
-| `render/DecorativeCarRenderer.ts` | Height; later replace in Phase F. |
+| `render/TrafficVehicleRenderer.ts` | Moving instances on a render-only road graph (Phase F). |
 | `render/*OverlayRenderer.ts` | Merge in Phase G; until then offset by sampled height. |
 | `render/HighlightRenderer.ts` | Follow height. |
 | `app/App.ts` | Wire camera vs tools; stop growing overlay button soup. |
