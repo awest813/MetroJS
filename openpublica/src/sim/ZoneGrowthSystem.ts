@@ -3,7 +3,7 @@
 
 import type { CityMap } from './CityMap';
 import type { CityStats } from './CitySim';
-import { RoadType, ZoneType } from './CityTile';
+import { RoadType, ZoneType, TerrainType } from './CityTile';
 import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 import rawDefs from '../data/buildings.json';
@@ -221,6 +221,7 @@ export class ZoneGrowthSystem {
     map.forEach((tile) => {
       // Must be a zoned tile with no existing building and no road on it.
       if (tile.zoneType === ZoneType.None)  return;
+      if (tile.terrain === TerrainType.Water) return;
       if (tile.roadType !== RoadType.None)  return;
       if (tile.buildingId !== null)         return;
 

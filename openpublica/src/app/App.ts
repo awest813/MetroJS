@@ -9,7 +9,10 @@ import { TransitOverlayRenderer } from '../render/TransitOverlayRenderer';
 import { DecorativeCarRenderer } from '../render/DecorativeCarRenderer';
 import { TilePicker } from '../render/TilePicker';
 import { HighlightRenderer } from '../render/HighlightRenderer';
+import { WaterRenderer } from '../render/WaterRenderer';
 import { CitySim } from '../sim/CitySim';
+import { generateTerrain } from '../sim/TerrainGenerator';
+import { HeightField } from '../sim/HeightField';
 import { tileKey } from '../sim/ZoneGrowthSystem';
 import { MAP_SIZE } from '../data/constants';
 import { InspectTool } from '../tools/InspectTool';
@@ -56,6 +59,8 @@ export class App {
 
     // ── Simulation (no Babylon dependency) ──────────────────────────────────
     const sim = CitySim.createCity(MAP_SIZE, MAP_SIZE);
+    generateTerrain(sim.map);
+    let heights = HeightField.fromMap(sim.map);
 
     // ── Tools ────────────────────────────────────────────────────────────────
     const inspectTool       = new InspectTool();
@@ -89,20 +94,22 @@ export class App {
     const { scene, engine, camera, shadowGenerator } = createScene(canvas);
     const cameraController = new CameraController(canvas, camera);
 
-    const terrain      = new TerrainRenderer(scene);
-    terrain.buildCityGrid(sim.map);
+    const terrain      = new TerrainRenderer(scene, shadowGenerator);
+    terrain.buildCityGrid(sim.map, heights);
+    new WaterRenderer(scene);
 
     const buildings    = new BuildingRenderer(scene, shadowGenerator);
+    buildings.setHeightField(heights);
     const powerOverlay = new PowerOverlayRenderer(scene);
-    powerOverlay.build(sim.map);
+    powerOverlay.build(sim.map, heights);
     const landValueOverlay = new LandValueOverlayRenderer(scene);
-    landValueOverlay.build(sim.map);
+    landValueOverlay.build(sim.map, heights);
     const trafficOverlay = new TrafficOverlayRenderer(scene);
-    trafficOverlay.build(sim.map);
+    trafficOverlay.build(sim.map, heights);
     const walkabilityOverlay = new WalkabilityOverlayRenderer(scene);
-    walkabilityOverlay.build(sim.map);
+    walkabilityOverlay.build(sim.map, heights);
     const transitOverlay = new TransitOverlayRenderer(scene);
-    transitOverlay.build(sim.map);
+    transitOverlay.build(sim.map, heights);
     const decorativeCars = new DecorativeCarRenderer(scene, shadowGenerator);
 
     const highlight = new HighlightRenderer(scene);
@@ -118,25 +125,23 @@ export class App {
 
     // ── Helper: rebuild all renderers from current sim state (used after load) ─
     const rebuildAllRenderers = () => {
-      // Rebuild terrain mesh (disposes old mesh internally).
-      terrain.buildCityGrid(sim.map);
+      heights = HeightField.fromMap(sim.map);
+      buildings.setHeightField(heights);
+      terrain.buildCityGrid(sim.map, heights);
+      powerOverlay.build(sim.map, heights);
+      landValueOverlay.build(sim.map, heights);
+      trafficOverlay.build(sim.map, heights);
+      walkabilityOverlay.build(sim.map, heights);
+      transitOverlay.build(sim.map, heights);
 
-      // Remove all existing building meshes then re-add from restored sim state.
       sim.map.forEach((tile) => buildings.removeBuilding(tile.x, tile.y));
       for (const instance of sim.growth.buildings.values()) {
         const tile = sim.getTile(instance.x, instance.y);
         if (tile) buildings.addBuilding(instance, tile.zoneType);
       }
 
-      // Refresh power visuals (coverage data may have changed).
       refreshPowerVisuals();
-
-      // Refresh all overlay renderers from fresh tile data.
-      landValueOverlay.refresh(sim.map);
-      trafficOverlay.refresh(sim.map);
-      walkabilityOverlay.refresh(sim.map);
-      transitOverlay.refresh(sim.map);
-      decorativeCars.refresh(sim.map);
+      decorativeCars.refresh(sim.map, heights);
     };
 
     // ── Renderer reacts to tile mutations via ToolController callback ─────────
@@ -186,7 +191,7 @@ export class App {
     // ── Traffic system fires monthly when pressure is recalculated ────────────
     sim.onTrafficChanged = () => {
       if (trafficOverlay.isVisible) trafficOverlay.refresh(sim.map);
-      decorativeCars.refresh(sim.map);
+      decorativeCars.refresh(sim.map, heights);
     };
 
     // ── Walkability system fires monthly when scores are recalculated ─────────
@@ -207,7 +212,7 @@ export class App {
     // ── Wire interactions ────────────────────────────────────────────────────
     picker.onPick((coord) => {
       toolController.applyToTile(coord, sim);
-      highlight.show(coord);
+      highlight.show(coord, heights);
 
       const tile    = sim.getTile(coord.x, coord.y);
       const pickData = buildings.selectBuilding(coord.x, coord.y);

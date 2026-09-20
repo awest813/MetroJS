@@ -69,7 +69,7 @@ export function createScene(canvas: HTMLCanvasElement): SceneBundle {
     { width: MAP_SIZE * 6, height: MAP_SIZE * 6 },
     scene,
   );
-  ground.position = new Vector3(MAP_SIZE / 2, -0.08, MAP_SIZE / 2);
+  ground.position = new Vector3(MAP_SIZE / 2, -0.9, MAP_SIZE / 2);
   ground.isPickable = false;
   ground.receiveShadows = true;
   const groundMat = new StandardMaterial('world-ground-mat', scene);

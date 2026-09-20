@@ -3,7 +3,7 @@
 import type { Tool } from './Tool';
 import type { TileCoord } from '../data/types';
 import type { CitySim } from '../sim/CitySim';
-import { ZoneType } from '../sim/CityTile';
+import { ZoneType, TerrainType } from '../sim/CityTile';
 
 /** Cost in city funds to zone one tile (any zone type). */
 export const ZONE_COST = 5;
@@ -45,6 +45,7 @@ export class ZoneBrushTool implements Tool {
   apply(coord: TileCoord, sim: CitySim): boolean {
     const tile = sim.getTile(coord.x, coord.y);
     if (!tile) return false;
+    if (tile.terrain === TerrainType.Water) return false;
 
     // Skip if tile already has the correct zone — no cost, no mutation.
     if (tile.zoneType === this._zoneType) return false;

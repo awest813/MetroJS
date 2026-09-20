@@ -26,6 +26,7 @@ export class TrolleyAvenueTool implements Tool {
   readonly label = '🚃 Trolley Ave';
 
   apply(coord: TileCoord, sim: CitySim): boolean {
+    if (!sim.isBuildable(coord.x, coord.y)) return false;
     const cost = TROLLEY_AVENUE_COST;
     if (!sim.deductMoney(cost)) {
       console.warn(`[TrolleyAve] Insufficient funds (need $${cost}, have $${sim.stats.money})`);

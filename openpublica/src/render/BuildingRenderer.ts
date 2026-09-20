@@ -10,6 +10,7 @@ import {
 import type { BuildingInstance } from '../sim/BuildingInstance';
 import { ZoneType } from '../sim/CityTile';
 import { TILE_SIZE } from '../data/constants';
+import type { HeightField } from '../sim/HeightField';
 
 // ── Visual shape config per building def ID ───────────────────────────────────
 
@@ -78,6 +79,7 @@ export class BuildingRenderer {
   /** Tracks which tiles currently show the warning (unpowered) material. */
   private readonly _warnActive:  Set<string> = new Set();
   private _selectedKey: string | null = null;
+  private _heights: HeightField | null = null;
 
   constructor(scene: Scene, shadowGenerator: ShadowGenerator | null = null) {
     this._scene = scene;
@@ -107,6 +109,10 @@ export class BuildingRenderer {
     bbr.backColor  = new Color3(0.7, 0.65, 0.05);
   }
 
+  setHeightField(heights: HeightField): void {
+    this._heights = heights;
+  }
+
   // ── Public API ─────────────────────────────────────────────────────────────
 
   /**
@@ -127,9 +133,10 @@ export class BuildingRenderer {
     );
 
     // Center the footprint within the tile, sit the base on Y=0.
+    const groundY = this._heights?.tileCenter(instance.x, instance.y) ?? 0;
     mesh.position = new Vector3(
       instance.x * TILE_SIZE + TILE_SIZE / 2,
-      shape.height / 2,
+      groundY + shape.height / 2,
       instance.y * TILE_SIZE + TILE_SIZE / 2,
     );
 

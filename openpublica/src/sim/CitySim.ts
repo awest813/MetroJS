@@ -2,7 +2,7 @@
 //     All simulation logic must remain renderer-agnostic.
 
 import { CityMap } from './CityMap';
-import { CityTile, RoadType, ZoneType } from './CityTile';
+import { CityTile, RoadType, ZoneType, TerrainType } from './CityTile';
 import { SimulationClock } from './SimulationClock';
 import { ZoneGrowthSystem } from './ZoneGrowthSystem';
 import { PowerSystem } from './PowerSystem';
@@ -165,16 +165,24 @@ export class CitySim {
 
   // ── Mutations ─────────────────────────────────────────────────────────────
 
-  /** Assign a zone type to the tile at (x, y). No-op if out of bounds. */
-  setZone(x: number, y: number, zoneType: ZoneType): void {
+  /** True when the tile exists and is not water. */
+  isBuildable(x: number, y: number): boolean {
     const tile = this.map.getTile(x, y);
-    if (tile) tile.zoneType = zoneType;
+    return !!tile && tile.terrain !== TerrainType.Water;
   }
 
-  /** Place a road on the tile at (x, y). No-op if out of bounds. */
+  /** Assign a zone type to the tile at (x, y). No-op if out of bounds or water. */
+  setZone(x: number, y: number, zoneType: ZoneType): void {
+    const tile = this.map.getTile(x, y);
+    if (!tile || tile.terrain === TerrainType.Water) return;
+    tile.zoneType = zoneType;
+  }
+
+  /** Place a road on the tile at (x, y). No-op if out of bounds or water. */
   placeRoad(x: number, y: number, roadType: RoadType): void {
     const tile = this.map.getTile(x, y);
-    if (tile) tile.roadType = roadType;
+    if (!tile || tile.terrain === TerrainType.Water) return;
+    tile.roadType = roadType;
   }
 
   /** Clear the road, zone, and building from the tile at (x, y). No-op if out of bounds. */
@@ -199,7 +207,7 @@ export class CitySim {
    */
   placeServiceBuilding(x: number, y: number, defId: string, cost: number): boolean {
     const tile = this.map.getTile(x, y);
-    if (!tile) return false;
+    if (!tile || tile.terrain === TerrainType.Water) return false;
 
     if (!this.deductMoney(cost)) {
       console.warn(

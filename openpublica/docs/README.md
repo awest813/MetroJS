@@ -56,16 +56,17 @@ The project enforces a strict boundary between simulation and rendering:
 ## Current features (as of 2026-09)
 
 - [x] Vite + TypeScript (strict) project
-- [x] Babylon.js scene with **orthographic** angled camera (not free 3D yet)
+- [x] Babylon.js scene with perspective camera (iso / top / orbit presets)
 - [x] 64×64 `CityMap` with monthly sim (growth, power, economy, land value, traffic, walkability, transit, pollution)
-- [x] Procedural box buildings and vertex-coloured terrain (no Micropolis tile sheets)
-- [x] Mouse tile picking via `scene.pick()`
+- [x] Procedural box buildings and vertex-coloured heightfield (no Micropolis tile sheets)
+- [x] Mouse tile picking via terrain/water ray hits
 - [x] Tools: Inspect, Road, R/C/I/Mixed zone brushes, Bulldoze, Power plant, Park, Trolley avenue
 - [x] Overlays: power, land value, traffic, walkability, transit
 - [x] Save/load via `SaveSystem`
 - [x] Perspective camera, sun/shadows, orbit vs paint input (Phase A)
-- [ ] Heightfield, road meshes, building kits — see the 3D plan
-- [ ] Map terrain generation (water/hills)
+- [x] Heightfield, water basins, height-aware picking (Phase B)
+- [x] Map terrain generation (lakes, river, dirt beaches)
+- [ ] Road meshes, building kits — see the 3D plan
 - [ ] Sound effects
 
 ## 3D port

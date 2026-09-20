@@ -9,6 +9,7 @@ import {
 import type { CityMap } from '../sim/CityMap';
 import { RoadType } from '../sim/CityTile';
 import { TILE_SIZE, TILE_FILL } from '../data/constants';
+import { HeightField, writeSlopedQuad } from '../sim/HeightField';
 
 // ── Overlay colour palette ────────────────────────────────────────────────────
 
@@ -54,7 +55,7 @@ export class TrafficOverlayRenderer {
    * Must be called once after the terrain mesh is ready.
    * Safe to call again to rebuild (disposes the previous mesh first).
    */
-  build(map: CityMap): void {
+  build(map: CityMap, heights: HeightField): void {
     const W         = map.width;
     const H         = map.height;
     const tileCount = W * H;
@@ -69,22 +70,7 @@ export class TrafficOverlayRenderer {
     let ii = 0;
 
     map.forEach((tile) => {
-      const x0 = tile.x * TILE_SIZE;
-      const x1 = x0 + TILE_SIZE * TILE_FILL;
-      const z0 = tile.y * TILE_SIZE;
-      const z1 = z0 + TILE_SIZE * TILE_FILL;
-
-      const p = vi * 3;
-      positions[p]      = x0; positions[p + 1]  = OVERLAY_Y; positions[p + 2]  = z0;
-      positions[p + 3]  = x1; positions[p + 4]  = OVERLAY_Y; positions[p + 5]  = z0;
-      positions[p + 6]  = x0; positions[p + 7]  = OVERLAY_Y; positions[p + 8]  = z1;
-      positions[p + 9]  = x1; positions[p + 10] = OVERLAY_Y; positions[p + 11] = z1;
-
-      for (let v = 0; v < 4; v++) {
-        normals[p + v * 3]     = 0;
-        normals[p + v * 3 + 1] = 1;
-        normals[p + v * 3 + 2] = 0;
-      }
+      writeSlopedQuad(positions, vi, tile.x, tile.y, TILE_SIZE * TILE_FILL, heights, OVERLAY_Y);
 
       const c = _colorForPressure(tile.roadType, tile.trafficPressure);
       for (let v = 0; v < 4; v++) {
@@ -105,6 +91,8 @@ export class TrafficOverlayRenderer {
 
       vi += 4;
     });
+
+    VertexData.ComputeNormals(positions, indices, normals);
 
     if (this._mesh) this._mesh.dispose();
 

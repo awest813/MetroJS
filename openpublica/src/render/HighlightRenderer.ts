@@ -8,6 +8,7 @@ import {
 } from '@babylonjs/core';
 import type { TileCoord } from '../data/types';
 import { TILE_SIZE, TILE_FILL } from '../data/constants';
+import type { HeightField } from '../sim/HeightField';
 
 /**
  * Renders a semi-transparent yellow highlight over the currently selected tile.
@@ -35,9 +36,10 @@ export class HighlightRenderer {
   }
 
   /** Move the highlight to the given tile and make it visible. */
-  show(coord: TileCoord): void {
+  show(coord: TileCoord, heights?: HeightField | null): void {
     this._mesh.position.x = coord.x * TILE_SIZE + (TILE_SIZE * TILE_FILL) / 2;
     this._mesh.position.z = coord.y * TILE_SIZE + (TILE_SIZE * TILE_FILL) / 2;
+    this._mesh.position.y = (heights?.tileCenter(coord.x, coord.y) ?? 0) + 0.02;
     this._mesh.isVisible = true;
   }
 

@@ -10,6 +10,7 @@ import {
 import type { CityMap } from '../sim/CityMap';
 import { RoadType } from '../sim/CityTile';
 import { TILE_SIZE } from '../data/constants';
+import type { HeightField } from '../sim/HeightField';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -66,7 +67,7 @@ export class DecorativeCarRenderer {
    *
    * Decorative cars do not affect simulation state.
    */
-  refresh(map: CityMap): void {
+  refresh(map: CityMap, heights?: HeightField | null): void {
     const kept = new Set<string>();
 
     map.forEach((tile) => {
@@ -92,7 +93,7 @@ export class DecorativeCarRenderer {
 
         mesh.position = new Vector3(
           tile.x * TILE_SIZE + TILE_SIZE / 2 + offsetX,
-          CAR_Y,
+          CAR_Y + (heights?.tileCenter(tile.x, tile.y) ?? 0),
           tile.y * TILE_SIZE + TILE_SIZE / 2 + offsetZ,
         );
 

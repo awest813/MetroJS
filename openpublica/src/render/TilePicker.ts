@@ -1,16 +1,15 @@
-import { Plane, Scene, Vector3, PointerEventTypes } from '@babylonjs/core';
+import { Scene, PointerEventTypes } from '@babylonjs/core';
 import type { TileCoord } from '../data/types';
 import { MAP_SIZE } from '../data/constants';
 import type { CameraController } from './CameraController';
-
-const GROUND_PLANE = Plane.FromPositionAndNormal(Vector3.Zero(), Vector3.Up());
+import { TERRAIN_MESH_NAME } from './TerrainRenderer';
+import { WATER_MESH_NAME } from './WaterRenderer';
 
 /**
  * Translates Babylon.js pointer events into tile grid coordinates.
  *
- * Intersects the picking ray with the Y=0 ground plane so buildings and
- * overlays do not steal tool placement. Camera orbit/pan buttons are ignored
- * via CameraController.shouldIgnoreToolPointer.
+ * Picks the heightfield or water surface so hills and basins map to the
+ * correct tile. Buildings are ignored so they do not steal tool placement.
  */
 export class TilePicker {
   private readonly _scene: Scene;
@@ -49,32 +48,24 @@ export class TilePicker {
     });
   }
 
-  /** Register a callback invoked whenever the player clicks or drags over a valid tile. */
   onPick(callback: (coord: TileCoord) => void): void {
     this._onPickCallback = callback;
   }
 
-  /**
-   * Register a callback invoked when the player releases the pointer.
-   * Use this to reset drag-deduplication state in the ToolController.
-   */
   onDragEnd(callback: () => void): void {
     this._onDragEndCallback = callback;
   }
 
   private _handlePick(): void {
-    const ray = this._scene.createPickingRay(
+    const result = this._scene.pick(
       this._scene.pointerX,
       this._scene.pointerY,
-      null,
-      this._scene.activeCamera,
+      (mesh) => mesh.name === TERRAIN_MESH_NAME || mesh.name === WATER_MESH_NAME,
     );
-    const distance = ray.intersectsPlane(GROUND_PLANE);
-    if (distance === null || distance < 0) return;
+    if (!result.hit || !result.pickedPoint) return;
 
-    const point = ray.origin.add(ray.direction.scale(distance));
-    const x = Math.floor(point.x);
-    const y = Math.floor(point.z);
+    const x = Math.floor(result.pickedPoint.x);
+    const y = Math.floor(result.pickedPoint.z);
 
     if (x >= 0 && x < MAP_SIZE && y >= 0 && y < MAP_SIZE) {
       this._onPickCallback?.({ x, y });

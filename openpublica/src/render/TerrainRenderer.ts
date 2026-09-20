@@ -5,129 +5,40 @@ import {
   VertexBuffer,
   StandardMaterial,
   Color3,
+  ShadowGenerator,
 } from '@babylonjs/core';
-import type { GameMap, Tile } from '../sim/GameMap';
 import type { CityMap } from '../sim/CityMap';
 import type { CityTile } from '../sim/CityTile';
-import { TILE_COLORS } from '../data/tileTypes';
 import { cityTileColor } from '../data/cityTileColors';
-import { TILE_SIZE, TILE_FILL } from '../data/constants';
+import { TILE_SIZE } from '../data/constants';
 import type { TileColor } from '../data/tileTypes';
+import { HeightField, writeSlopedQuad } from '../sim/HeightField';
 
 /** Name of the terrain mesh — used by TilePicker to identify hits. */
 export const TERRAIN_MESH_NAME = 'terrain';
 
 /**
- * Renders the entire tile grid as a single merged mesh with per-vertex colours.
- * One draw call regardless of map size.  Update a tile by calling updateTile().
+ * Renders the city grid as a sloped heightfield with per-tile vertex colours.
+ * One draw call. Update a tile colour with updateCityTile().
  */
 export class TerrainRenderer {
   private readonly _scene: Scene;
+  private readonly _shadows: ShadowGenerator | null;
   private _mesh: Mesh | null = null;
   private _mapWidth = 0;
+  private _heights: HeightField | null = null;
 
-  constructor(scene: Scene) {
+  constructor(scene: Scene, shadowGenerator: ShadowGenerator | null = null) {
     this._scene = scene;
+    this._shadows = shadowGenerator;
   }
 
   /**
-   * Builds the terrain mesh from the current map state.
-   * Must be called once before rendering begins.
+   * Builds the terrain mesh from a CityMap and matching HeightField.
    */
-  buildGrid(map: GameMap): void {
+  buildCityGrid(map: CityMap, heights: HeightField): void {
     this._mapWidth = map.width;
-
-    const W = map.width;
-    const H = map.height;
-    const tileCount = W * H;
-
-    // 4 independent vertices per quad (no shared edges → clean per-tile colour)
-    const positions = new Float32Array(tileCount * 4 * 3); // xyz per vert
-    const normals = new Float32Array(tileCount * 4 * 3);   // xyz per vert
-    const colors = new Float32Array(tileCount * 4 * 4);    // rgba per vert
-    const indices = new Uint32Array(tileCount * 6);        // 2 triangles per quad
-
-    let vi = 0; // vertex index (per vertex)
-    let ci = 0; // colour index (per channel)
-    let ii = 0; // index buffer index
-
-    map.forEach((tile) => {
-      const tx = tile.x;
-      const ty = tile.y;
-      const x0 = tx * TILE_SIZE;
-      const x1 = x0 + TILE_SIZE * TILE_FILL;
-      const z0 = ty * TILE_SIZE;
-      const z1 = z0 + TILE_SIZE * TILE_FILL;
-      const c = TILE_COLORS[tile.type];
-
-      // 4 vertices: v0=front-left, v1=front-right, v2=back-left, v3=back-right
-      const p = vi * 3;
-      positions[p]     = x0; positions[p + 1] = 0; positions[p + 2]  = z0;
-      positions[p + 3] = x1; positions[p + 4] = 0; positions[p + 5]  = z0;
-      positions[p + 6] = x0; positions[p + 7] = 0; positions[p + 8]  = z1;
-      positions[p + 9] = x1; positions[p + 10] = 0; positions[p + 11] = z1;
-
-      // All normals point up (+Y)
-      for (let v = 0; v < 4; v++) {
-        normals[p + v * 3]     = 0;
-        normals[p + v * 3 + 1] = 1;
-        normals[p + v * 3 + 2] = 0;
-      }
-
-      // Colour (RGBA, same for all 4 verts)
-      for (let v = 0; v < 4; v++) {
-        colors[ci + v * 4]     = c.r;
-        colors[ci + v * 4 + 1] = c.g;
-        colors[ci + v * 4 + 2] = c.b;
-        colors[ci + v * 4 + 3] = 1.0;
-      }
-      ci += 16;
-
-      // Indices: 2 triangles, CCW winding = normal faces +Y in Babylon (left-handed)
-      // Triangle 1: v0, v2, v1  Triangle 2: v1, v2, v3
-      indices[ii]     = vi;
-      indices[ii + 1] = vi + 2;
-      indices[ii + 2] = vi + 1;
-      indices[ii + 3] = vi + 1;
-      indices[ii + 4] = vi + 2;
-      indices[ii + 5] = vi + 3;
-      ii += 6;
-
-      vi += 4;
-    });
-
-    const vertexData = new VertexData();
-    vertexData.positions = positions;
-    vertexData.normals = normals;
-    vertexData.colors = colors;
-    vertexData.indices = indices;
-
-    const mesh = new Mesh(TERRAIN_MESH_NAME, this._scene);
-    vertexData.applyToMesh(mesh, true); // true = updatable
-
-    const mat = new StandardMaterial('terrain-mat', this._scene);
-    mat.specularColor = Color3.Black();
-    mat.backFaceCulling = false;
-    mesh.material = mat;
-    mesh.receiveShadows = true;
-
-    this._mesh = mesh;
-  }
-
-  /**
-   * Updates the vertex colours for a single tile after its type changes.
-   * Call this immediately after mutating the GameMap tile.
-   */
-  updateTile(tile: Tile): void {
-    this._updateColors(tile.x, tile.y, TILE_COLORS[tile.type]);
-  }
-
-  /**
-   * Builds the terrain mesh from a CityMap.
-   * Use this variant when working with the CitySim layer (new pipeline).
-   */
-  buildCityGrid(map: CityMap): void {
-    this._mapWidth = map.width;
+    this._heights = heights;
 
     const W = map.width;
     const H = map.height;
@@ -143,25 +54,8 @@ export class TerrainRenderer {
     let ii = 0;
 
     map.forEach((tile) => {
-      const tx = tile.x;
-      const ty = tile.y;
-      const x0 = tx * TILE_SIZE;
-      const x1 = x0 + TILE_SIZE * TILE_FILL;
-      const z0 = ty * TILE_SIZE;
-      const z1 = z0 + TILE_SIZE * TILE_FILL;
-      const c  = cityTileColor(tile);
-
-      const p = vi * 3;
-      positions[p]      = x0; positions[p + 1]  = 0; positions[p + 2]  = z0;
-      positions[p + 3]  = x1; positions[p + 4]  = 0; positions[p + 5]  = z0;
-      positions[p + 6]  = x0; positions[p + 7]  = 0; positions[p + 8]  = z1;
-      positions[p + 9]  = x1; positions[p + 10] = 0; positions[p + 11] = z1;
-
-      for (let v = 0; v < 4; v++) {
-        normals[p + v * 3]     = 0;
-        normals[p + v * 3 + 1] = 1;
-        normals[p + v * 3 + 2] = 0;
-      }
+      writeSlopedQuad(positions, vi, tile.x, tile.y, TILE_SIZE, heights, 0);
+      const c = cityTileColor(tile);
 
       for (let v = 0; v < 4; v++) {
         colors[ci + v * 4]     = c.r;
@@ -182,6 +76,8 @@ export class TerrainRenderer {
       vi += 4;
     });
 
+    VertexData.ComputeNormals(positions, indices, normals);
+
     const vertexData = new VertexData();
     vertexData.positions = positions;
     vertexData.normals   = normals;
@@ -194,23 +90,25 @@ export class TerrainRenderer {
     vertexData.applyToMesh(mesh, true);
 
     const mat = new StandardMaterial('terrain-mat', this._scene);
-    mat.specularColor = Color3.Black();
+    mat.specularColor = new Color3(0.08, 0.08, 0.08);
     mat.backFaceCulling = false;
     mesh.material = mat;
     mesh.receiveShadows = true;
+    this._shadows?.addShadowCaster(mesh);
 
     this._mesh = mesh;
   }
 
   /**
    * Updates the vertex colors for a single CityTile after it is mutated.
-   * Call this from the App's `onTileChanged` handler to keep the view in sync.
    */
   updateCityTile(tile: CityTile): void {
     this._updateColors(tile.x, tile.y, cityTileColor(tile));
   }
 
-  // ── Internal helpers ──────────────────────────────────────────────────────
+  get heights(): HeightField | null {
+    return this._heights;
+  }
 
   private _updateColors(x: number, y: number, c: TileColor): void {
     if (!this._mesh) return;
@@ -219,7 +117,7 @@ export class TerrainRenderer {
     if (!rawColors) return;
 
     const i  = y * this._mapWidth + x;
-    const ci = i * 16; // 4 verts × 4 channels
+    const ci = i * 16;
 
     for (let v = 0; v < 4; v++) {
       rawColors[ci + v * 4]     = c.r;
