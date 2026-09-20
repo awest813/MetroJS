@@ -42,6 +42,7 @@ export interface ICityTile {
   zoneType:        ZoneType;
   buildingId:      string | null;
   powered:         boolean;
+  /** Reserved. No irrigation system writes this yet. */
   watered:         boolean;
   landValue:       number;
   pollution:       number;

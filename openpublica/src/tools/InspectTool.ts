@@ -14,7 +14,7 @@ export class InspectTool implements Tool {
         `[Inspect] (${tile.x}, ${tile.y}) ` +
         `terrain=${tile.terrain} road=${tile.roadType} zone=${tile.zoneType} ` +
         `building=${tile.buildingId ?? 'none'} ` +
-        `powered=${tile.powered} watered=${tile.watered} ` +
+        `powered=${tile.powered} ` +
         `landValue=${tile.landValue} pollution=${tile.pollution} ` +
         `traffic=${tile.trafficPressure}`,
       );

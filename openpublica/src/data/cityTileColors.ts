@@ -3,8 +3,14 @@
 import type { CityMap } from '../sim/CityMap';
 import type { CityTile } from '../sim/CityTile';
 import { RoadType, ZoneType, TerrainType } from '../sim/CityTile';
-import type { TileColor } from './tileTypes';
 import { terrainHash } from '../sim/TerrainGenerator';
+
+/** RGB colour (0–1 floats) for terrain / overlay tints. */
+export interface TileColor {
+  r: number;
+  g: number;
+  b: number;
+}
 
 /** Display color for each zone type (no road). */
 const ZONE_COLORS: Record<ZoneType, TileColor> = {

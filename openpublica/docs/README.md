@@ -1,8 +1,9 @@
 # OpenPublica
 
-A GPLv3 browser-native city-builder. The live renderer is a Babylon.js **2.5D**
-orthographic prototype. The plan to turn it into a true perspective 3D web city
-is in [FULL_3D_WEB_PORT_PLAN.md](./FULL_3D_WEB_PORT_PLAN.md).
+A GPLv3 browser-native city-builder. The live renderer is a Babylon.js
+**perspective 3D** city (orbit / iso / top). Remaining work is city-health sim
+and presentation depth — see [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md).
+The original camera/height/kit slices are in [FULL_3D_WEB_PORT_PLAN.md](./FULL_3D_WEB_PORT_PLAN.md).
 
 ## Licence
 
@@ -38,6 +39,7 @@ openpublica/
 │   ├── ui/       HTML/CSS user interface (Toolbar, styles)
 │   ├── audio/    Procedural Web Audio (no sample files, no Babylon)
 │   ├── data/     Shared constants, enums, and types
+│   ├── math/     Seeded simplex / PRNG wrappers (MIT simplex-noise + alea)
 │   └── save/     Save/load (SaveSystem / SaveCodec)
 ├── docs/         Documentation
 ├── index.html
@@ -82,9 +84,10 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] City menu + Settings: save/load confirms, mute/quality/sun, key list (Look is minimap + Frame)
 - [x] MIT `simplex-noise` + `alea` for seeded hills and tree jitter (lakes still use `terrainHash`)
 
+Follow [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md) for police/crime/fire/evaluation, advisory/degradation, and optional PBR/sky/GLB.
+
 ## 3D port
 
-Do not treat this README’s original “Phase 1 isometric board” as the end state.
-Follow [FULL_3D_WEB_PORT_PLAN.md](./FULL_3D_WEB_PORT_PLAN.md) for camera, lighting,
-terrain volume, instanced building kits, and input (tool paint vs orbit).
-Simulation code in `src/sim/` must stay Babylon-free.
+Do not treat this README as unfinished “Phase 1 isometric board.”
+Phases A–H of [FULL_3D_WEB_PORT_PLAN.md](./FULL_3D_WEB_PORT_PLAN.md) are in the
+tree. Simulation code in `src/sim/` must stay Babylon-free.

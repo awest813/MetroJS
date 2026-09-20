@@ -390,3 +390,16 @@ That single PR proves the 3D camera without committing to an art pipeline. Phase
 | Sim | Frozen during A–D | 3D is a presentation project. |
 | Camera default | Perspective with an iso preset | “Fully 3D” without abandoning city-builder readability. |
 | Elevation in sim | Later | Height can be render-only until it should affect land value. |
+
+---
+
+## 12. Status after Phases A–H (2026-09-20)
+
+§3.2 is a **pre-implementation snapshot**. Do not use it as a bug list.
+
+Shipped in `openpublica/`: perspective camera + sun/shadows, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, audio, minimap/sun/quality, city/settings chrome, MIT simplex hills.
+
+**What to do next** is in [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md): city-health (density → police/crime → fire → evaluation), advisory/degradation, then optional PBR/sky/GLB/SSAO.
+
+Dead OpenPublica `GameMap` / `TileType` board files were removed after A–H. Live map is `CityMap`.
+

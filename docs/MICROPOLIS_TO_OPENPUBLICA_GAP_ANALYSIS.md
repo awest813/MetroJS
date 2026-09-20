@@ -31,7 +31,7 @@ OpenPublica TypeScript implementation under `openpublica/`.
 | Mixed-use zoning | OpenPublica original | `ZoneType.MixedUse`, mixed-use building defs, mixed-use demand gate, walkability bonuses. | No Micropolis equivalent. |
 | Power coverage | `powerManager.js` → `doPowerScan()` | `PowerSystem.tick()` marks `tile.powered` from service buildings with `powerRadius`. | Radius coverage replaces Micropolis BFS through conductive tiles. |
 | Budget and taxes | `budget.js` → `collectTax()`, `updateFundEffects()` | `EconomySystem.tick()` collects separate R/C/I taxes and deducts roads, trolley avenues, and service building costs. | No service-quality multipliers (`roadEffect`, `fireEffect`, `policeEffect`). |
-| Land value | `blockMapUtils.js` → `pollutionTerrainLandValueScan()` | `LandValueSystem.tick()` handles parks, industrial penalty, road access, walkability, transit, pollution, and traffic pressure. | `tile.pollution` is still unwritten; no terrain fertility or city-centre base score. |
+    | Land value | `blockMapUtils.js` → `pollutionTerrainLandValueScan()` | `LandValueSystem.tick()` handles parks, industrial penalty, road access, walkability, transit, pollution, and traffic pressure. | No terrain fertility or city-centre base score. |
 | Traffic pressure | `traffic.js` → `makeTraffic()`, traffic density map | `TrafficPressureSystem.tick()` radiates pressure/noise from buildings to nearby roads. | Replaces random-walk routing; no origin/destination route success check. |
 | City census totals | `census.js` → `clearCensus()`, `take10Census()` | `ZoneGrowthSystem._recalcStats()` recomputes population/jobs from the building registry. | No census history arrays or graph-oriented samples. |
 | Save/load | `GameMap.save/load`, subsystem save methods | `SaveCodec` and `SaveSystem` encode sim state, buildings, stats, clock, and tile zoning/roads/buildings. | Tile derived fields (`powered`, land value, traffic, overlays) are recomputed rather than persisted. |
@@ -45,7 +45,6 @@ OpenPublica TypeScript implementation under `openpublica/`.
 
 | Priority | Missing area | Micropolis reference | OpenPublica gap |
 |---|---|---|---|
-| High | Pollution writer | `pollutionTerrainLandValueScan()` | `CityTile.pollution` exists and `LandValueSystem` reads it, but no system writes it or computes a citywide pollution average. |
 | High | Population density map | `populationDensityScan()` | No per-tile/per-block density field; crime and downtown scoring lack their main input. |
 | High | Police coverage and crime | `emergencyServices.js`, `crimeScan()` | No police station building, police coverage field, `tile.crime`, `stats.crimeAverage`, or crime system. |
 | High | Fire station coverage | `emergencyServices.js`, `fireAnalysis()` | No fire station building, fire coverage field/stat, or fire risk/coverage system. |
@@ -53,7 +52,7 @@ OpenPublica TypeScript implementation under `openpublica/`.
 | Medium | Advisory/message system | `simulation.js` → `_sendMessages()` | Existing callbacks are renderer refresh hooks, not player-facing event/advisory messages. |
 | Medium | City-centre score | `populationDensityScan()`, `commercialFound()` | Commercial growth has walkability/transit boosts but no downtown centroid or distance score. |
 | Medium | Zone degradation / abandonment | zone `degradeZone()` paths | Buildings do not shrink, downgrade, abandon, or clear because of low demand, no power, pollution, or poor access. |
-| Medium | Terrain generation and terrain effects | map generation and land/pollution terrain scan | OpenPublica starts from a simple map; terrain does not feed land value, pollution absorption, or desirability. |
+| Medium | Terrain effects | land/pollution terrain scan | Terrain generation exists; terrain still does not feed land value or pollution absorption. |
 | Low | Census history graphs | `take10Census()`, `take120Census()` | No ring buffers for population, money, crime, or pollution; no graph panel. |
 | Low | Infrastructure gates | stadium/seaport/airport cap messages | No stadium, seaport, airport, or demand caps. This may remain intentionally omitted. |
 | Low | Road decay | `road.js` | Roads/trolley avenues charge maintenance but never degrade when underfunded. |
@@ -82,7 +81,7 @@ OpenPublica TypeScript implementation under `openpublica/`.
 
 | # | Work item | Main changes | Depends on |
 |---|---|---|---|
-| 1 | Pollution writer | Add `PollutionSystem.ts`; write `tile.pollution`; add `stats.pollutionAverage`; feed land value and future evaluation. | Existing traffic/noise, industrial buildings, power plants. |
+| 1 | Pollution writer | `PollutionSystem.ts` writes `tile.pollution` and `stats.pollutionAverage`. | Done. |
 | 2 | Population density | Add `tile.populationDensity` and `PopulationDensitySystem.ts`; compute density around residential/mixed-use buildings. | Building registry and map iteration. |
 | 3 | Police coverage | Add police station building/tool and coverage field/stat. | Service building pattern, power coverage. |
 | 4 | Crime system | Add `tile.crime`, `stats.crimeAverage`, and `CrimeSystem.ts` using land value, density, and police coverage. | Population density, police coverage. |
@@ -125,7 +124,7 @@ OpenPublica TypeScript implementation under `openpublica/`.
 | `src/industrial.js` | `ZoneGrowthSystem.ts`, `buildings.json` | ✅ Reimplemented |
 | `src/traffic.js` | `TrafficPressureSystem.ts`, `TrafficVehicleRenderer.ts` | ✅ Reimplemented |
 | `src/blockMapUtils.js` — land value | `LandValueSystem.ts` | ✅ Partial |
-| `src/blockMapUtils.js` — pollution | None | ❌ Missing |
+| `src/blockMapUtils.js` — pollution | `PollutionSystem.ts` | ✅ Reimplemented |
 | `src/blockMapUtils.js` — population density | None | ❌ Missing |
 | `src/blockMapUtils.js` — crime | None | ❌ Missing |
 | `src/blockMapUtils.js` — fire coverage | None | ❌ Missing |
@@ -144,13 +143,6 @@ OpenPublica TypeScript implementation under `openpublica/`.
 
 ## 5. Immediate Next Best Task
 
-The best next implementation target is **PollutionSystem** because:
-
-1. `CityTile.pollution` already exists.
-2. `LandValueSystem` already consumes pollution.
-3. Pollution is an input to city evaluation and complaints.
-4. It can be implemented without new tools, new buildings, or new UI beyond an
-   optional overlay/stat later.
-
-After pollution, implement **PopulationDensitySystem → PoliceCoverageSystem →
-CrimeSystem**, because crime depends on density and police coverage.
+Pollution is implemented. The next sim target is **PopulationDensitySystem**, then
+police coverage and crime (density + police → crime). Presentation leftover work
+and the full ordered list live in `openpublica/docs/NEXT_GAPS_PLAN.md`.

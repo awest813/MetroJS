@@ -32,7 +32,7 @@ export interface BuildingShape {
 export interface BuildingKit {
   readonly defId: string;
   readonly shape: BuildingShape;
-  /** Parks and other tiles that wait for Phase E vegetation. */
+  /** Parks skip a building kit; VegetationRenderer plants the trees. */
   readonly skipMesh?: boolean;
   readonly parts: readonly KitPart[];
 }
