@@ -69,6 +69,8 @@ export function sfxForTool(toolName: string): Voice | null {
       return { kind: 'chord', freq: 175, duration: 0.2, gain: 0.06, type: 'triangle' };
     case 'placePark':
       return { kind: 'blip', freq: 523, duration: 0.11, gain: 0.05, type: 'sine', slide: 90 };
+    case 'placePoliceStation':
+      return { kind: 'blip', freq: 220, duration: 0.09, gain: 0.05, type: 'square' };
     default:
       return { kind: 'blip', freq: 280, duration: 0.04, gain: 0.035, type: 'sine' };
   }

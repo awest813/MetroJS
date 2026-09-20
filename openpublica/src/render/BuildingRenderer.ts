@@ -15,6 +15,7 @@ import { TILE_SIZE } from '../data/constants';
 import type { HeightField } from '../sim/HeightField';
 import {
   BUILDING_SHAPES,
+  CIVIC_DEF_IDS,
   DEFAULT_SHAPE,
   SERVICE_DEF_IDS,
   SKIP_MESH_DEF_IDS,
@@ -24,6 +25,8 @@ import {
   type KitPart,
   type KitPalette,
 } from './buildingVisuals';
+
+type KitVariant = 'zone' | 'service' | 'civic' | 'warning';
 
 /** Data stored in `mesh.metadata` — only render-safe ids, never sim objects. */
 export interface BuildingPickData {
@@ -36,7 +39,7 @@ interface PlacedBuilding {
   instance: InstancedMesh;
   defId: string;
   zoneType: ZoneType;
-  variant: 'zone' | 'service' | 'warning';
+  variant: KitVariant;
 }
 
 /**
@@ -79,8 +82,7 @@ export class BuildingRenderer {
 
     if (SKIP_MESH_DEF_IDS.has(instance.defId)) return;
 
-    const variant = SERVICE_DEF_IDS.has(instance.defId) ? 'service' : 'zone';
-    this._spawn(instance, zoneType, variant);
+    this._spawn(instance, zoneType, kitKindForDef(instance.defId));
   }
 
   removeBuilding(x: number, y: number): void {
@@ -119,7 +121,7 @@ export class BuildingRenderer {
     if (!placed) return;
     if (SERVICE_DEF_IDS.has(placed.defId)) return;
 
-    const next: 'zone' | 'warning' = powered ? 'zone' : 'warning';
+    const next: KitVariant = powered ? kitKindForDef(placed.defId) : 'warning';
     if (placed.variant === next) return;
 
     const pick = placed.instance.metadata as BuildingPickData;
@@ -133,7 +135,7 @@ export class BuildingRenderer {
   private _spawn(
     instance: BuildingInstance,
     zoneType: ZoneType,
-    variant: 'zone' | 'service' | 'warning',
+    variant: KitVariant,
   ): void {
     const key = _tileKey(instance.x, instance.y);
     const source = this._sourceFor(instance.defId, zoneType, variant);
@@ -157,7 +159,7 @@ export class BuildingRenderer {
   private _sourceFor(
     defId: string,
     zoneType: ZoneType,
-    variant: 'zone' | 'service' | 'warning',
+    variant: KitVariant,
   ): Mesh {
     const sourceKey = `${defId}:${variant}:${zoneType}`;
     const cached = this._sources.get(sourceKey);
@@ -236,6 +238,12 @@ export class BuildingRenderer {
 
 function _tileKey(x: number, y: number): string {
   return `${x},${y}`;
+}
+
+function kitKindForDef(defId: string): Exclude<KitVariant, 'warning'> {
+  if (SERVICE_DEF_IDS.has(defId)) return 'service';
+  if (CIVIC_DEF_IDS.has(defId)) return 'civic';
+  return 'zone';
 }
 
 function _fallbackPart(kit: BuildingKit | null): KitPart {

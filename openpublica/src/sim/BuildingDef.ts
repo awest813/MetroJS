@@ -56,4 +56,8 @@ export interface BuildingDef {
    * Omit or set to 0 for non-polluting buildings.
    */
   readonly pollutionRadius?: number;
+  /**
+   * Radius (in tiles) of police coverage. Only while the station tile is powered.
+   */
+  readonly policeRadius?: number;
 }

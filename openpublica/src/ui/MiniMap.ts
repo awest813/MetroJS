@@ -78,6 +78,7 @@ function _miniColor(
   if (terrain === TerrainType.Water) return [18, 72, 118];
   if (buildingId === 'small_park') return [36, 140, 58];
   if (buildingId === 'small_power_plant') return [210, 196, 72];
+  if (buildingId === 'small_police_station') return [48, 88, 168];
   if (road === RoadType.TrolleyAvenue) return [92, 64, 42];
   if (road === RoadType.Street || road === RoadType.Highway) return [48, 50, 54];
   if (buildingId !== null) {

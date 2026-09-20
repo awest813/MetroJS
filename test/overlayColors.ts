@@ -4,6 +4,8 @@ import {
   OVERLAY_CLEAR,
   colorForLandValue,
   colorForOverlay,
+  colorForCrime,
+  colorForDensity,
   colorForPollution,
   colorForPower,
   colorForTraffic,
@@ -32,6 +34,15 @@ describe('overlayColors', () => {
     expect(hot.r).toBeGreaterThan(hot.g);
   });
 
+  it('should leave empty crowd and crime tiles clear', () => {
+    expect(colorForDensity(0)).toEqual(OVERLAY_CLEAR);
+    expect(colorForCrime(0)).toEqual(OVERLAY_CLEAR);
+    const crowd = colorForDensity(80);
+    const heat = colorForCrime(80);
+    expect(crowd.b).toBeGreaterThan(crowd.g);
+    expect(heat.r).toBeGreaterThan(heat.g);
+  });
+
   it('should leave clean tiles clear and haze polluted ones brown', () => {
     expect(colorForPollution(0)).toEqual(OVERLAY_CLEAR);
     const haze = colorForPollution(80);
@@ -47,7 +58,11 @@ describe('overlayColors', () => {
     tile.pollution = 60;
     tile.powered = true;
     tile.buildingId = 'light_workshop';
+    tile.populationDensity = 70;
+    tile.crime = 55;
     expect(colorForOverlay('pollution', tile).a).toBeGreaterThan(0);
     expect(colorForOverlay('power', tile).g).toBeGreaterThan(0.5);
+    expect(colorForOverlay('density', tile).a).toBeGreaterThan(0);
+    expect(colorForOverlay('crime', tile).a).toBeGreaterThan(0);
   });
 });

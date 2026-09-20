@@ -41,6 +41,15 @@
     "pollutionRadius": 8
   },
   {
+    "id": "small_police_station",
+    "name": "Small Police Station",
+    "zoneType": 0,
+    "population": 0,
+    "jobs": 4,
+    "isService": true,
+    "policeRadius": 10
+  },
+  {
     "id": "small_park",
     "name": "Small Park",
     "zoneType": 0,

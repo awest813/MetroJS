@@ -11,6 +11,9 @@ import { TrafficPressureSystem } from './TrafficPressureSystem';
 import { WalkabilitySystem } from './WalkabilitySystem';
 import { TransitSystem } from './TransitSystem';
 import { PollutionSystem } from './PollutionSystem';
+import { PopulationDensitySystem } from './PopulationDensitySystem';
+import { PoliceCoverageSystem } from './PoliceCoverageSystem';
+import { CrimeSystem } from './CrimeSystem';
 import { tileKey } from './ZoneGrowthSystem';
 import { STARTER_RESIDENTIAL_DEMAND } from './zoneGrowthHints';
 
@@ -57,6 +60,11 @@ export interface CityStats {
    * tiles, computed by PollutionSystem each month.
    */
   pollutionAverage: number;
+  /**
+   * City-wide crime score [0–100]. Average crime across occupied (density > 0)
+   * tiles, computed by CrimeSystem each month.
+   */
+  crimeAverage: number;
 }
 
 /**
@@ -78,6 +86,9 @@ export class CitySim {
   readonly power:        PowerSystem;
   readonly landValue:    LandValueSystem;
   readonly pollution:    PollutionSystem;
+  readonly density:      PopulationDensitySystem;
+  readonly police:       PoliceCoverageSystem;
+  readonly crime:        CrimeSystem;
   readonly traffic:      TrafficPressureSystem;
   readonly walkability:  WalkabilitySystem;
   readonly transit:      TransitSystem;
@@ -120,11 +131,19 @@ export class CitySim {
    */
   onTransitChanged: (() => void) | null = null;
 
+  /**
+   * Called after density, police coverage, and crime are recalculated.
+   */
+  onCrimeChanged: (() => void) | null = null;
+
   private constructor(map: CityMap) {
     this.map          = map;
     this.clock        = new SimulationClock();
     this.power        = new PowerSystem();
     this.pollution    = new PollutionSystem();
+    this.density      = new PopulationDensitySystem();
+    this.police       = new PoliceCoverageSystem();
+    this.crime        = new CrimeSystem();
     this.landValue    = new LandValueSystem();
     this.traffic      = new TrafficPressureSystem();
     this.walkability  = new WalkabilitySystem();
@@ -147,6 +166,7 @@ export class CitySim {
       walkability:       0,
       transitAccess:     0,
       pollutionAverage:  0,
+      crimeAverage:      0,
     };
   }
 
@@ -231,7 +251,15 @@ export class CitySim {
     this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
     if (this.onLandValueChanged) this.onLandValueChanged();
 
+    this._refreshCityHealth(false);
     return true;
+  }
+
+  private _refreshCityHealth(applyCrimeHappiness: boolean): void {
+    this.density.tick(this.map, this.growth.buildings, this.growth.defs);
+    this.police.tick(this.map, this.growth.buildings, this.growth.defs);
+    this.crime.tick(this.map, this.stats, applyCrimeHappiness);
+    if (this.onCrimeChanged) this.onCrimeChanged();
   }
 
   // ── Economy ───────────────────────────────────────────────────────────────
@@ -287,6 +315,10 @@ export class CitySim {
     // Transit access is recalculated monthly (after walkability); notify listeners.
     if (monthTicked && this.onTransitChanged) {
       this.onTransitChanged();
+    }
+
+    if (monthTicked) {
+      this._refreshCityHealth(true);
     }
   }
 }

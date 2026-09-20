@@ -53,9 +53,9 @@ The HUD shows Poll / Happy / Walk / Transit, but there is **no** police, fire, c
 
 | Slice | What to ship | Must not |
 |---|---|---|
-| A1 Density | `tile.populationDensity` (or block map) from residential/mixed buildings; overlay optional | Port Micropolis `populationDensityScan` tables |
-| A2 Police | Station def + tool + coverage radius like power; `tile.policeCoverage` | Sprite cops |
-| A3 Crime | `tile.crime` from density, land value, police; HUD average | Hidden Micropolis crime RNG as-is |
+| A1 Density **shipped** | `tile.populationDensity` from residential/mixed buildings; Crowd overlay | Port Micropolis `populationDensityScan` tables |
+| A2 Police **shipped** | Station def + tool + coverage radius like power; `tile.policeCoverage` | Sprite cops |
+| A3 Crime **shipped** | `tile.crime` from density, land value, police; HUD average | Hidden Micropolis crime RNG as-is |
 | A4 Fire | Station def + tool + `tile.fireCoverage` | Disasters in the same PR |
 | A5 Evaluation | Monthly score / approval / top problems from pollution, crime, traffic, taxes, power, bankruptcy | Census graphs in the same PR |
 
@@ -111,7 +111,7 @@ Unchanged from the 3D plan:
 
 ## 5. Recommended next PRs (mergeable)
 
-1. **Density + crime overlay inputs** (A1, then A2–A3 together once a police tool exists).
+1. ~~**Density + crime overlay inputs** (A1–A3).~~ Shipped: Crowd/Crime overlays, Police tool, HUD Crime.
 2. **Fire coverage** (A4) using the same service-building pattern as the plant.
 3. **Evaluation + advisory** (A5 + B1) — this is the first “mayor” moment.
 4. **PBR + sky** (C1–C2) — visual, no sim.

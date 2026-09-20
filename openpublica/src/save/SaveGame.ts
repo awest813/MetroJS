@@ -39,6 +39,7 @@ export interface SavedStats {
   walkability:       number;
   transitAccess:     number;
   pollutionAverage:  number;
+  crimeAverage:      number;
 }
 
 /** Top-level save-game document stored in localStorage. */

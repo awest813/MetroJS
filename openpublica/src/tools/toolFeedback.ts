@@ -9,6 +9,7 @@ import { ZONE_COST } from './ZoneBrushTool';
 import { BULLDOZE_COST } from './BulldozeTool';
 import { POWER_PLANT_COST } from './PlacePowerPlantTool';
 import { PARK_COST } from './PlaceParkTool';
+import { POLICE_STATION_COST } from './PlacePoliceStationTool';
 
 function fundsLine(need: number, have: number): string {
   return `Need $${need.toLocaleString()} (have $${have.toLocaleString()})`;
@@ -70,6 +71,14 @@ export function explainToolFailure(
       if (tile.roadType !== RoadType.None) return 'Clear the road before placing a park.';
       if (!sim.canAfford(PARK_COST)) return fundsLine(PARK_COST, sim.stats.money);
       return 'Could not place a park.';
+
+    case 'placePoliceStation':
+      if (tile.buildingId !== null) return 'That lot already has a building.';
+      if (tile.roadType !== RoadType.None) return 'Clear the road before placing a station.';
+      if (!sim.canAfford(POLICE_STATION_COST)) {
+        return fundsLine(POLICE_STATION_COST, sim.stats.money);
+      }
+      return 'Could not place a police station.';
 
     default:
       return 'Nothing happened.';

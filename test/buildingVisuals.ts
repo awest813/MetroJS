@@ -2,6 +2,7 @@ import { ZoneType } from '../openpublica/src/sim/CityTile';
 import {
   BUILDING_KITS,
   BUILDING_SHAPES,
+  CIVIC_DEF_IDS,
   SKIP_MESH_DEF_IDS,
   kitPalette,
   kitForDef,
@@ -13,6 +14,7 @@ const BUILDING_JSON_IDS = [
   'small_shop',
   'light_workshop',
   'small_power_plant',
+  'small_police_station',
   'small_park',
   'shopfront_apartments',
   'corner_store_flats',
@@ -62,6 +64,13 @@ describe('buildingVisuals kits', () => {
     expect(stacks.every((p) => p.shape === 'cylinder')).toBe(true);
   });
 
+  it('should give the police station a civic kit', () => {
+    expect(CIVIC_DEF_IDS.has('small_police_station')).toBe(true);
+    const kit = BUILDING_KITS.small_police_station;
+    expect(kit.parts.some((p) => p.slot === 'accent')).toBe(true);
+    expect(kit.parts.some((p) => p.slot === 'glass')).toBe(true);
+  });
+
   it('should give mixed-use kits a podium plus upper storeys', () => {
     for (const id of ['shopfront_apartments', 'corner_store_flats', 'main_street_block'] as const) {
       const bodies = BUILDING_KITS[id].parts.filter((p) => p.slot === 'body');
@@ -76,5 +85,12 @@ describe('buildingVisuals kits', () => {
     const warn = kitPalette('warning', ZoneType.Residential);
     expect(warn.body.r).toBeGreaterThan(warn.body.g);
     expect(warn.body.g).toBeLessThan(zone.body.g);
+  });
+
+  it('should keep civic palettes bluer than service orange', () => {
+    const civic = kitPalette('civic', ZoneType.None);
+    const service = kitPalette('service', ZoneType.None);
+    expect(civic.body.b).toBeGreaterThan(civic.body.r);
+    expect(service.body.r).toBeGreaterThan(service.body.b);
   });
 });

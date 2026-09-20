@@ -51,6 +51,9 @@ export function formatInspectStatus(
     parts.push('park');
   }
   parts.push(`LV ${tile.landValue}`);
+  if (tile.populationDensity > 0) parts.push(`density ${tile.populationDensity}`);
+  if (tile.policeCoverage > 0) parts.push(`police ${tile.policeCoverage}`);
+  if (tile.crime > 0) parts.push(`crime ${tile.crime}`);
   if (tile.pollution > 0) parts.push(`pollution ${tile.pollution}`);
   if (growthHint) parts.push(growthHint);
   return parts.join('  ·  ');

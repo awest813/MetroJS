@@ -47,6 +47,7 @@ export const BUILDING_SHAPES: Record<string, BuildingShape> = {
   small_shop:           { width: 0.65, depth: 0.65, height: 0.35 },
   light_workshop:       { width: 0.75, depth: 0.75, height: 0.50 },
   small_power_plant:    { width: 0.80, depth: 0.80, height: 0.60 },
+  small_police_station: { width: 0.70, depth: 0.62, height: 0.55 },
   shopfront_apartments: { width: 0.75, depth: 0.55, height: 0.65 },
   corner_store_flats:   { width: 0.65, depth: 0.65, height: 0.60 },
   main_street_block:    { width: 0.85, depth: 0.60, height: 0.75 },
@@ -56,6 +57,7 @@ export const BUILDING_SHAPES: Record<string, BuildingShape> = {
 export const DEFAULT_SHAPE: BuildingShape = { width: 0.50, depth: 0.50, height: 0.40 };
 
 export const SERVICE_DEF_IDS = new Set(['small_power_plant']);
+export const CIVIC_DEF_IDS = new Set(['small_police_station']);
 
 export const SKIP_MESH_DEF_IDS = new Set(['small_park']);
 
@@ -152,6 +154,17 @@ const KITS: BuildingKit[] = [
     ],
   },
   {
+    defId: 'small_police_station',
+    shape: BUILDING_SHAPES.small_police_station,
+    parts: [
+      box('body', 0.62, 0.28, 0.54, 0, 0.14, 0),
+      box('roof', 0.66, 0.06, 0.58, 0, 0.32, 0),
+      box('trim', 0.22, 0.34, 0.22, -0.18, 0.40, -0.12),
+      box('accent', 0.10, 0.10, 0.03, 0.08, 0.18, 0.28),
+      box('glass', 0.28, 0.10, 0.02, 0.10, 0.16, 0.28),
+    ],
+  },
+  {
     defId: 'shopfront_apartments',
     shape: BUILDING_SHAPES.shopfront_apartments,
     parts: [
@@ -227,7 +240,7 @@ function clamp01(v: number): number {
   return Math.max(0, Math.min(1, v));
 }
 
-export function kitPalette(kind: 'zone' | 'service' | 'warning', zoneType: ZoneType): KitPalette {
+export function kitPalette(kind: 'zone' | 'service' | 'civic' | 'warning', zoneType: ZoneType): KitPalette {
   if (kind === 'warning') {
     return {
       body:   { r: 0.70, g: 0.20, b: 0.20 },
@@ -236,6 +249,16 @@ export function kitPalette(kind: 'zone' | 'service' | 'warning', zoneType: ZoneT
       accent: { r: 0.55, g: 0.12, b: 0.12 },
       stack:  { r: 0.35, g: 0.08, b: 0.08 },
       glass:  { r: 0.40, g: 0.12, b: 0.14 },
+    };
+  }
+  if (kind === 'civic') {
+    return {
+      body:   { r: 0.22, g: 0.34, b: 0.52 },
+      roof:   { r: 0.12, g: 0.16, b: 0.24 },
+      trim:   { r: 0.72, g: 0.74, b: 0.78 },
+      accent: { r: 0.85, g: 0.70, b: 0.18 },
+      stack:  { r: 0.30, g: 0.32, b: 0.38 },
+      glass:  { r: 0.18, g: 0.28, b: 0.40 },
     };
   }
   if (kind === 'service') {

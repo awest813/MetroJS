@@ -46,6 +46,12 @@ export interface ICityTile {
   watered:         boolean;
   landValue:       number;
   pollution:       number;
+  /** Local crowding [0–100] from nearby residents. */
+  populationDensity: number;
+  /** Police service [0–100] from a powered station radius. */
+  policeCoverage:  number;
+  /** Street crime [0–100] from density, land value, and police. */
+  crime:           number;
   trafficPressure: number;
   /** Noise level [0–100] derived from traffic pressure by TrafficPressureSystem. */
   noise:           number;
@@ -77,6 +83,9 @@ export class CityTile implements ICityTile {
   watered:         boolean;
   landValue:       number;
   pollution:       number;
+  populationDensity: number;
+  policeCoverage:  number;
+  crime:           number;
   trafficPressure: number;
   noise:           number;
   walkability:     number;
@@ -93,6 +102,9 @@ export class CityTile implements ICityTile {
     this.watered         = false;
     this.landValue       = 50; // neutral baseline until LandValueSystem first runs
     this.pollution       = 0;
+    this.populationDensity = 0;
+    this.policeCoverage  = 0;
+    this.crime           = 0;
     this.trafficPressure = 0;
     this.noise           = 0;
     this.walkability     = 0;

@@ -80,9 +80,14 @@ function _cornerColor(map: CityMap, cx: number, cy: number): TileColor {
  *
  * Priority: park > zoned building > zone > terrain.
  */
+const POLICE_GROUND: TileColor = { r: 0.18, g: 0.26, b: 0.40 };
+
 export function cityTileColor(tile: CityTile): TileColor {
   if (tile.buildingId === 'small_park') {
     return PARK_GROUND;
+  }
+  if (tile.buildingId === 'small_police_station') {
+    return POLICE_GROUND;
   }
   if (tile.buildingId !== null && tile.zoneType !== ZoneType.None) {
     return BUILDING_COLORS[tile.zoneType];

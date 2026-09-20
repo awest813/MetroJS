@@ -21,6 +21,18 @@ describe('formatInspectStatus', () => {
     expect(line).not.toMatch(/zone=1/);
   });
 
+  it('should mention density, police, and crime when they are above zero', () => {
+    const map = new CityMap(4, 4);
+    const tile = map.getTile(2, 1)!;
+    tile.populationDensity = 24;
+    tile.policeCoverage = 80;
+    tile.crime = 12;
+    const line = formatInspectStatus('Inspect', tile, null);
+    expect(line).toContain('density 24');
+    expect(line).toContain('police 80');
+    expect(line).toContain('crime 12');
+  });
+
   it('should mention trolley without repeating HUD money', () => {
     const map = new CityMap(4, 4);
     const tile = map.getTile(0, 0)!;

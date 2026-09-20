@@ -32,4 +32,13 @@ describe('terrain colour blending', () => {
     grass.terrain = TerrainType.Grass;
     expect(cityTileColor(park).g).toBeLessThan(cityTileColor(grass).g);
   });
+
+  it('should keep a police lot bluer than grass', () => {
+    const map = new CityMap(2, 2);
+    const station = map.getTile(0, 0)!;
+    station.buildingId = 'small_police_station';
+    const grass = map.getTile(1, 0)!;
+    grass.terrain = TerrainType.Grass;
+    expect(cityTileColor(station).b).toBeGreaterThan(cityTileColor(grass).b);
+  });
 });

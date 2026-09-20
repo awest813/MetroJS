@@ -97,7 +97,7 @@ describe('WalkabilitySystem', () => {
         population: 0, jobs: 0, money: 0, residentialDemand: 0, commercialDemand: 0,
         industrialDemand: 0, resTaxRate: 9, comTaxRate: 9, indTaxRate: 9,
         monthlyIncome: 0, monthlyExpenses: 0, bankruptcyWarning: false,
-        happiness: 100, walkability: 0, transitAccess: 0, pollutionAverage: 0,
+        happiness: 100, walkability: 0, transitAccess: 0, pollutionAverage: 0, crimeAverage: 0,
       };
 
       // First tick — no noise → high walkability at centre.
@@ -150,9 +150,11 @@ describe('WalkabilitySystem', () => {
 
       tickOneMonth(sim);
 
-      // Happiness should be at least base (100) because there's no traffic yet.
-      // With walkability bonus it may exceed base.
-      expect(sim.stats.happiness).toBeGreaterThanOrEqual(100);
+      // Walk still lifts happiness from the traffic baseline; crime (Gap A) then
+      // subtracts round(crimeAverage × 0.25) on the same monthly tick.
+      const preCrime = sim.stats.happiness + Math.round(sim.stats.crimeAverage * 0.25);
+      expect(preCrime).toBeGreaterThanOrEqual(100);
+      expect(sim.stats.walkability).toBeGreaterThan(0);
     });
   });
 

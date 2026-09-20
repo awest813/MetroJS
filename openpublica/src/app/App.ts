@@ -26,6 +26,7 @@ import {
 import { BulldozeTool } from '../tools/BulldozeTool';
 import { PlacePowerPlantTool } from '../tools/PlacePowerPlantTool';
 import { PlaceParkTool } from '../tools/PlaceParkTool';
+import { PlacePoliceStationTool } from '../tools/PlacePoliceStationTool';
 import { TrolleyAvenueTool } from '../tools/TrolleyAvenueTool';
 import { ToolController } from '../tools/ToolController';
 import { CameraController } from '../render/CameraController';
@@ -97,6 +98,7 @@ export class App {
     const bulldozeTool      = new BulldozeTool();
     const powerPlantTool    = new PlacePowerPlantTool();
     const parkTool          = new PlaceParkTool();
+    const policeTool        = new PlacePoliceStationTool();
     const trolleyAvenueTool = new TrolleyAvenueTool();
 
     const allTools = [
@@ -109,6 +111,7 @@ export class App {
       bulldozeTool,
       powerPlantTool,
       parkTool,
+      policeTool,
       trolleyAvenueTool,
     ];
 
@@ -250,6 +253,10 @@ export class App {
       overlay.refresh(sim.map);
     };
 
+    sim.onCrimeChanged = () => {
+      overlay.refresh(sim.map);
+    };
+
     let simSpeed: SimSpeed = 2;
 
     const look = new LookPanel(lookEl, () => cameraController.resetView());
@@ -305,6 +312,8 @@ export class App {
       overlaySpec('walkability-overlay-btn', 'Walk', 'Walkability', 'walkability'),
       overlaySpec('transit-overlay-btn', 'Transit', 'Transit access', 'transit'),
       overlaySpec('pollution-overlay-btn', 'Smog', 'Pollution haze', 'pollution'),
+      overlaySpec('density-overlay-btn', 'Crowd', 'Population density', 'density'),
+      overlaySpec('crime-overlay-btn', 'Crime', 'Crime from density minus police', 'crime'),
     ]);
 
     const hud = new CityHUD(hudEl);
