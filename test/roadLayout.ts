@@ -34,7 +34,7 @@ describe('roadLayout', () => {
     expect(isFourWay(cross)).toBe(true);
     const street = roadPieces(RoadType.Street, cross);
     expect(countByKind(street, 'arm')).toBe(4);
-    expect(countByKind(street, 'crosswalk')).toBe(12);
+    expect(countByKind(street, 'crosswalk')).toBe(8);
     const trolley = roadPieces(RoadType.TrolleyAvenue, cross);
     expect(countByKind(trolley, 'crosswalk')).toBe(0);
     expect(countByKind(trolley, 'rail')).toBeGreaterThan(4);

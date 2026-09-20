@@ -14,6 +14,7 @@ import type { TileCoord } from '../data/types';
 import { TILE_SIZE } from '../data/constants';
 import type { HeightField } from '../sim/HeightField';
 import { roadHeading, roadNeighbors } from '../sim/roadConnections';
+import { connectedCardinals } from './roadLayout';
 import { parkTreeSlots, streetTreeSlot, type TreeSlot } from './vegetationLayout';
 
 interface PlantedTile {
@@ -102,8 +103,12 @@ export class VegetationRenderer {
     if (tile.buildingId === 'small_park') {
       slots = parkTreeSlots(x, y);
     } else if (tile.roadType === RoadType.Street && tile.buildingId === null) {
-      const heading = roadHeading(roadNeighbors(map, x, y));
-      const slot = streetTreeSlot(x, y, tile.roadType, tile.trafficPressure, heading);
+      const nbrs = roadNeighbors(map, x, y);
+      const heading = roadHeading(nbrs);
+      const slot = streetTreeSlot(
+        x, y, tile.roadType, tile.trafficPressure, heading,
+        connectedCardinals(nbrs).length,
+      );
       if (slot) slots = [slot];
     }
     if (slots.length === 0) return;

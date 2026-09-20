@@ -20,9 +20,10 @@ describe('vegetationLayout', () => {
     expect(parkTreeSlots(4, 7)).toEqual(parkTreeSlots(4, 7));
   });
 
-  it('should skip street trees on trolley and busy streets', () => {
+  it('should skip street trees on trolley, busy streets, and junctions', () => {
     expect(streetTreeSlot(2, 2, RoadType.TrolleyAvenue, 0, 0)).toBeNull();
     expect(streetTreeSlot(2, 2, RoadType.Street, 9, 0)).toBeNull();
+    expect(streetTreeSlot(2, 2, RoadType.Street, 0, 0, 4)).toBeNull();
   });
 
   it('should expose two smoke stacks for the plant kit', () => {

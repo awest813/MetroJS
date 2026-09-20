@@ -18,8 +18,8 @@ export const CARDINAL_VEC: Record<Cardinal, { dx: number; dz: number }> = {
 /** Centre to tile edge; two arms meet at the shared border. */
 export const ARM_SPAN = 0.5;
 
-export const CURB_WIDTH = 0.05;
-export const CURB_HEIGHT = 0.036;
+export const CURB_WIDTH = 0.034;
+export const CURB_HEIGHT = 0.062;
 export const MARK_WIDTH = 0.032;
 export const MARK_HEIGHT = 0.01;
 export const MARK_LENGTH = 0.12;
@@ -183,16 +183,15 @@ function addStreetKit(
     for (const dir of dirs) {
       const { dx, dz } = CARDINAL_VEC[dir];
       const eastWest = dir === 'e' || dir === 'w';
-      const base = 0.22;
-      for (let i = -1; i <= 1; i++) {
-        const lat = i * 0.12;
+      const base = 0.24;
+      for (const lat of [-0.12, 0.12]) {
         pieces.push(piece(
           'crosswalk',
           dx * base + (eastWest ? 0 : lat),
           dz * base + (eastWest ? lat : 0),
-          eastWest ? CROSSWALK_BAR : 0.10,
+          eastWest ? 0.028 : 0.07,
           MARK_HEIGHT,
-          eastWest ? 0.10 : CROSSWALK_BAR,
+          eastWest ? 0.07 : 0.028,
           dir,
         ));
       }

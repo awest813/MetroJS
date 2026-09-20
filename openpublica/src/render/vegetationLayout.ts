@@ -46,9 +46,11 @@ export function streetTreeSlot(
   roadType: RoadType,
   trafficPressure: number,
   heading: number,
+  neighborCount = 2,
 ): TreeSlot | null {
   if (roadType !== RoadType.Street) return null;
   if (trafficPressure >= 6) return null;
+  if (neighborCount >= 3) return null;
   const h = hash2(x + 91, y + 7);
   if (unit(h) > 0.42) return null;
   const side = unit(h >>> 5) > 0.5 ? 1 : -1;

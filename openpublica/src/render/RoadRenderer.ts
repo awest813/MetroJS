@@ -46,10 +46,10 @@ export class RoadRenderer {
     const highway = this._mat('road-highway', new Color3(0.20, 0.21, 0.23), new Color3(0.12, 0.12, 0.12));
     const trolley = this._mat('road-trolley', new Color3(0.58, 0.32, 0.18), new Color3(0.16, 0.08, 0.04));
     trolley.ambientColor = new Color3(0.22, 0.12, 0.08);
-    const curb = this._mat('road-curb', new Color3(0.62, 0.61, 0.58), new Color3(0.08, 0.08, 0.07));
-    const mark = this._mat('road-mark', new Color3(0.93, 0.86, 0.42), new Color3(0.25, 0.22, 0.08));
-    mark.emissiveColor = new Color3(0.08, 0.07, 0.02);
-    const walk = this._mat('road-walk', new Color3(0.92, 0.92, 0.90), new Color3(0.2, 0.2, 0.2));
+    const curb = this._mat('road-curb', new Color3(0.48, 0.47, 0.45), new Color3(0.06, 0.06, 0.05));
+    const mark = this._mat('road-mark', new Color3(0.95, 0.82, 0.22), new Color3(0.28, 0.22, 0.06));
+    mark.emissiveColor = new Color3(0.12, 0.09, 0.02);
+    const walk = this._mat('road-walk', new Color3(0.88, 0.88, 0.86), new Color3(0.12, 0.12, 0.12));
     const rail = this._mat('road-rail', new Color3(0.62, 0.64, 0.68), new Color3(0.45, 0.45, 0.48));
     rail.emissiveColor = new Color3(0.05, 0.05, 0.06);
     const tie = this._mat('road-tie', new Color3(0.28, 0.16, 0.09), new Color3(0.04, 0.03, 0.02));
