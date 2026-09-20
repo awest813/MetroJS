@@ -53,7 +53,7 @@ export function streetTreeSlot(
   if (unit(h) > 0.42) return null;
   const side = unit(h >>> 5) > 0.5 ? 1 : -1;
   const along = (unit(h >>> 9) - 0.5) * 0.3;
-  const curb = 0.38;
+  const curb = 0.42;
   const eastWest = Math.abs(Math.abs(heading) - Math.PI / 2) < 0.3;
   return {
     dx: eastWest ? along : side * curb,

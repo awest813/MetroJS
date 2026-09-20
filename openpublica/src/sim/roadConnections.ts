@@ -17,9 +17,9 @@ export interface RoadProfile {
   thickness: number;
 }
 
-const STREET_PROFILE: RoadProfile = { width: 0.40, thickness: 0.055 };
-const HIGHWAY_PROFILE: RoadProfile = { width: 0.62, thickness: 0.07 };
-const TROLLEY_PROFILE: RoadProfile = { width: 0.50, thickness: 0.06 };
+const STREET_PROFILE: RoadProfile = { width: 0.46, thickness: 0.05 };
+const HIGHWAY_PROFILE: RoadProfile = { width: 0.68, thickness: 0.068 };
+const TROLLEY_PROFILE: RoadProfile = { width: 0.54, thickness: 0.058 };
 
 /** True when a tile has any road or trolley. */
 export function isRoadTile(map: CityMap, x: number, y: number): boolean {
