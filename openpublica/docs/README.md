@@ -75,6 +75,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Gameplay: starter housing demand, sim speed/pause, placement and growth feedback
 - [x] Unified 3D overlay mesh including pollution (Phase G)
 - [x] Procedural sound (paint, growth, mute); unlocked on first gesture, M to mute
+- [x] Camera polish: HTML minimap, Home/Frame, sun slider, High/Low quality
 
 ## 3D port
 

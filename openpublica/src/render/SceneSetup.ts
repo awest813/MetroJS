@@ -18,6 +18,7 @@ export interface SceneBundle {
   scene: Scene;
   camera: ArcRotateCamera;
   sun: DirectionalLight;
+  fill: HemisphericLight;
   shadowGenerator: ShadowGenerator;
 }
 
@@ -79,5 +80,5 @@ export function createScene(canvas: HTMLCanvasElement): SceneBundle {
 
   engine.runRenderLoop(() => scene.render());
 
-  return { engine, scene, camera, sun, shadowGenerator };
+  return { engine, scene, camera, sun, fill, shadowGenerator };
 }

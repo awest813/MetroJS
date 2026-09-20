@@ -39,10 +39,12 @@ import { formatInspectStatus } from '../ui/inspectStatus';
 import { SaveSystem } from '../save/SaveSystem';
 import { SpeedBar, type SimSpeed } from '../ui/SpeedBar';
 import { SoundBar } from '../ui/SoundBar';
+import { LookPanel, readStoredQuality, readStoredSun, type QualityLevel } from '../ui/LookPanel';
 import { AudioBus } from '../audio/AudioBus';
 import { BANKRUPT_VOICE, FAIL_VOICE, GROWTH_VOICE, sfxForTool } from '../audio/voices';
 import { explainToolFailure } from '../tools/toolFeedback';
 import { formatGrowthHint } from '../sim/zoneGrowthHints';
+import { applyDaylight } from '../render/daylight';
 
 /**
  * Top-level application coordinator.
@@ -58,14 +60,15 @@ export class App {
     const hudEl      = document.getElementById('city-hud');
     const budgetEl   = document.getElementById('budget-panel');
     const cameraEl   = document.getElementById('camera-bar');
+    const lookEl     = document.getElementById('look-panel');
 
     if (
       !(canvas instanceof HTMLCanvasElement) ||
       !toolbarEl || !overlayEl || !cityMenuEl ||
-      !statusEl || !hudEl || !budgetEl || !cameraEl
+      !statusEl || !hudEl || !budgetEl || !cameraEl || !lookEl
     ) {
       throw new Error(
-        'Required DOM elements not found: #game-canvas, #toolbar, #overlay-bar, #city-menu, #status-bar, #city-hud, #budget-panel, #camera-bar',
+        'Required DOM elements not found: #game-canvas, #toolbar, #overlay-bar, #city-menu, #status-bar, #city-hud, #budget-panel, #camera-bar, #look-panel',
       );
     }
 
@@ -111,7 +114,8 @@ export class App {
     allTools.slice(1).forEach((t) => toolController.register(t));
 
     // ── Babylon.js renderer ──────────────────────────────────────────────────
-    const { scene, engine, camera, shadowGenerator } = createScene(canvas);
+    const { scene, engine, camera, sun, fill, shadowGenerator } = createScene(canvas);
+    applyDaylight({ scene, sun, fill }, readStoredSun());
     const cameraController = new CameraController(canvas, camera);
 
     const terrain      = new TerrainRenderer(scene, shadowGenerator);
@@ -130,6 +134,14 @@ export class App {
     vegetation.rebuild(sim.map, heights);
     const smoke = new SmokeRenderer(scene);
     smoke.rebuild(sim.map, heights);
+
+    const applyQuality = (level: QualityLevel): void => {
+      scene.shadowsEnabled = level === 'high';
+      smoke.setEnabled(level === 'high');
+      vegetation.setStreetTrees(level === 'high');
+      vegetation.rebuild(sim.map, heights);
+    };
+    applyQuality(readStoredQuality());
 
     const highlight = new HighlightRenderer(scene);
     const picker    = new TilePicker(scene, cameraController);
@@ -161,6 +173,7 @@ export class App {
 
       refreshPowerVisuals();
       trafficVehicles.rebuildGraph(sim.map, heights);
+      redrawLook();
     };
 
     // ── Renderer reacts to tile mutations via ToolController callback ─────────
@@ -184,6 +197,7 @@ export class App {
           }
           refreshPowerVisuals();
         }
+        redrawLook();
       }
     });
 
@@ -202,6 +216,7 @@ export class App {
         }
       }
       if (changed.length > 0) audio.play(GROWTH_VOICE, 'growth');
+      if (changed.length > 0) redrawLook();
     };
 
     // ── Power system fires when coverage changes (monthly or on placement) ───
@@ -233,7 +248,27 @@ export class App {
 
     let simSpeed: SimSpeed = 2;
 
-    // ── Wire interactions ────────────────────────────────────────────────────
+    const look = new LookPanel(
+      lookEl,
+      {
+        onFrame: () => cameraController.resetView(),
+        onSun: (day) => applyDaylight({ scene, sun, fill }, day),
+        onQuality: applyQuality,
+      },
+      { sun: readStoredSun(), quality: readStoredQuality() },
+    );
+    const redrawLook = (): void => {
+      look.minimap.setMarker(camera.target.x, camera.target.z);
+      look.redraw(sim.map);
+    };
+    redrawLook();
+
+    look.minimap.onJump((x, y) => {
+      cameraController.lookAtTile(x, y);
+      highlight.show({ x, y }, heights);
+      redrawLook();
+    });
+
     picker.onDragEnd(() => toolController.resetDrag());
 
     // ── Toolbar UI ───────────────────────────────────────────────────────────
@@ -362,6 +397,7 @@ export class App {
       hud.update(sim.stats, sim.clock);
       budgetPanel.update(sim.stats);
       syncAmbient();
+      redrawLook();
     }, 1000);
   }
 }

@@ -460,6 +460,76 @@ input:focus-visible {
   min-width: 58px;
 }
 
+/* ── Look: minimap, sun, quality ──────────────── */
+#look-panel,
+.look-panel {
+  position: absolute;
+  right: var(--gap);
+  bottom: calc(var(--status-h) + var(--gap));
+  width: 168px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--radius);
+  padding: 8px;
+  backdrop-filter: blur(8px);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.minimap-canvas {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  display: block;
+  border-radius: 6px;
+  cursor: pointer;
+  image-rendering: pixelated;
+  background: #0c1410;
+  border: 1px solid #1e2e3e;
+}
+
+.look-tools {
+  display: flex;
+  gap: 4px;
+}
+
+.look-tools button {
+  flex: 1;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  border: 1px solid var(--btn-border);
+  border-radius: 6px;
+  padding: 5px 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.look-tools button:hover {
+  background: var(--btn-hover);
+}
+
+.look-tools button.active {
+  background: var(--accent);
+  border-color: var(--accent-border);
+  color: #fff;
+}
+
+.look-sun {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.look-sun input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+
 /* ── Status bar ───────────────────────────────── */
 #status-bar {
   position: absolute;
@@ -542,6 +612,12 @@ input:focus-visible {
   #camera-bar {
     left: var(--gap);
     bottom: calc(var(--status-h) + 58px);
+  }
+
+  #look-panel {
+    right: var(--gap);
+    bottom: calc(var(--status-h) + 58px);
+    width: 132px;
   }
 
   #status-bar {

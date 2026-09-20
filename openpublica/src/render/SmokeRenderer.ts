@@ -18,6 +18,7 @@ export class SmokeRenderer {
   private readonly _texture: DynamicTexture;
   private readonly _systems: ParticleSystem[] = [];
   private _heights: HeightField | null = null;
+  private _enabled = true;
 
   constructor(scene: Scene) {
     this._scene = scene;
@@ -26,6 +27,14 @@ export class SmokeRenderer {
 
   setHeightField(heights: HeightField): void {
     this._heights = heights;
+  }
+
+  setEnabled(on: boolean): void {
+    this._enabled = on;
+    for (const ps of this._systems) {
+      if (on) ps.start();
+      else ps.stop();
+    }
   }
 
   rebuild(map: CityMap, heights: HeightField): void {
@@ -42,6 +51,9 @@ export class SmokeRenderer {
         ));
       }
     });
+    if (!this._enabled) {
+      for (const ps of this._systems) ps.stop();
+    }
   }
 
   private _emitter(origin: Vector3): ParticleSystem {

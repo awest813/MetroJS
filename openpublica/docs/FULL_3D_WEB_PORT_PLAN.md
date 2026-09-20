@@ -298,11 +298,13 @@ Add a **pollution overlay** once the mesh path is unified (`tile.pollution` is a
 
 ### Phase H — Camera product polish
 
-1. Minimap (HTML canvas or a second orthographic camera to a render target).
-2. Frame-on-city / reset view.
-3. Optional day/night slider (sun angle only; do not retune sim).
-4. SSAO / FXAA via Babylon default rendering pipeline — **after** perf is measured.
-5. Quality presets: shadows off, particles off, vegetation density.
+Shipped as a light presentation layer (no SSAO until a fill-city frame-time check):
+
+1. HTML canvas minimap (click to look-at). Not a second Babylon camera.
+2. Frame / Home resets iso on the map centre.
+3. Sun slider aims the existing directional light (dawn–dusk, never pitch-black).
+4. Quality High/Low: shadows, plant smoke, street trees. SSAO/FXAA still deferred.
+5. Settings persist as `openpublica.quality` and `openpublica.sun`.
 
 ### Phase I — Explicitly out of scope for the first 3D milestone
 

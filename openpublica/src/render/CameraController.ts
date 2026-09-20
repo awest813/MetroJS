@@ -91,6 +91,10 @@ export class CameraController {
       if (event.key === '1') this.applyPreset('iso');
       if (event.key === '2') this.applyPreset('top');
       if (event.key === '3') this.applyPreset('orbit');
+      if (event.key === 'Home') {
+        event.preventDefault();
+        this.resetView();
+      }
     });
 
     window.addEventListener('keyup', (event) => {
@@ -161,6 +165,16 @@ export class CameraController {
     }
 
     this._onModeChange?.(mode);
+  }
+
+  /** Iso, framed on the whole map. */
+  resetView(): void {
+    this.applyPreset('iso');
+  }
+
+  /** Pan the look-at point to a tile without changing orbit angles. */
+  lookAtTile(x: number, y: number): void {
+    this.camera.setTarget(new Vector3(x + 0.5, 0, y + 0.5));
   }
 
   private _configurePointers(): void {

@@ -32,6 +32,7 @@ export class VegetationRenderer {
   private readonly _tiles = new Map<string, PlantedTile>();
   private _heights: HeightField | null = null;
   private _seq = 0;
+  private _streetTrees = true;
 
   constructor(scene: Scene, shadowGenerator: ShadowGenerator | null = null) {
     this._shadows = shadowGenerator;
@@ -69,6 +70,10 @@ export class VegetationRenderer {
     this._heights = heights;
   }
 
+  setStreetTrees(on: boolean): void {
+    this._streetTrees = on;
+  }
+
   rebuild(map: CityMap, heights: HeightField): void {
     this._heights = heights;
     for (const key of [...this._tiles.keys()]) this._clear(key);
@@ -102,7 +107,11 @@ export class VegetationRenderer {
     let slots: TreeSlot[] = [];
     if (tile.buildingId === 'small_park') {
       slots = parkTreeSlots(x, y);
-    } else if (tile.roadType === RoadType.Street && tile.buildingId === null) {
+    } else if (
+      this._streetTrees &&
+      tile.roadType === RoadType.Street &&
+      tile.buildingId === null
+    ) {
       const nbrs = roadNeighbors(map, x, y);
       const heading = roadHeading(nbrs);
       const slot = streetTreeSlot(
