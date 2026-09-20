@@ -1,0 +1,77 @@
+// ⚠️  This file must NOT import anything from @babylonjs/core.
+
+import type { TileCoord } from '../data/types';
+import type { CitySim } from '../sim/CitySim';
+import { RoadType, TerrainType, ZoneType } from '../sim/CityTile';
+import { ROAD_COST } from './RoadTool';
+import { TROLLEY_AVENUE_COST } from './TrolleyAvenueTool';
+import { ZONE_COST } from './ZoneBrushTool';
+import { BULLDOZE_COST } from './BulldozeTool';
+import { POWER_PLANT_COST } from './PlacePowerPlantTool';
+import { PARK_COST } from './PlaceParkTool';
+
+function fundsLine(need: number, have: number): string {
+  return `Need $${need.toLocaleString()} (have $${have.toLocaleString()})`;
+}
+
+/** Player-facing reason a tool did not change the tile. */
+export function explainToolFailure(
+  toolName: string,
+  coord: TileCoord,
+  sim: CitySim,
+): string {
+  const tile = sim.getTile(coord.x, coord.y);
+  if (!tile) return 'Off the map.';
+
+  if (tile.terrain === TerrainType.Water && toolName !== 'inspect' && toolName !== 'bulldoze') {
+    return 'Cannot build on water.';
+  }
+
+  switch (toolName) {
+    case 'road':
+      if (tile.roadType === RoadType.Street) return 'Already a street.';
+      if (!sim.canAfford(ROAD_COST[RoadType.Street])) {
+        return fundsLine(ROAD_COST[RoadType.Street], sim.stats.money);
+      }
+      return 'Could not place a street here.';
+
+    case 'trolleyAvenue':
+      if (tile.roadType === RoadType.TrolleyAvenue) return 'Already a trolley avenue.';
+      if (!sim.canAfford(TROLLEY_AVENUE_COST)) {
+        return fundsLine(TROLLEY_AVENUE_COST, sim.stats.money);
+      }
+      return 'Could not place a trolley avenue here.';
+
+    case 'zoneResidentialLow':
+    case 'zoneCommercialLow':
+    case 'zoneIndustrialLight':
+    case 'zoneMixedUse':
+      if (!sim.canAfford(ZONE_COST)) return fundsLine(ZONE_COST, sim.stats.money);
+      return 'Already this zone.';
+
+    case 'bulldoze': {
+      const empty =
+        tile.roadType === RoadType.None &&
+        tile.zoneType === ZoneType.None &&
+        tile.buildingId === null;
+      if (empty) return 'Nothing to bulldoze.';
+      if (!sim.canAfford(BULLDOZE_COST)) return fundsLine(BULLDOZE_COST, sim.stats.money);
+      return 'Could not bulldoze.';
+    }
+
+    case 'placePowerPlant':
+      if (tile.buildingId !== null) return 'That lot already has a building.';
+      if (tile.roadType !== RoadType.None) return 'Clear the road before placing a plant.';
+      if (!sim.canAfford(POWER_PLANT_COST)) return fundsLine(POWER_PLANT_COST, sim.stats.money);
+      return 'Could not place a power plant.';
+
+    case 'placePark':
+      if (tile.buildingId !== null) return 'That lot already has a building.';
+      if (tile.roadType !== RoadType.None) return 'Clear the road before placing a park.';
+      if (!sim.canAfford(PARK_COST)) return fundsLine(PARK_COST, sim.stats.money);
+      return 'Could not place a park.';
+
+    default:
+      return 'Nothing happened.';
+  }
+}

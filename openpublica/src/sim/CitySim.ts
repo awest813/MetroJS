@@ -12,6 +12,7 @@ import { WalkabilitySystem } from './WalkabilitySystem';
 import { TransitSystem } from './TransitSystem';
 import { PollutionSystem } from './PollutionSystem';
 import { tileKey } from './ZoneGrowthSystem';
+import { STARTER_RESIDENTIAL_DEMAND } from './zoneGrowthHints';
 
 /** Aggregate statistics for the city, updated each tick. */
 export interface CityStats {
@@ -133,7 +134,7 @@ export class CitySim {
       population:        0,
       jobs:              0,
       money:             10_000,
-      residentialDemand: 0,
+      residentialDemand: STARTER_RESIDENTIAL_DEMAND,
       commercialDemand:  0,
       industrialDemand:  20, // industrial starts with a modest positive demand
       resTaxRate:        9,
@@ -208,6 +209,8 @@ export class CitySim {
   placeServiceBuilding(x: number, y: number, defId: string, cost: number): boolean {
     const tile = this.map.getTile(x, y);
     if (!tile || tile.terrain === TerrainType.Water) return false;
+    if (tile.buildingId !== null) return false;
+    if (tile.roadType !== RoadType.None) return false;
 
     if (!this.deductMoney(cost)) {
       console.warn(

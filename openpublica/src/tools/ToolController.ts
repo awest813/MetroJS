@@ -56,13 +56,13 @@ export class ToolController {
    * Deduplicates drag events — the same tile is only processed once per
    * continuous drag stroke (pointer-down → pointer-up).
    */
-  applyToTile(coord: TileCoord, sim: CitySim): void {
+  applyToTile(coord: TileCoord, sim: CitySim): boolean {
     if (
       this._lastDragCoord &&
       this._lastDragCoord.x === coord.x &&
       this._lastDragCoord.y === coord.y
     ) {
-      return;
+      return false;
     }
     this._lastDragCoord = coord;
 
@@ -70,6 +70,7 @@ export class ToolController {
     if (changed) {
       this._onTileChangedCb?.(coord);
     }
+    return changed;
   }
 
   /**

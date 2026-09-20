@@ -16,6 +16,11 @@ import { LandValueSystem } from './LandValueSystem';
 import { TrafficPressureSystem } from './TrafficPressureSystem';
 import { WalkabilitySystem } from './WalkabilitySystem';
 import { TransitSystem } from './TransitSystem';
+import {
+  STARTER_RESIDENTIAL_DEMAND,
+  demandForZone,
+  tileHasAdjacentRoad,
+} from './zoneGrowthHints';
 
 /** Maximum demand value (clamps residentialDemand, commercialDemand, industrialDemand). */
 const MAX_DEMAND = 100;
@@ -181,13 +186,19 @@ export class ZoneGrowthSystem {
     // Residential: people move in when there are more jobs than workers.
     // Transit access also makes neighbourhoods more desirable to live in.
     //   TRANSIT_RES_DEMAND_DIVISOR=50 → each 50 transit points adds 1 demand point/month.
+    // An empty city keeps starter housing demand so the first street can grow
+    // without waiting for factories (jobs ≤ pop would otherwise decay R to 0).
     const TRANSIT_RES_DEMAND_DIVISOR = 50;
-    const jobBalance        = stats.jobs - stats.population;
-    const transitResBoost   = Math.round(stats.transitAccess / TRANSIT_RES_DEMAND_DIVISOR);
-    stats.residentialDemand = Math.max(
-      0,
-      Math.min(MAX_DEMAND, stats.residentialDemand + (jobBalance > 0 ? 5 : -2) + transitResBoost + resTaxMod),
-    );
+    if (stats.population === 0) {
+      stats.residentialDemand = STARTER_RESIDENTIAL_DEMAND;
+    } else {
+      const jobBalance      = stats.jobs - stats.population;
+      const transitResBoost = Math.round(stats.transitAccess / TRANSIT_RES_DEMAND_DIVISOR);
+      stats.residentialDemand = Math.max(
+        0,
+        Math.min(MAX_DEMAND, stats.residentialDemand + (jobBalance > 0 ? 5 : -2) + transitResBoost + resTaxMod),
+      );
+    }
 
     // Commercial: shops open when there are more residents to serve.
     // Walkability and transit both boost foot traffic — commercial is sensitive to both.
@@ -226,10 +237,10 @@ export class ZoneGrowthSystem {
       if (tile.buildingId !== null)         return;
 
       // Must be adjacent to at least one road tile.
-      if (!this._hasAdjacentRoad(map, tile.x, tile.y)) return;
+      if (!tileHasAdjacentRoad(map, tile.x, tile.y)) return;
 
       // Demand gate: only grow if demand is positive.
-      const demand = this._demandFor(tile.zoneType, stats);
+      const demand = demandForZone(tile.zoneType, stats);
       if (demand <= 0) return;
 
       // Probabilistic growth — not every eligible tile grows every month.
@@ -278,17 +289,6 @@ export class ZoneGrowthSystem {
     stats.jobs       = Math.floor(jobs);
   }
 
-  /** Returns true if any orthogonal neighbour has a road. */
-  private _hasAdjacentRoad(map: CityMap, x: number, y: number): boolean {
-    const neighbours = [
-      map.getTile(x,     y - 1),
-      map.getTile(x,     y + 1),
-      map.getTile(x - 1, y),
-      map.getTile(x + 1, y),
-    ];
-    return neighbours.some((t) => t !== undefined && t.roadType !== RoadType.None);
-  }
-
   /**
    * Returns true if any orthogonal neighbour is zoned Residential, Commercial,
    * or MixedUse — any "active" (people/jobs-generating) zone type.
@@ -308,20 +308,6 @@ export class ZoneGrowthSystem {
          t.zoneType === ZoneType.Commercial  ||
          t.zoneType === ZoneType.MixedUse),
     );
-  }
-
-  /** Returns the demand level for the given zone type. */
-  private _demandFor(zoneType: ZoneType, stats: CityStats): number {
-    switch (zoneType) {
-      case ZoneType.Residential: return stats.residentialDemand;
-      case ZoneType.Commercial:  return stats.commercialDemand;
-      case ZoneType.Industrial:  return stats.industrialDemand;
-      // Mixed-use requires both residential and commercial demand to be positive;
-      // it grows at the rate of the weaker of the two signals so it stays balanced.
-      case ZoneType.MixedUse:
-        return Math.min(stats.residentialDemand, stats.commercialDemand);
-      default:                   return 0;
-    }
   }
 
   /** Picks a random building definition for the given zone type. */

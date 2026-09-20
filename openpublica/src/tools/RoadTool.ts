@@ -24,6 +24,8 @@ export class RoadTool implements Tool {
 
   apply(coord: TileCoord, sim: CitySim): boolean {
     if (!sim.isBuildable(coord.x, coord.y)) return false;
+    const tile = sim.getTile(coord.x, coord.y);
+    if (!tile || tile.roadType === this._roadType) return false;
     const cost = ROAD_COST[this._roadType];
     if (!sim.deductMoney(cost)) {
       console.warn(`[Road] Insufficient funds (need $${cost}, have $${sim.stats.money})`);

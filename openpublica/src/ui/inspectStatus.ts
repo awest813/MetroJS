@@ -33,6 +33,7 @@ export function formatInspectStatus(
   toolLabel: string,
   tile: CityTile | undefined,
   buildingId: string | null,
+  growthHint?: string | null,
 ): string {
   const parts: string[] = [toolLabel.replace(/^[^\w]+/, '').trim() || toolLabel];
   if (!tile) {
@@ -46,11 +47,11 @@ export function formatInspectStatus(
   if (tile.roadType !== RoadType.None) parts.push(ROAD[tile.roadType]);
   if (buildingId) {
     parts.push(prettyDefId(buildingId));
-    if (!tile.powered) parts.push('unpowered');
   } else if (tile.buildingId === 'small_park') {
     parts.push('park');
   }
   parts.push(`LV ${tile.landValue}`);
   if (tile.pollution > 0) parts.push(`pollution ${tile.pollution}`);
+  if (growthHint) parts.push(growthHint);
   return parts.join('  ·  ');
 }

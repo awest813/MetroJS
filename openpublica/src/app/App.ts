@@ -40,6 +40,9 @@ import { CityHUD } from '../ui/CityHUD';
 import { BudgetPanel } from '../ui/BudgetPanel';
 import { formatInspectStatus } from '../ui/inspectStatus';
 import { SaveSystem } from '../save/SaveSystem';
+import { SpeedBar, type SimSpeed } from '../ui/SpeedBar';
+import { explainToolFailure } from '../tools/toolFeedback';
+import { formatGrowthHint } from '../sim/zoneGrowthHints';
 
 /**
  * Top-level application coordinator.
@@ -231,28 +234,9 @@ export class App {
       if (transitOverlay.isVisible) transitOverlay.refresh(sim.map);
     };
 
-    // ── Advance the simulation clock every rendered frame ────────────────────
-    scene.onBeforeRenderObservable.add(() => {
-      const dt = engine.getDeltaTime() / 1000;
-      sim.tick(dt);
-      trafficVehicles.update(dt);
-    });
+    let simSpeed: SimSpeed = 2;
 
     // ── Wire interactions ────────────────────────────────────────────────────
-    picker.onPick((coord) => {
-      toolController.applyToTile(coord, sim);
-      highlight.show(coord, heights);
-
-      const tile    = sim.getTile(coord.x, coord.y);
-      const pickData = buildings.selectBuilding(coord.x, coord.y);
-
-      statusEl.textContent = formatInspectStatus(
-        toolController.activeTool.label,
-        tile ?? undefined,
-        pickData?.buildingId ?? null,
-      );
-    });
-
     picker.onDragEnd(() => toolController.resetDrag());
 
     // ── Toolbar UI ───────────────────────────────────────────────────────────
@@ -260,6 +244,10 @@ export class App {
     toolbar.build(allTools);
 
     new CameraBar(cameraEl, cameraController);
+    new SpeedBar(cameraEl, simSpeed, (next) => {
+      simSpeed = next;
+      if (next === 0) statusEl.textContent = 'Paused. P resumes. ] speeds up.';
+    });
 
     new OverlayBar(overlayEl, [
       {
@@ -317,12 +305,45 @@ export class App {
     const hud = new CityHUD(hudEl);
     hud.update(sim.stats, sim.clock);
 
+    scene.onBeforeRenderObservable.add(() => {
+      const dt = engine.getDeltaTime() / 1000;
+      if (simSpeed > 0) {
+        sim.tick(dt * simSpeed);
+        trafficVehicles.update(dt);
+      }
+      hud.update(sim.stats, sim.clock);
+    });
+
     const budgetPanel = new BudgetPanel(budgetEl);
     budgetPanel.update(sim.stats);
     budgetPanel.onTaxChange((res, com, ind) => {
       sim.stats.resTaxRate = res;
       sim.stats.comTaxRate = com;
       sim.stats.indTaxRate = ind;
+    });
+
+    picker.onPick((coord) => {
+      const applied = toolController.applyToTile(coord, sim);
+      highlight.show(coord, heights);
+      hud.update(sim.stats, sim.clock);
+      budgetPanel.update(sim.stats);
+
+      const tile     = sim.getTile(coord.x, coord.y);
+      const pickData = buildings.selectBuilding(coord.x, coord.y);
+      const tool     = toolController.activeTool;
+
+      if (!applied && tool.name !== 'inspect') {
+        statusEl.textContent = explainToolFailure(tool.name, coord, sim);
+        return;
+      }
+
+      const hint = tile ? formatGrowthHint(tile, sim.map, sim.stats) : null;
+      statusEl.textContent = formatInspectStatus(
+        tool.label,
+        tile ?? undefined,
+        pickData?.buildingId ?? null,
+        hint,
+      );
     });
 
     new CityMenu(cityMenuEl, {

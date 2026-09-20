@@ -70,6 +70,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Building kits + instancing (Phase D)
 - [x] Parks, street trees, and plant smoke (Phase E)
 - [x] Moving cars and trolleys on a render-only road graph (Phase F)
+- [x] Gameplay: starter housing demand, sim speed/pause, placement and growth feedback
 - [ ] Sound effects
 
 ## 3D port

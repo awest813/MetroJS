@@ -112,17 +112,23 @@ describe('ToolController', () => {
   });
 
   describe('resetDrag', () => {
-    it('should allow re-applying the tool to the same tile after reset', () => {
-      const road = new RoadTool();
-      const ctrl = new ToolController(road);
+    it('should allow a different tool on the same tile after reset', () => {
+      const inspect = new InspectTool();
+      const res     = createResidentialLowBrush();
+      const com     = createCommercialLowBrush();
+      const ctrl    = new ToolController(inspect);
+      ctrl.register(res);
+      ctrl.register(com);
       const sim  = makeSim();
 
       const changed: typeof ORIGIN[] = [];
       ctrl.onTileChanged((coord) => changed.push(coord));
 
+      ctrl.setActiveTool('zoneResidentialLow');
       ctrl.applyToTile(TILE_A, sim);
       ctrl.resetDrag();
-      ctrl.applyToTile(TILE_A, sim); // new drag — should go through
+      ctrl.setActiveTool('zoneCommercialLow');
+      ctrl.applyToTile(TILE_A, sim);
 
       expect(changed).toHaveLength(2);
     });
@@ -195,11 +201,13 @@ describe('RoadTool', () => {
     expect(sim.getTile(0, 0)?.roadType).toBe(RoadType.None);
   });
 
-  it('should not deduct money when placement is rejected', () => {
-    const sim  = makeSim(0);
-    const tool = new RoadTool();
+  it('should not charge when the tile is already a street', () => {
+    const sim  = makeSim(1_000);
+    const tool = new RoadTool(RoadType.Street);
     tool.apply(ORIGIN, sim);
-    expect(sim.stats.money).toBe(0);
+    const money = sim.stats.money;
+    expect(tool.apply(ORIGIN, sim)).toBe(false);
+    expect(sim.stats.money).toBe(money);
   });
 });
 
@@ -286,9 +294,17 @@ describe('BulldozeTool', () => {
 
   it('should deduct BULLDOZE_COST from city funds', () => {
     const sim  = makeSim(1_000);
+    sim.placeRoad(0, 0, RoadType.Street);
     const tool = new BulldozeTool();
     tool.apply(ORIGIN, sim);
     expect(sim.stats.money).toBe(1_000 - BULLDOZE_COST);
+  });
+
+  it('should not charge to bulldoze an empty tile', () => {
+    const sim  = makeSim(1_000);
+    const tool = new BulldozeTool();
+    expect(tool.apply(ORIGIN, sim)).toBe(false);
+    expect(sim.stats.money).toBe(1_000);
   });
 
   it('should return false when funds are insufficient', () => {

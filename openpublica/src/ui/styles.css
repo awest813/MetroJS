@@ -427,6 +427,19 @@ input:focus-visible {
   color: #ffffff;
 }
 
+.bar-split {
+  width: 1px;
+  align-self: stretch;
+  background: #2a3d52;
+  margin: 0 4px;
+}
+
+.speed-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* ── Status bar ───────────────────────────────── */
 #status-bar {
   position: absolute;

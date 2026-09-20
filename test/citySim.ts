@@ -28,7 +28,7 @@ describe('CitySim', () => {
       expect(sim.stats.population).toBe(0);
       expect(sim.stats.jobs).toBe(0);
       expect(sim.stats.money).toBeGreaterThanOrEqual(0);
-      expect(sim.stats.residentialDemand).toBe(0);
+      expect(sim.stats.residentialDemand).toBe(40);
       expect(sim.stats.commercialDemand).toBe(0);
       // Industrial starts with a modest positive demand to seed early factory growth.
       expect(sim.stats.industrialDemand).toBe(20);

@@ -12,7 +12,7 @@ describe('formatInspectStatus', () => {
     tile.landValue = 40;
     tile.buildingId = 'small_house';
     tile.powered = false;
-    const line = formatInspectStatus('🔍 Inspect', tile, 'small_house');
+    const line = formatInspectStatus('🔍 Inspect', tile, 'small_house', 'unpowered — place a power plant nearby');
     expect(line).toContain('1, 2');
     expect(line).toContain('Residential');
     expect(line).toContain('small house');
