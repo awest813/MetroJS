@@ -31,32 +31,32 @@ export function applyDaylight(lights: DaylightLights, day: number): void {
   lights.sun.direction = dir;
   const center = new Vector3(MAP_SIZE / 2, 8, MAP_SIZE / 2);
   lights.sun.position = center.add(dir.scale(-72));
-  lights.sun.intensity = 0.48 + noon * 0.82;
-  const dawnSun = new Color3(1.0, 0.62, 0.32);
+  lights.sun.intensity = 0.72 + noon * 0.50;
+  const dawnSun = new Color3(1.0, 0.68, 0.42);
   const noonSun = new Color3(1.0, 0.96, 0.88);
-  const duskSun = new Color3(1.0, 0.55, 0.42);
+  const duskSun = new Color3(1.0, 0.62, 0.50);
   lights.sun.diffuse = lerp3(lerp3(dawnSun, noonSun, noon), duskSun, dusk * (1 - noon));
-  lights.fill.intensity = 0.32 + noon * 0.55;
+  lights.fill.intensity = 0.55 + noon * 0.32;
   lights.fill.diffuse = new Color3(
-    lerp(0.78, 0.82, noon),
-    lerp(0.55, 0.88, noon),
-    lerp(0.42, 0.78, noon),
+    lerp(0.80, 0.82, noon),
+    lerp(0.62, 0.88, noon),
+    lerp(0.52, 0.78, noon),
   );
   lights.fill.groundColor = new Color3(
-    lerp(0.22, 0.32, noon),
-    lerp(0.16, 0.38, noon),
-    lerp(0.18, 0.28, noon),
+    lerp(0.26, 0.32, noon),
+    lerp(0.22, 0.38, noon),
+    lerp(0.24, 0.28, noon),
   );
 
-  const dawnSky = new Color3(0.55, 0.38, 0.32);
+  const dawnSky = new Color3(0.58, 0.42, 0.36);
   const noonSky = new Color3(0.42, 0.58, 0.74);
-  const duskSky = new Color3(0.28, 0.30, 0.52);
+  const duskSky = new Color3(0.34, 0.36, 0.55);
   const sky = lerp3(lerp3(dawnSky, noonSky, noon), duskSky, dusk * (1 - noon * 0.35));
   lights.scene.clearColor = new Color4(sky.r, sky.g, sky.b, 1);
   lights.scene.fogColor = sky;
   lights.scene.ambientColor = new Color3(
     lerp(0.16, 0.18, noon),
-    lerp(0.10, 0.20, noon),
-    lerp(0.12, 0.24, noon),
+    lerp(0.14, 0.20, noon),
+    lerp(0.16, 0.24, noon),
   );
 }
