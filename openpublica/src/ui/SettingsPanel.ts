@@ -122,8 +122,7 @@ export class SettingsPanel {
 
     const keys = document.createElement('p');
     keys.className = 'settings-keys';
-    keys.textContent =
-      '1/2/3 views · P pause · [ ] speed · M mute · Home frame. Space or Alt+left orbits; wheel zooms.';
+    keys.textContent = '1–3 views · P pause · [ ] speed · M mute · Home frame';
     body.appendChild(keys);
 
     container.appendChild(fold);
