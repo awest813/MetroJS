@@ -58,7 +58,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Vite + TypeScript (strict) project
 - [x] Babylon.js scene with perspective camera (iso / top / orbit presets)
 - [x] 64×64 `CityMap` with monthly sim (growth, power, economy, land value, traffic, walkability, transit, pollution)
-- [x] Procedural box buildings and vertex-coloured heightfield (no Micropolis tile sheets)
+- [x] Procedural kit buildings (instanced) and vertex-coloured heightfield (no Micropolis tile sheets)
 - [x] Mouse tile picking via terrain/water ray hits
 - [x] Tools: Inspect, Road, R/C/I/Mixed zone brushes, Bulldoze, Power plant, Park, Trolley avenue
 - [x] Overlays: power, land value, traffic, walkability, transit
@@ -67,7 +67,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Heightfield, water basins, height-aware picking (Phase B)
 - [x] Map terrain generation (lakes, river, dirt beaches)
 - [x] Extruded road / trolley meshes (Phase C)
-- [ ] Building kits — see the 3D plan
+- [x] Building kits + instancing (Phase D; parks still wait for Phase E trees)
 - [ ] Sound effects
 
 ## 3D port

@@ -6,45 +6,24 @@ import {
   Mesh,
   Vector3,
   ShadowGenerator,
+  VertexBuffer,
+  InstancedMesh,
 } from '@babylonjs/core';
 import type { BuildingInstance } from '../sim/BuildingInstance';
 import { ZoneType } from '../sim/CityTile';
 import { TILE_SIZE } from '../data/constants';
 import type { HeightField } from '../sim/HeightField';
-
-// ── Visual shape config per building def ID ───────────────────────────────────
-
-interface BuildingShape {
-  width:  number;
-  depth:  number;
-  height: number;
-}
-
-/**
- * Per-def visual dimensions.
- * These are render-only values; no simulation data lives here.
- */
-const BUILDING_SHAPES: Record<string, BuildingShape> = {
-  small_house:          { width: 0.50, depth: 0.50, height: 0.40 },
-  rowhouse:             { width: 0.70, depth: 0.45, height: 0.55 },
-  small_shop:           { width: 0.65, depth: 0.65, height: 0.35 },
-  light_workshop:       { width: 0.75, depth: 0.75, height: 0.50 },
-  small_power_plant:    { width: 0.80, depth: 0.80, height: 0.60 },
-  // Mixed-use buildings — taller than shops, narrower than rowhouses.
-  shopfront_apartments: { width: 0.75, depth: 0.55, height: 0.65 },
-  corner_store_flats:   { width: 0.65, depth: 0.65, height: 0.60 },
-  main_street_block:    { width: 0.85, depth: 0.60, height: 0.75 },
-};
-
-const DEFAULT_SHAPE: BuildingShape = { width: 0.50, depth: 0.50, height: 0.40 };
-
-/**
- * Building def IDs that should use the service material rather than a
- * zone-type material.  Keyed by defId.
- */
-const SERVICE_DEF_IDS = new Set(['small_power_plant']);
-
-// ── Metadata stored on each mesh for picking ──────────────────────────────────
+import {
+  BUILDING_SHAPES,
+  DEFAULT_SHAPE,
+  SERVICE_DEF_IDS,
+  SKIP_MESH_DEF_IDS,
+  kitForDef,
+  kitPalette,
+  type BuildingKit,
+  type KitPart,
+  type KitPalette,
+} from './buildingVisuals';
 
 /** Data stored in `mesh.metadata` — only render-safe ids, never sim objects. */
 export interface BuildingPickData {
@@ -53,31 +32,28 @@ export interface BuildingPickData {
   readonly y:          number;
 }
 
-// ── Renderer ──────────────────────────────────────────────────────────────────
+interface PlacedBuilding {
+  instance: InstancedMesh;
+  defId: string;
+  zoneType: ZoneType;
+  variant: 'zone' | 'service' | 'warning';
+}
 
 /**
- * Renders one Box mesh per placed building.
+ * Instanced procedural building kits.
  *
- * Design:
- * - Three shared `StandardMaterial`s (one per zone type) → minimal draw-state changes.
- * - A dedicated material for service buildings (e.g. power plants) and an
- *   "unpowered warning" material (red emissive) for buildings lacking power.
- * - Meshes are stored in a `Map<"x,y", Mesh>`.
- * - Selection is shown by toggling `mesh.showBoundingBox`; the bounding-box renderer
- *   is styled once in the constructor.
- * - No simulation data is stored inside meshes — only the opaque `buildingId` string.
+ * One hidden source mesh per (defId, variant) is baked from kit boxes/cylinders
+ * with vertex colours. Placed buildings are `createInstance` copies so 200 houses
+ * share a handful of draw calls. Unpowered buildings swap to a red-baked source
+ * because instances cannot have their own material.
  */
 export class BuildingRenderer {
   private readonly _scene:    Scene;
   private readonly _shadows:  ShadowGenerator | null;
-  private readonly _meshes:   Map<string, Mesh> = new Map();
-  private readonly _materials: Record<ZoneType, StandardMaterial>;
-  private readonly _serviceMat:  StandardMaterial;
-  private readonly _warningMat:  StandardMaterial;
-  /** Stores the zone type for each placed building so we can restore its material. */
-  private readonly _zoneTypes:   Map<string, ZoneType> = new Map();
-  /** Tracks which tiles currently show the warning (unpowered) material. */
-  private readonly _warnActive:  Set<string> = new Set();
+  private readonly _placed:   Map<string, PlacedBuilding> = new Map();
+  private readonly _sources:  Map<string, Mesh> = new Map();
+  private readonly _kitMat:   StandardMaterial;
+  private readonly _warnMat:  StandardMaterial;
   private _selectedKey: string | null = null;
   private _heights: HeightField | null = null;
 
@@ -85,25 +61,10 @@ export class BuildingRenderer {
     this._scene = scene;
     this._shadows = shadowGenerator;
 
-    // Shared materials — one per zone type.
-    this._materials = {
-      [ZoneType.None]:        this._makeMaterial('bld-none',     new Color3(0.60, 0.60, 0.60)),
-      [ZoneType.Residential]: this._makeMaterial('bld-res',      new Color3(0.40, 0.60, 0.90)),
-      [ZoneType.Commercial]:  this._makeMaterial('bld-com',      new Color3(0.92, 0.78, 0.20)),
-      [ZoneType.Industrial]:  this._makeMaterial('bld-ind',      new Color3(0.68, 0.48, 0.78)),
-      // Teal — visually distinct from residential (blue) and commercial (yellow).
-      [ZoneType.MixedUse]:    this._makeMaterial('bld-mixed',    new Color3(0.20, 0.75, 0.65)),
-    };
+    this._kitMat = this._makeVertexMat('bld-kit');
+    this._warnMat = this._makeVertexMat('bld-kit-warning');
+    this._warnMat.emissiveColor = new Color3(0.28, 0.0, 0.0);
 
-    // Bright orange material for power plants (and other service buildings).
-    this._serviceMat = this._makeMaterial('bld-service', new Color3(1.0, 0.55, 0.0));
-    this._serviceMat.emissiveColor = new Color3(0.4, 0.2, 0.0);
-
-    // Red-emissive warning material shown on buildings that lack power.
-    this._warningMat = this._makeMaterial('bld-warning', new Color3(0.70, 0.20, 0.20));
-    this._warningMat.emissiveColor = new Color3(0.4, 0.0, 0.0);
-
-    // Style the bounding-box renderer used for selection highlights.
     const bbr = scene.getBoundingBoxRenderer();
     bbr.frontColor = new Color3(1.0, 0.95, 0.1);
     bbr.backColor  = new Color3(0.7, 0.65, 0.05);
@@ -113,134 +74,196 @@ export class BuildingRenderer {
     this._heights = heights;
   }
 
-  // ── Public API ─────────────────────────────────────────────────────────────
-
-  /**
-   * Spawn a mesh for the given building instance.
-   * Safe to call multiple times for the same tile — the old mesh is replaced.
-   */
   addBuilding(instance: BuildingInstance, zoneType: ZoneType): void {
-    // Remove any prior mesh on this tile.
     this.removeBuilding(instance.x, instance.y);
 
-    const key   = _tileKey(instance.x, instance.y);
-    const shape = BUILDING_SHAPES[instance.defId] ?? DEFAULT_SHAPE;
+    if (SKIP_MESH_DEF_IDS.has(instance.defId)) return;
 
-    const mesh = MeshBuilder.CreateBox(
-      `building-${key}`,
-      { width: shape.width, height: shape.height, depth: shape.depth },
-      this._scene,
-    );
-
-    // Center the footprint within the tile, sit the base on Y=0.
-    const groundY = this._heights?.tileCenter(instance.x, instance.y) ?? 0;
-    mesh.position = new Vector3(
-      instance.x * TILE_SIZE + TILE_SIZE / 2,
-      groundY + shape.height / 2,
-      instance.y * TILE_SIZE + TILE_SIZE / 2,
-    );
-
-    // Service buildings get their own distinct material.
-    mesh.material = SERVICE_DEF_IDS.has(instance.defId)
-      ? this._serviceMat
-      : (this._materials[zoneType] ?? this._materials[ZoneType.None]);
-
-    // Store only picking metadata — no live sim references.
-    const pickData: BuildingPickData = { buildingId: instance.defId, x: instance.x, y: instance.y };
-    mesh.metadata = pickData;
-    mesh.receiveShadows = true;
-    this._shadows?.addShadowCaster(mesh);
-
-    this._meshes.set(key, mesh);
-    this._zoneTypes.set(key, zoneType);
+    const variant = SERVICE_DEF_IDS.has(instance.defId) ? 'service' : 'zone';
+    this._spawn(instance, zoneType, variant);
   }
 
-  /**
-   * Dispose the mesh for the building at (x, y), if one exists.
-   * Called when a tile is bulldozed.
-   */
   removeBuilding(x: number, y: number): void {
     const key  = _tileKey(x, y);
-    const mesh = this._meshes.get(key);
-    if (!mesh) return;
+    const placed = this._placed.get(key);
+    if (!placed) return;
 
     if (this._selectedKey === key) this._selectedKey = null;
-    mesh.dispose();
-    this._meshes.delete(key);
-    this._zoneTypes.delete(key);
-    this._warnActive.delete(key);
+    placed.instance.dispose();
+    this._placed.delete(key);
   }
 
-  /**
-   * Highlight the building mesh at (x, y) as selected.
-   * Returns the `BuildingPickData` stored on the mesh, or null if no building is there.
-   */
   selectBuilding(x: number, y: number): BuildingPickData | null {
     this.clearSelection();
 
     const key  = _tileKey(x, y);
-    const mesh = this._meshes.get(key);
-    if (!mesh) return null;
+    const placed = this._placed.get(key);
+    if (!placed) return null;
 
-    mesh.showBoundingBox = true;
-    this._selectedKey    = key;
-
-    return mesh.metadata as BuildingPickData;
+    placed.instance.showBoundingBox = true;
+    this._selectedKey = key;
+    return placed.instance.metadata as BuildingPickData;
   }
 
-  /** Remove the selection highlight from the currently selected building, if any. */
   clearSelection(): void {
     if (this._selectedKey !== null) {
-      const prev = this._meshes.get(this._selectedKey);
-      if (prev) prev.showBoundingBox = false;
+      const prev = this._placed.get(this._selectedKey);
+      if (prev) prev.instance.showBoundingBox = false;
       this._selectedKey = null;
     }
   }
 
-  /**
-   * Update the visual warning state for the building at (x, y).
-   *
-   * - `powered = false` → switch to the red warning material.
-   * - `powered = true`  → restore the building's normal material.
-   *
-   * Service buildings (power plants) are never shown with the warning material
-   * because they generate power themselves.
-   */
   updatePowerState(x: number, y: number, powered: boolean): void {
     const key  = _tileKey(x, y);
-    const mesh = this._meshes.get(key);
-    if (!mesh) return;
+    const placed = this._placed.get(key);
+    if (!placed) return;
+    if (SERVICE_DEF_IDS.has(placed.defId)) return;
 
-    const pickData = mesh.metadata as BuildingPickData | null;
-    if (pickData && SERVICE_DEF_IDS.has(pickData.buildingId)) return;
+    const next: 'zone' | 'warning' = powered ? 'zone' : 'warning';
+    if (placed.variant === next) return;
 
-    if (!powered) {
-      if (!this._warnActive.has(key)) {
-        mesh.material = this._warningMat;
-        this._warnActive.add(key);
-      }
-    } else {
-      if (this._warnActive.has(key)) {
-        const zoneType = this._zoneTypes.get(key) ?? ZoneType.None;
-        mesh.material  = this._materials[zoneType] ?? this._materials[ZoneType.None];
-        this._warnActive.delete(key);
-      }
-    }
+    const pick = placed.instance.metadata as BuildingPickData;
+    const selected = this._selectedKey === key;
+    placed.instance.dispose();
+    this._placed.delete(key);
+    this._spawn({ defId: placed.defId, x: pick.x, y: pick.y }, placed.zoneType, next);
+    if (selected) this.selectBuilding(pick.x, pick.y);
   }
 
-  // ── Private helpers ────────────────────────────────────────────────────────
+  private _spawn(
+    instance: BuildingInstance,
+    zoneType: ZoneType,
+    variant: 'zone' | 'service' | 'warning',
+  ): void {
+    const key = _tileKey(instance.x, instance.y);
+    const source = this._sourceFor(instance.defId, zoneType, variant);
+    const mesh = source.createInstance(`building-${key}`);
 
-  private _makeMaterial(name: string, color: Color3): StandardMaterial {
+    const groundY = this._heights?.tileCenter(instance.x, instance.y) ?? 0;
+    mesh.position = new Vector3(
+      instance.x * TILE_SIZE + TILE_SIZE / 2,
+      groundY,
+      instance.y * TILE_SIZE + TILE_SIZE / 2,
+    );
+
+    const pickData: BuildingPickData = { buildingId: instance.defId, x: instance.x, y: instance.y };
+    mesh.metadata = pickData;
+    mesh.useVertexColors = true;
+    mesh.receiveShadows = true;
+
+    this._placed.set(key, { instance: mesh, defId: instance.defId, zoneType, variant });
+  }
+
+  private _sourceFor(
+    defId: string,
+    zoneType: ZoneType,
+    variant: 'zone' | 'service' | 'warning',
+  ): Mesh {
+    const sourceKey = `${defId}:${variant}:${zoneType}`;
+    const cached = this._sources.get(sourceKey);
+    if (cached) return cached;
+
+    const kit = kitForDef(defId);
+    const palette = kitPalette(variant, zoneType);
+    const baked = this._bakeKit(sourceKey, kit, palette);
+    baked.isVisible = false;
+    baked.isPickable = false;
+    baked.useVertexColors = true;
+    baked.material = variant === 'warning' ? this._warnMat : this._kitMat;
+    baked.receiveShadows = true;
+    this._shadows?.addShadowCaster(baked);
+    this._sources.set(sourceKey, baked);
+    return baked;
+  }
+
+  private _bakeKit(name: string, kit: BuildingKit | null, palette: KitPalette): Mesh {
+    const parts = kit?.parts ?? [_fallbackPart(kit)];
+    const meshes: Mesh[] = [];
+    for (let i = 0; i < parts.length; i++) {
+      meshes.push(this._partMesh(`${name}-p${i}`, parts[i], palette));
+    }
+    const merged = Mesh.MergeMeshes(meshes, true, true, undefined, false, false);
+    if (!merged) {
+      return this._partMesh(name, _fallbackPart(kit), palette);
+    }
+    merged.name = name;
+    merged.bakeCurrentTransformIntoVertices();
+    merged.position = Vector3.Zero();
+    merged.rotation = Vector3.Zero();
+    merged.scaling = Vector3.One();
+    return merged;
+  }
+
+  private _partMesh(name: string, part: KitPart, palette: KitPalette): Mesh {
+    let mesh: Mesh;
+    if (part.shape === 'cylinder') {
+      mesh = MeshBuilder.CreateCylinder(name, {
+        diameter: part.w,
+        height: part.h,
+        tessellation: 10,
+      }, this._scene);
+    } else if (part.shape === 'prism') {
+      mesh = MeshBuilder.CreateCylinder(name, {
+        diameter: part.w,
+        height: part.d,
+        tessellation: 3,
+      }, this._scene);
+      mesh.rotation.x = Math.PI / 2;
+      mesh.scaling.z = (part.h * 2) / Math.max(part.w, 0.001);
+    } else {
+      mesh = MeshBuilder.CreateBox(name, {
+        width: part.w,
+        height: part.h,
+        depth: part.d,
+      }, this._scene);
+    }
+    mesh.position = new Vector3(part.x, part.y, part.z);
+    if (part.rx) mesh.rotation.x += part.rx;
+    if (part.ry) mesh.rotation.y += part.ry;
+    if (part.rz) mesh.rotation.z += part.rz;
+    _paintVertices(mesh, palette[part.slot]);
+    mesh.bakeCurrentTransformIntoVertices();
+    return mesh;
+  }
+
+  private _makeVertexMat(name: string): StandardMaterial {
     const mat = new StandardMaterial(name, this._scene);
-    mat.diffuseColor  = color;
-    mat.specularColor = new Color3(0.22, 0.22, 0.22);
+    mat.diffuseColor = Color3.White();
+    mat.specularColor = new Color3(0.18, 0.18, 0.18);
     return mat;
   }
 }
-
-// ── Module-level helper (no closure state) ────────────────────────────────────
 
 function _tileKey(x: number, y: number): string {
   return `${x},${y}`;
 }
 
+function _fallbackPart(kit: BuildingKit | null): KitPart {
+  const shape = kit?.shape ?? DEFAULT_SHAPE;
+  return {
+    shape: 'box',
+    slot: 'body',
+    w: shape.width,
+    h: shape.height,
+    d: shape.depth,
+    x: 0,
+    y: shape.height / 2,
+    z: 0,
+  };
+}
+
+function _paintVertices(mesh: Mesh, color: { r: number; g: number; b: number }): void {
+  const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
+  if (!positions) return;
+  const count = positions.length / 3;
+  const colors = new Array<number>(count * 4);
+  for (let i = 0; i < count; i++) {
+    colors[i * 4]     = color.r;
+    colors[i * 4 + 1] = color.g;
+    colors[i * 4 + 2] = color.b;
+    colors[i * 4 + 3] = 1;
+  }
+  mesh.setVerticesData(VertexBuffer.ColorKind, colors);
+}
+
+export { BUILDING_SHAPES };
