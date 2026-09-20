@@ -31,9 +31,12 @@ import { TrolleyAvenueTool } from '../tools/TrolleyAvenueTool';
 import { ToolController } from '../tools/ToolController';
 import { CameraController } from '../render/CameraController';
 import { Toolbar } from '../ui/Toolbar';
+import { OverlayBar } from '../ui/OverlayBar';
+import { CityMenu } from '../ui/CityMenu';
 import { CameraBar } from '../ui/CameraBar';
 import { CityHUD } from '../ui/CityHUD';
 import { BudgetPanel } from '../ui/BudgetPanel';
+import { formatInspectStatus } from '../ui/inspectStatus';
 import { SaveSystem } from '../save/SaveSystem';
 
 /**
@@ -42,19 +45,22 @@ import { SaveSystem } from '../save/SaveSystem';
  */
 export class App {
   constructor() {
-    const canvas    = document.getElementById('game-canvas');
-    const toolbarEl = document.getElementById('toolbar');
-    const statusEl  = document.getElementById('status-bar');
-    const hudEl     = document.getElementById('city-hud');
-    const budgetEl  = document.getElementById('budget-panel');
-    const cameraEl  = document.getElementById('camera-bar');
+    const canvas     = document.getElementById('game-canvas');
+    const toolbarEl  = document.getElementById('toolbar');
+    const overlayEl  = document.getElementById('overlay-bar');
+    const cityMenuEl = document.getElementById('city-menu');
+    const statusEl   = document.getElementById('status-bar');
+    const hudEl      = document.getElementById('city-hud');
+    const budgetEl   = document.getElementById('budget-panel');
+    const cameraEl   = document.getElementById('camera-bar');
 
     if (
       !(canvas instanceof HTMLCanvasElement) ||
-      !toolbarEl || !statusEl || !hudEl || !budgetEl || !cameraEl
+      !toolbarEl || !overlayEl || !cityMenuEl ||
+      !statusEl || !hudEl || !budgetEl || !cameraEl
     ) {
       throw new Error(
-        'Required DOM elements not found: #game-canvas, #toolbar, #status-bar, #city-hud, #budget-panel, #camera-bar',
+        'Required DOM elements not found: #game-canvas, #toolbar, #overlay-bar, #city-menu, #status-bar, #city-hud, #budget-panel, #camera-bar',
       );
     }
 
@@ -222,17 +228,11 @@ export class App {
       const tile    = sim.getTile(coord.x, coord.y);
       const pickData = buildings.selectBuilding(coord.x, coord.y);
 
-      let info = `Tile (${coord.x}, ${coord.y})  ·  Tool: ${toolController.activeTool.label}` +
-        `  ·  $${sim.stats.money.toLocaleString()}` +
-        `  ·  Pop: ${sim.stats.population}  Jobs: ${sim.stats.jobs}`;
-
-      if (pickData) {
-        info += `  ·  Building: ${pickData.buildingId}`;
-      } else if (tile) {
-        info += `  ·  zone=${tile.zoneType} road=${tile.roadType} lv=${tile.landValue}`;
-      }
-
-      statusEl.textContent = info;
+      statusEl.textContent = formatInspectStatus(
+        toolController.activeTool.label,
+        tile ?? undefined,
+        pickData?.buildingId ?? null,
+      );
     });
 
     picker.onDragEnd(() => toolController.resetDrag());
@@ -243,119 +243,91 @@ export class App {
 
     new CameraBar(cameraEl, cameraController);
 
-    // Power overlay toggle button (separate from the tool buttons).
-    const overlayBtn = document.createElement('button');
-    overlayBtn.id          = 'power-overlay-btn';
-    overlayBtn.textContent = '🔌 Power Overlay: OFF';
-    overlayBtn.addEventListener('click', () => {
-      const next = !powerOverlay.isVisible;
-      powerOverlay.setVisible(next);
-      overlayBtn.textContent = `🔌 Power Overlay: ${next ? 'ON' : 'OFF'}`;
-      overlayBtn.classList.toggle('active', next);
-      if (next) refreshPowerVisuals();
-    });
-    toolbarEl.appendChild(overlayBtn);
+    new OverlayBar(overlayEl, [
+      {
+        id: 'power-overlay-btn',
+        label: 'Power',
+        title: 'Powered vs unpowered tiles',
+        getOn: () => powerOverlay.isVisible,
+        setOn: (next) => {
+          powerOverlay.setVisible(next);
+          if (next) refreshPowerVisuals();
+        },
+      },
+      {
+        id: 'lv-overlay-btn',
+        label: 'Value',
+        title: 'Land value',
+        getOn: () => landValueOverlay.isVisible,
+        setOn: (next) => {
+          landValueOverlay.setVisible(next);
+          if (next) landValueOverlay.refresh(sim.map);
+        },
+      },
+      {
+        id: 'traffic-overlay-btn',
+        label: 'Traffic',
+        title: 'Traffic pressure',
+        getOn: () => trafficOverlay.isVisible,
+        setOn: (next) => {
+          trafficOverlay.setVisible(next);
+          if (next) trafficOverlay.refresh(sim.map);
+        },
+      },
+      {
+        id: 'walkability-overlay-btn',
+        label: 'Walk',
+        title: 'Walkability',
+        getOn: () => walkabilityOverlay.isVisible,
+        setOn: (next) => {
+          walkabilityOverlay.setVisible(next);
+          if (next) walkabilityOverlay.refresh(sim.map);
+        },
+      },
+      {
+        id: 'transit-overlay-btn',
+        label: 'Transit',
+        title: 'Transit access',
+        getOn: () => transitOverlay.isVisible,
+        setOn: (next) => {
+          transitOverlay.setVisible(next);
+          if (next) transitOverlay.refresh(sim.map);
+        },
+      },
+    ]);
 
-    // Land value overlay toggle button.
-    const lvOverlayBtn = document.createElement('button');
-    lvOverlayBtn.id          = 'lv-overlay-btn';
-    lvOverlayBtn.textContent = '🏡 Land Value: OFF';
-    lvOverlayBtn.addEventListener('click', () => {
-      const next = !landValueOverlay.isVisible;
-      landValueOverlay.setVisible(next);
-      lvOverlayBtn.textContent = `🏡 Land Value: ${next ? 'ON' : 'OFF'}`;
-      lvOverlayBtn.classList.toggle('active', next);
-      if (next) landValueOverlay.refresh(sim.map);
-    });
-    toolbarEl.appendChild(lvOverlayBtn);
-
-    // Traffic overlay toggle button.
-    const trafficOverlayBtn = document.createElement('button');
-    trafficOverlayBtn.id          = 'traffic-overlay-btn';
-    trafficOverlayBtn.textContent = '🚗 Traffic: OFF';
-    trafficOverlayBtn.addEventListener('click', () => {
-      const next = !trafficOverlay.isVisible;
-      trafficOverlay.setVisible(next);
-      trafficOverlayBtn.textContent = `🚗 Traffic: ${next ? 'ON' : 'OFF'}`;
-      trafficOverlayBtn.classList.toggle('active', next);
-      if (next) trafficOverlay.refresh(sim.map);
-    });
-    toolbarEl.appendChild(trafficOverlayBtn);
-
-    // Walkability overlay toggle button.
-    const walkOverlayBtn = document.createElement('button');
-    walkOverlayBtn.id          = 'walkability-overlay-btn';
-    walkOverlayBtn.textContent = '🚶 Walkability: OFF';
-    walkOverlayBtn.addEventListener('click', () => {
-      const next = !walkabilityOverlay.isVisible;
-      walkabilityOverlay.setVisible(next);
-      walkOverlayBtn.textContent = `🚶 Walkability: ${next ? 'ON' : 'OFF'}`;
-      walkOverlayBtn.classList.toggle('active', next);
-      if (next) walkabilityOverlay.refresh(sim.map);
-    });
-    toolbarEl.appendChild(walkOverlayBtn);
-
-    // Transit overlay toggle button.
-    const transitOverlayBtn = document.createElement('button');
-    transitOverlayBtn.id          = 'transit-overlay-btn';
-    transitOverlayBtn.textContent = '🚃 Transit: OFF';
-    transitOverlayBtn.addEventListener('click', () => {
-      const next = !transitOverlay.isVisible;
-      transitOverlay.setVisible(next);
-      transitOverlayBtn.textContent = `🚃 Transit: ${next ? 'ON' : 'OFF'}`;
-      transitOverlayBtn.classList.toggle('active', next);
-      if (next) transitOverlay.refresh(sim.map);
-    });
-    toolbarEl.appendChild(transitOverlayBtn);
-
-    // ── Save / Load / New City buttons ───────────────────────────────────────
-    const saveBtn = document.createElement('button');
-    saveBtn.id          = 'save-btn';
-    saveBtn.textContent = '💾 Save';
-    saveBtn.addEventListener('click', () => {
-      SaveSystem.save(sim);
-      statusEl.textContent = 'City saved.';
-    });
-    toolbarEl.appendChild(saveBtn);
-
-    const loadBtn = document.createElement('button');
-    loadBtn.id          = 'load-btn';
-    loadBtn.textContent = '📂 Load';
-    loadBtn.addEventListener('click', () => {
-      const ok = SaveSystem.load(sim);
-      if (ok) {
-        rebuildAllRenderers();
-        hud.update(sim.stats, sim.clock);
-        budgetPanel.update(sim.stats);
-        budgetPanel.syncTaxSliders(sim.stats);
-        statusEl.textContent = 'City loaded.';
-      } else {
-        statusEl.textContent = 'No save found.';
-      }
-    });
-    toolbarEl.appendChild(loadBtn);
-
-    const newCityBtn = document.createElement('button');
-    newCityBtn.id          = 'new-city-btn';
-    newCityBtn.textContent = '🌱 New City';
-    newCityBtn.addEventListener('click', () => {
-      if (!confirm('Start a new city? Unsaved progress will be lost.')) return;
-      SaveSystem.deleteSave();
-      window.location.reload();
-    });
-    toolbarEl.appendChild(newCityBtn);
-
-    // ── City HUD ─────────────────────────────────────────────────────────────
     const hud = new CityHUD(hudEl);
     hud.update(sim.stats, sim.clock);
 
-    // ── Budget panel ─────────────────────────────────────────────────────────
     const budgetPanel = new BudgetPanel(budgetEl);
     budgetPanel.update(sim.stats);
     budgetPanel.onTaxChange((res, com, ind) => {
       sim.stats.resTaxRate = res;
       sim.stats.comTaxRate = com;
       sim.stats.indTaxRate = ind;
+    });
+
+    new CityMenu(cityMenuEl, {
+      onSave: () => {
+        SaveSystem.save(sim);
+        statusEl.textContent = 'City saved.';
+      },
+      onLoad: () => {
+        const ok = SaveSystem.load(sim);
+        if (ok) {
+          rebuildAllRenderers();
+          hud.update(sim.stats, sim.clock);
+          budgetPanel.update(sim.stats);
+          budgetPanel.syncTaxSliders(sim.stats);
+          statusEl.textContent = 'City loaded.';
+        } else {
+          statusEl.textContent = 'No save found.';
+        }
+      },
+      onNewCity: () => {
+        SaveSystem.deleteSave();
+        window.location.reload();
+      },
     });
 
     // ── Periodic HUD refresh (every second) ──────────────────────────────────

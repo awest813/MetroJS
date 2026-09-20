@@ -1,23 +1,20 @@
 import type { CameraController, CameraViewMode } from '../render/CameraController';
 
 const PRESETS: ReadonlyArray<{ mode: CameraViewMode; label: string; hint: string }> = [
-  { mode: 'iso', label: '1 Iso', hint: 'Classic city-builder angle' },
-  { mode: 'top', label: '2 Top', hint: 'Nearly top-down' },
-  { mode: 'orbit', label: '3 Orbit', hint: 'Lower 3D vantage' },
+  { mode: 'iso', label: '1 Iso', hint: 'Classic city-builder angle (key 1)' },
+  { mode: 'top', label: '2 Top', hint: 'Nearly top-down (key 2)' },
+  { mode: 'orbit', label: '3 Orbit', hint: 'Lower 3D vantage (key 3)' },
 ];
 
 /**
- * Camera preset buttons. Owns no sim state.
+ * Camera preset buttons. Hint text lives in titles so it does not duplicate the status bar.
  */
 export class CameraBar {
   constructor(container: HTMLElement, camera: CameraController) {
     container.innerHTML = '';
     container.classList.add('camera-bar');
-
-    const hint = document.createElement('span');
-    hint.className = 'camera-hint';
-    hint.textContent = 'LMB paint · MMB / Alt+LMB / Space+LMB orbit · RMB pan · wheel zoom';
-    container.appendChild(hint);
+    container.setAttribute('role', 'group');
+    container.setAttribute('aria-label', 'Camera view');
 
     const buttons: HTMLButtonElement[] = [];
 
@@ -34,7 +31,9 @@ export class CameraBar {
 
     const sync = (mode: CameraViewMode): void => {
       for (const btn of buttons) {
-        btn.classList.toggle('active', btn.dataset.mode === mode);
+        const on = btn.dataset.mode === mode;
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
       }
     };
 
