@@ -1,62 +1,40 @@
 import { Color3, Color4, Vector3 } from '@babylonjs/core';
 import type { DirectionalLight, HemisphericLight, Scene } from '@babylonjs/core';
 import { MAP_SIZE } from '../data/constants';
+import { daylightPalette, type Rgb } from './skyColors';
+import type { SkyDome } from './SkyDome';
 
 export interface DaylightLights {
   scene: Scene;
   sun: DirectionalLight;
   fill: HemisphericLight;
+  sky?: SkyDome;
 }
 
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
-
-function lerp3(a: Color3, b: Color3, t: number): Color3 {
-  return new Color3(lerp(a.r, b.r, t), lerp(a.g, b.g, t), lerp(a.b, b.b, t));
+function rgb(c: Rgb): Color3 {
+  return new Color3(c.r, c.g, c.b);
 }
 
 /**
- * Aim the existing sun/fill/fog. Does not touch simulation.
+ * Aim the existing sun/fill/fog/sky. Does not touch simulation.
  * 0 = dawn (warm east), 0.5 = noon, 1 = dusk (cool west). Never pitch-black.
  */
 export function applyDaylight(lights: DaylightLights, day: number): void {
-  const t = Math.max(0, Math.min(1, day));
-  const noon = Math.sin(t * Math.PI);
-  const dusk = t;
-  const azimuth = -0.55 + t * 2.6;
-  const height = 0.22 + noon * 1.15;
-  const dir = new Vector3(Math.cos(azimuth), -height, Math.sin(azimuth));
+  const pal = daylightPalette(day);
+  const dir = new Vector3(Math.cos(pal.azimuth), -pal.height, Math.sin(pal.azimuth));
   dir.normalize();
   lights.sun.direction = dir;
   const center = new Vector3(MAP_SIZE / 2, 8, MAP_SIZE / 2);
   lights.sun.position = center.add(dir.scale(-72));
-  lights.sun.intensity = 0.72 + noon * 0.50;
-  const dawnSun = new Color3(1.0, 0.68, 0.42);
-  const noonSun = new Color3(1.0, 0.96, 0.88);
-  const duskSun = new Color3(1.0, 0.62, 0.50);
-  lights.sun.diffuse = lerp3(lerp3(dawnSun, noonSun, noon), duskSun, dusk * (1 - noon));
-  lights.fill.intensity = 0.55 + noon * 0.32;
-  lights.fill.diffuse = new Color3(
-    lerp(0.80, 0.82, noon),
-    lerp(0.62, 0.88, noon),
-    lerp(0.52, 0.78, noon),
-  );
-  lights.fill.groundColor = new Color3(
-    lerp(0.26, 0.32, noon),
-    lerp(0.22, 0.38, noon),
-    lerp(0.24, 0.28, noon),
-  );
+  lights.sun.intensity = pal.sunIntensity;
+  lights.sun.diffuse = rgb(pal.sun);
+  lights.fill.intensity = pal.fillIntensity;
+  lights.fill.diffuse = rgb(pal.fill);
+  lights.fill.groundColor = rgb(pal.fillGround);
 
-  const dawnSky = new Color3(0.58, 0.42, 0.36);
-  const noonSky = new Color3(0.42, 0.58, 0.74);
-  const duskSky = new Color3(0.34, 0.36, 0.55);
-  const sky = lerp3(lerp3(dawnSky, noonSky, noon), duskSky, dusk * (1 - noon * 0.35));
+  const sky = rgb(pal.zenith);
   lights.scene.clearColor = new Color4(sky.r, sky.g, sky.b, 1);
   lights.scene.fogColor = sky;
-  lights.scene.ambientColor = new Color3(
-    lerp(0.16, 0.18, noon),
-    lerp(0.14, 0.20, noon),
-    lerp(0.16, 0.24, noon),
-  );
+  lights.scene.ambientColor = rgb(pal.ambient);
+  lights.sky?.setSky(pal.zenith, pal.horizon);
 }

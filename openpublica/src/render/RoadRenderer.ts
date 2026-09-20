@@ -1,12 +1,12 @@
 import {
   Scene,
   MeshBuilder,
-  StandardMaterial,
   Color3,
   Mesh,
   Vector3,
   ShadowGenerator,
   TransformNode,
+  PBRMaterial,
 } from '@babylonjs/core';
 import type { CityMap } from '../sim/CityMap';
 import { RoadType } from '../sim/CityTile';
@@ -22,6 +22,7 @@ import {
   type RoadPiece,
   type RoadPieceKind,
 } from './roadLayout';
+import { coloredPbr } from './pbrSurfaces';
 
 /** Extra Y so the deck sits on the heightfield without z-fighting. */
 export const ROAD_DECK_LIFT = 0.03;
@@ -42,19 +43,16 @@ export class RoadRenderer {
     this._scene = scene;
     this._shadows = shadowGenerator;
 
-    const street = this._mat('road-street', new Color3(0.22, 0.23, 0.25), new Color3(0.16, 0.16, 0.16));
-    street.ambientColor = new Color3(0.10, 0.10, 0.11);
-    const highway = this._mat('road-highway', new Color3(0.16, 0.17, 0.18), new Color3(0.10, 0.10, 0.10));
-    highway.ambientColor = new Color3(0.08, 0.08, 0.08);
-    const trolley = this._mat('road-trolley', new Color3(0.58, 0.32, 0.18), new Color3(0.16, 0.08, 0.04));
-    trolley.ambientColor = new Color3(0.22, 0.12, 0.08);
-    const curb = this._mat('road-curb', new Color3(0.48, 0.47, 0.45), new Color3(0.06, 0.06, 0.05));
-    const mark = this._mat('road-mark', new Color3(0.95, 0.82, 0.22), new Color3(0.28, 0.22, 0.06));
+    const street = this._mat('road-street', new Color3(0.22, 0.23, 0.25), 0.86);
+    const highway = this._mat('road-highway', new Color3(0.16, 0.17, 0.18), 0.78);
+    const trolley = this._mat('road-trolley', new Color3(0.58, 0.32, 0.18), 0.82);
+    const curb = this._mat('road-curb', new Color3(0.48, 0.47, 0.45), 0.90);
+    const mark = this._mat('road-mark', new Color3(0.95, 0.82, 0.22), 0.48);
     mark.emissiveColor = new Color3(0.12, 0.09, 0.02);
-    const walk = this._mat('road-walk', new Color3(0.88, 0.88, 0.86), new Color3(0.12, 0.12, 0.12));
-    const rail = this._mat('road-rail', new Color3(0.62, 0.64, 0.68), new Color3(0.45, 0.45, 0.48));
+    const walk = this._mat('road-walk', new Color3(0.88, 0.88, 0.86), 0.94);
+    const rail = this._mat('road-rail', new Color3(0.62, 0.64, 0.68), 0.38, 0.55);
     rail.emissiveColor = new Color3(0.05, 0.05, 0.06);
-    const tie = this._mat('road-tie', new Color3(0.28, 0.16, 0.09), new Color3(0.04, 0.03, 0.02));
+    const tie = this._mat('road-tie', new Color3(0.28, 0.16, 0.09), 0.88);
 
     this._src = {
       pad: this._unit('road-src-street', street),
@@ -197,7 +195,7 @@ export class RoadRenderer {
     return this._streetDeck;
   }
 
-  private _unit(name: string, mat: StandardMaterial): Mesh {
+  private _unit(name: string, mat: PBRMaterial): Mesh {
     const mesh = MeshBuilder.CreateBox(name, { width: 1, height: 1, depth: 1 }, this._scene);
     mesh.material = mat;
     mesh.isVisible = false;
@@ -206,11 +204,7 @@ export class RoadRenderer {
     return mesh;
   }
 
-  private _mat(name: string, diffuse: Color3, specular: Color3): StandardMaterial {
-    const mat = new StandardMaterial(name, this._scene);
-    mat.diffuseColor = diffuse;
-    mat.specularColor = specular;
-    mat.ambientColor = new Color3(0.22, 0.22, 0.22);
-    return mat;
+  private _mat(name: string, albedo: Color3, roughness: number, metallic = 0): PBRMaterial {
+    return coloredPbr(name, this._scene, albedo, roughness, metallic);
   }
 }

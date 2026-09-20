@@ -3,8 +3,6 @@ import {
   Mesh,
   VertexData,
   VertexBuffer,
-  StandardMaterial,
-  Color3,
   ShadowGenerator,
 } from '@babylonjs/core';
 import type { CityMap } from '../sim/CityMap';
@@ -12,6 +10,7 @@ import type { CityTile } from '../sim/CityTile';
 import { tileCornerColors } from '../data/cityTileColors';
 import { TILE_SIZE } from '../data/constants';
 import { HeightField, writeSlopedQuad } from '../sim/HeightField';
+import { vertexColorPbr } from './pbrSurfaces';
 
 /** Name of the terrain mesh — used by TilePicker to identify hits. */
 export const TERRAIN_MESH_NAME = 'terrain';
@@ -90,10 +89,7 @@ export class TerrainRenderer {
     const mesh = new Mesh(TERRAIN_MESH_NAME, this._scene);
     vertexData.applyToMesh(mesh, true);
 
-    const mat = new StandardMaterial('terrain-mat', this._scene);
-    mat.specularColor = new Color3(0.08, 0.08, 0.08);
-    mat.diffuseColor = Color3.White();
-    mat.ambientColor = new Color3(0.35, 0.35, 0.35);
+    const mat = vertexColorPbr('terrain-mat', this._scene, 0.92);
     mat.backFaceCulling = false;
     mesh.material = mat;
     mesh.receiveShadows = true;

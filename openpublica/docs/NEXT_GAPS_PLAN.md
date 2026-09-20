@@ -13,7 +13,7 @@ The city is already a **perspective 3D WebGL city**, not an orthographic postcar
 
 1. **City-health simulation** the HUD pretends to care about but cannot yet play (crime, fire, evaluation, density).
 2. **Honest player feedback** when growth stalls or the city is sick.
-3. **Presentation depth** that was deferred on purpose (PBR/sky/GLB/SSAO).
+3. **Presentation depth** leftover after C1–C2 (optional GLB/SSAO). Untextured PBR + sky dome are shipped.
 4. **Coordinator debt** (`App.ts` still constructs the whole game).
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
@@ -78,8 +78,8 @@ Buildings **do** empty after sustained neglect. Status is city-local (HUD adviso
 
 | Slice | What to ship | Must not |
 |---|---|---|
-| C1 Materials | Untextured PBR colours (roughness) on terrain, kits, roads, water | Micropolis sheets as albedo |
-| C2 Sky | Simple sky/horizon (dome or gradient mesh), keep fog; daylight still drives it | Full atmosphere / SSAO in C2 |
+| C1 Materials **shipped** | Untextured PBR colours (roughness) on terrain, kits, roads, water, trees, traffic | Micropolis sheets as albedo |
+| C2 Sky **shipped** | Inverted sky dome, vertex horizon→zenith; fog + sun slider still drive it | Full atmosphere / SSAO in C2 |
 | C3 Terrain read | Slight grass/dirt variation already from simplex; optional skirt on the city mesh | Change lake topology |
 | C4 GLB (optional) | `@babylonjs/loaders` + `visualRef` + `ASSET_LICENSE.md`; procedural fallback | EA-looking kits |
 | C5 PostFX | SSAO/FXAA only after a filled-city frame-time check on High quality | Always-on SSAO |
@@ -118,10 +118,10 @@ Unchanged from the 3D plan:
 4. ~~**Highways + water towers** (A6).~~ Shipped: Highway tool, Water HUD/overlay, dry-lots advisory.
 5. ~~**Zoning plats + downtown** (B3).~~ Shipped: Dezone, hard empty-lot colours, C/M land value near housing.
 6. ~~**Degradation** (B2).~~ Shipped: four stressed months then downgrade/leave; HUD emptying advisory.
-7. **PBR + sky** (C1–C2) — visual, no sim.
+7. ~~**PBR + sky** (C1–C2).~~ Shipped: metallic-roughness colours (low IBL) + fog-matching sky dome.
 8. **App.ts split** (D2) whenever the next feature would add another 80 lines to the constructor.
 
-GLB (C4) and SSAO (C5) stay optional after C1–C2.
+GLB (C4) and SSAO (C5) stay optional.
 
 ---
 

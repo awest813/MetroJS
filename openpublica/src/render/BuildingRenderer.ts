@@ -1,13 +1,13 @@
 import {
   Scene,
   MeshBuilder,
-  StandardMaterial,
   Color3,
   Mesh,
   Vector3,
   ShadowGenerator,
   VertexBuffer,
   InstancedMesh,
+  PBRMaterial,
 } from '@babylonjs/core';
 import type { BuildingInstance } from '../sim/BuildingInstance';
 import { ZoneType } from '../sim/CityTile';
@@ -26,7 +26,7 @@ import {
   type BuildingKit,
   type KitPart,
   type KitPalette,
-} from './buildingVisuals';
+import { vertexColorPbr } from './pbrSurfaces';
 
 type KitVariant = 'zone' | 'service' | 'civic' | 'fire' | 'water' | 'warning';
 
@@ -57,8 +57,8 @@ export class BuildingRenderer {
   private readonly _shadows:  ShadowGenerator | null;
   private readonly _placed:   Map<string, PlacedBuilding> = new Map();
   private readonly _sources:  Map<string, Mesh> = new Map();
-  private readonly _kitMat:   StandardMaterial;
-  private readonly _warnMat:  StandardMaterial;
+  private readonly _kitMat:   PBRMaterial;
+  private readonly _warnMat:  PBRMaterial;
   private _selectedKey: string | null = null;
   private _heights: HeightField | null = null;
 
@@ -230,11 +230,8 @@ export class BuildingRenderer {
     return mesh;
   }
 
-  private _makeVertexMat(name: string): StandardMaterial {
-    const mat = new StandardMaterial(name, this._scene);
-    mat.diffuseColor = Color3.White();
-    mat.specularColor = new Color3(0.18, 0.18, 0.18);
-    return mat;
+  private _makeVertexMat(name: string): PBRMaterial {
+    return vertexColorPbr(name, this._scene, 0.72);
   }
 }
 

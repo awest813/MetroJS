@@ -1,13 +1,14 @@
 import {
   Scene,
   MeshBuilder,
-  StandardMaterial,
   Color3,
   Mesh,
   Vector3,
+  PBRMaterial,
 } from '@babylonjs/core';
 import { MAP_SIZE } from '../data/constants';
 import { WATER_SURFACE_Y } from '../sim/HeightField';
+import { coloredPbr } from './pbrSurfaces';
 
 export const WATER_MESH_NAME = 'water';
 
@@ -28,11 +29,10 @@ export class WaterRenderer {
     this._mesh.receiveShadows = true;
     this._mesh.isPickable = false;
 
-    const mat = new StandardMaterial('water-mat', scene);
-    mat.diffuseColor = new Color3(0.08, 0.42, 0.62);
-    mat.specularColor = new Color3(0.70, 0.85, 0.95);
-    mat.emissiveColor = new Color3(0.03, 0.08, 0.12);
+    const mat = coloredPbr('water-mat', scene, new Color3(0.08, 0.42, 0.62), 0.14, 0.08);
     mat.alpha = 0.66;
+    mat.transparencyMode = PBRMaterial.PBRMATERIAL_ALPHABLEND;
+    mat.emissiveColor = new Color3(0.03, 0.08, 0.12);
     mat.backFaceCulling = false;
     this._mesh.material = mat;
   }

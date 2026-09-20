@@ -399,7 +399,7 @@ That single PR proves the 3D camera without committing to an art pipeline. Phase
 
 Shipped in `openpublica/`: perspective camera + sun/shadows, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, audio, minimap/sun/quality, city/settings chrome, MIT simplex hills.
 
-**What to do next** is in [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md): city-health (density → police/crime → fire → evaluation), advisory/degradation, then optional PBR/sky/GLB/SSAO.
+**What to do next** is in [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md): App.ts split (D2), optional GLB/SSAO. City-health, degradation, untextured PBR, and the sky dome are already in the tree.
 
 Dead OpenPublica `GameMap` / `TileType` board files were removed after A–H. Live map is `CityMap`.
 

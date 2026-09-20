@@ -1,7 +1,6 @@
 import {
   Scene,
   MeshBuilder,
-  StandardMaterial,
   Color3,
   Mesh,
   Vector3,
@@ -16,6 +15,7 @@ import type { HeightField } from '../sim/HeightField';
 import { roadHeading, roadNeighbors } from '../sim/roadConnections';
 import { connectedCardinals } from './roadLayout';
 import { parkTreeSlots, streetTreeSlot, type TreeSlot } from './vegetationLayout';
+import { coloredPbr } from './pbrSurfaces';
 
 interface PlantedTile {
   meshes: InstancedMesh[];
@@ -37,14 +37,8 @@ export class VegetationRenderer {
   constructor(scene: Scene, shadowGenerator: ShadowGenerator | null = null) {
     this._shadows = shadowGenerator;
 
-    const trunkMat = new StandardMaterial('veg-trunk', scene);
-    trunkMat.diffuseColor = new Color3(0.28, 0.16, 0.08);
-    trunkMat.specularColor = new Color3(0.05, 0.04, 0.03);
-
-    const canopyMat = new StandardMaterial('veg-canopy', scene);
-    canopyMat.diffuseColor = new Color3(0.10, 0.32, 0.12);
-    canopyMat.specularColor = new Color3(0.04, 0.06, 0.03);
-    canopyMat.ambientColor = new Color3(0.08, 0.14, 0.06);
+    const trunkMat = coloredPbr('veg-trunk', scene, new Color3(0.28, 0.16, 0.08), 0.88);
+    const canopyMat = coloredPbr('veg-canopy', scene, new Color3(0.10, 0.32, 0.12), 0.90);
 
     this._trunkSrc = MeshBuilder.CreateCylinder('veg-trunk-src', {
       diameter: 0.09,

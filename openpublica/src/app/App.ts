@@ -131,8 +131,8 @@ export class App {
     allTools.slice(1).forEach((t) => toolController.register(t));
 
     // ── Babylon.js renderer ──────────────────────────────────────────────────
-    const { scene, engine, camera, sun, fill, shadowGenerator } = createScene(canvas);
-    applyDaylight({ scene, sun, fill }, readStoredSun());
+    const { scene, engine, camera, sun, fill, shadowGenerator, sky } = createScene(canvas);
+    applyDaylight({ scene, sun, fill, sky }, readStoredSun());
     const cameraController = new CameraController(canvas, camera);
 
     const terrain      = new TerrainRenderer(scene, shadowGenerator);
@@ -421,7 +421,7 @@ export class App {
     });
     new SettingsPanel(settingsEl, {
       audio,
-      onSun: (day) => applyDaylight({ scene, sun, fill }, day),
+      onSun: (day) => applyDaylight({ scene, sun, fill, sky }, day),
       onQuality: applyQuality,
     });
 

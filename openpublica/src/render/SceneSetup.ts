@@ -6,12 +6,13 @@ import {
   DirectionalLight,
   ShadowGenerator,
   MeshBuilder,
-  StandardMaterial,
   Vector3,
   Color3,
   Color4,
 } from '@babylonjs/core';
 import { MAP_SIZE } from '../data/constants';
+import { coloredPbr } from './pbrSurfaces';
+import { SkyDome } from './SkyDome';
 
 export interface SceneBundle {
   engine: Engine;
@@ -20,6 +21,7 @@ export interface SceneBundle {
   sun: DirectionalLight;
   fill: HemisphericLight;
   shadowGenerator: ShadowGenerator;
+  sky: SkyDome;
 }
 
 /**
@@ -65,6 +67,8 @@ export function createScene(canvas: HTMLCanvasElement): SceneBundle {
   shadowGenerator.bias = 0.0008;
   shadowGenerator.normalBias = 0.02;
 
+  const skyDome = new SkyDome(scene);
+
   const ground = MeshBuilder.CreateGround(
     'world-ground',
     { width: MAP_SIZE * 6, height: MAP_SIZE * 6 },
@@ -73,12 +77,10 @@ export function createScene(canvas: HTMLCanvasElement): SceneBundle {
   ground.position = new Vector3(MAP_SIZE / 2, -0.9, MAP_SIZE / 2);
   ground.isPickable = false;
   ground.receiveShadows = true;
-  const groundMat = new StandardMaterial('world-ground-mat', scene);
-  groundMat.diffuseColor = new Color3(0.11, 0.16, 0.14);
-  groundMat.specularColor = Color3.Black();
+  const groundMat = coloredPbr('world-ground-mat', scene, new Color3(0.11, 0.16, 0.14), 0.96, 0);
   ground.material = groundMat;
 
   engine.runRenderLoop(() => scene.render());
 
-  return { engine, scene, camera, sun, fill, shadowGenerator };
+  return { engine, scene, camera, sun, fill, shadowGenerator, sky: skyDome };
 }

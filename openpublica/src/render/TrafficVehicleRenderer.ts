@@ -1,7 +1,6 @@
 import {
   Scene,
   MeshBuilder,
-  StandardMaterial,
   Color3,
   Mesh,
   Vector3,
@@ -13,6 +12,7 @@ import { TILE_SIZE } from '../data/constants';
 import type { HeightField } from '../sim/HeightField';
 import { roadProfile } from '../sim/roadConnections';
 import { ROAD_DECK_LIFT } from './RoadRenderer';
+import { coloredPbr } from './pbrSurfaces';
 import {
   BASE_CAR_SPEED,
   BASE_TROLLEY_SPEED,
@@ -82,9 +82,7 @@ export class TrafficVehicleRenderer {
     this._shadows = shadowGenerator;
 
     this._carSources = CAR_COLORS.map((color, i) => {
-      const mat = new StandardMaterial(`traffic-car-mat-${i}`, scene);
-      mat.diffuseColor = color;
-      mat.specularColor = new Color3(0.35, 0.35, 0.35);
+      const mat = coloredPbr(`traffic-car-mat-${i}`, scene, color, 0.42, 0.18);
       const body = MeshBuilder.CreateBox(`traffic-car-body-src-${i}`, {
         width: CAR_WIDTH, height: CAR_HEIGHT, depth: CAR_DEPTH,
       }, scene);
@@ -103,9 +101,7 @@ export class TrafficVehicleRenderer {
       return { body, cabin };
     });
 
-    const trolleyMat = new StandardMaterial('traffic-trolley-mat', scene);
-    trolleyMat.diffuseColor = new Color3(0.55, 0.16, 0.14);
-    trolleyMat.specularColor = new Color3(0.28, 0.22, 0.18);
+    const trolleyMat = coloredPbr('traffic-trolley-mat', scene, new Color3(0.55, 0.16, 0.14), 0.48, 0.12);
     trolleyMat.emissiveColor = new Color3(0.06, 0.02, 0.01);
 
     this._trolleyBody = MeshBuilder.CreateBox('traffic-trolley-body-src', {
@@ -116,9 +112,7 @@ export class TrafficVehicleRenderer {
     this._trolleyBody.isPickable = false;
     this._shadows?.addShadowCaster(this._trolleyBody);
 
-    const cabinMat = new StandardMaterial('traffic-trolley-cabin-mat', scene);
-    cabinMat.diffuseColor = new Color3(0.78, 0.74, 0.62);
-    cabinMat.specularColor = new Color3(0.4, 0.4, 0.38);
+    const cabinMat = coloredPbr('traffic-trolley-cabin-mat', scene, new Color3(0.78, 0.74, 0.62), 0.36, 0.08);
     this._trolleyCabin = MeshBuilder.CreateBox('traffic-trolley-cabin-src', {
       width: TROLLEY_WIDTH * 0.88, height: TROLLEY_CABIN_HEIGHT, depth: TROLLEY_DEPTH * 0.72,
     }, scene);
