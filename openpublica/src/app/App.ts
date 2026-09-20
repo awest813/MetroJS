@@ -1,20 +1,9 @@
 import { createScene } from '../render/SceneSetup';
-import { TerrainRenderer } from '../render/TerrainRenderer';
-import { BuildingRenderer } from '../render/BuildingRenderer';
-import { OverlayRenderer } from '../render/OverlayRenderer';
 import type { OverlayMode } from '../render/overlayColors';
-import { TrafficVehicleRenderer } from '../render/TrafficVehicleRenderer';
-import { RoadRenderer } from '../render/RoadRenderer';
-import { VegetationRenderer } from '../render/VegetationRenderer';
-import { SmokeRenderer } from '../render/SmokeRenderer';
-import { TilePicker } from '../render/TilePicker';
-import { HighlightRenderer } from '../render/HighlightRenderer';
-import { WaterRenderer } from '../render/WaterRenderer';
 import { CitySim } from '../sim/CitySim';
 import { RoadType } from '../sim/CityTile';
 import { generateTerrain } from '../sim/TerrainGenerator';
 import { HeightField } from '../sim/HeightField';
-import { tileKey } from '../sim/ZoneGrowthSystem';
 import { MAP_SIZE } from '../data/constants';
 import { InspectTool } from '../tools/InspectTool';
 import { RoadTool } from '../tools/RoadTool';
@@ -36,12 +25,10 @@ import { ToolController } from '../tools/ToolController';
 import { CameraController } from '../render/CameraController';
 import { Toolbar } from '../ui/Toolbar';
 import { OverlayBar } from '../ui/OverlayBar';
-import { CityMenu } from '../ui/CityMenu';
 import { CameraBar } from '../ui/CameraBar';
 import { CityHUD } from '../ui/CityHUD';
 import { BudgetPanel } from '../ui/BudgetPanel';
 import { formatInspectStatus } from '../ui/inspectStatus';
-import { SaveSystem } from '../save/SaveSystem';
 import { SpeedBar, type SimSpeed } from '../ui/SpeedBar';
 import { LookPanel } from '../ui/LookPanel';
 import { SettingsPanel } from '../ui/SettingsPanel';
@@ -51,10 +38,12 @@ import { BANKRUPT_VOICE, FAIL_VOICE, GROWTH_VOICE, sfxForTool } from '../audio/v
 import { explainToolFailure } from '../tools/toolFeedback';
 import { formatGrowthHint } from '../sim/zoneGrowthHints';
 import { applyDaylight } from '../render/daylight';
+import { CityView } from './CityView';
+import { mountCityMenu } from './cityFile';
 
 /**
  * Top-level application coordinator.
- * Wires the simulation, renderer, tools, and UI together.
+ * Wires the simulation, CityView, tools, and UI together.
  */
 export class App {
   constructor() {
@@ -79,12 +68,10 @@ export class App {
       );
     }
 
-    // ── Simulation (no Babylon dependency) ──────────────────────────────────
     const sim = CitySim.createCity(MAP_SIZE, MAP_SIZE);
     generateTerrain(sim.map);
-    let heights = HeightField.fromMap(sim.map);
+    const heights = HeightField.fromMap(sim.map);
 
-    // ── Audio (Web Audio only; silent until a pointer/key gesture) ──────────
     const audio = new AudioBus();
     const unlockAudio = (): void => {
       audio.unlock();
@@ -92,7 +79,6 @@ export class App {
     window.addEventListener('pointerdown', unlockAudio, { capture: true });
     window.addEventListener('keydown', unlockAudio, { capture: true });
 
-    // ── Tools ────────────────────────────────────────────────────────────────
     const inspectTool       = new InspectTool();
     const roadTool          = new RoadTool();
     const highwayTool       = new RoadTool(RoadType.Highway);
@@ -130,147 +116,32 @@ export class App {
     const toolController = new ToolController(inspectTool);
     allTools.slice(1).forEach((t) => toolController.register(t));
 
-    // ── Babylon.js renderer ──────────────────────────────────────────────────
     const { scene, engine, camera, sun, fill, shadowGenerator, sky } = createScene(canvas);
     applyDaylight({ scene, sun, fill, sky }, readStoredSun());
     const cameraController = new CameraController(canvas, camera);
-
-    const terrain      = new TerrainRenderer(scene, shadowGenerator);
-    terrain.buildCityGrid(sim.map, heights);
-    new WaterRenderer(scene);
-
-    const buildings    = new BuildingRenderer(scene, shadowGenerator);
-    buildings.setHeightField(heights);
-    const overlay = new OverlayRenderer(scene);
-    overlay.build(sim.map, heights);
-    const trafficVehicles = new TrafficVehicleRenderer(scene, shadowGenerator);
-    trafficVehicles.rebuildGraph(sim.map, heights);
-    const roads = new RoadRenderer(scene, shadowGenerator);
-    roads.rebuild(sim.map, heights);
-    const vegetation = new VegetationRenderer(scene, shadowGenerator);
-    vegetation.rebuild(sim.map, heights);
-    const smoke = new SmokeRenderer(scene);
-    smoke.rebuild(sim.map, heights);
+    const view = new CityView(scene, cameraController, shadowGenerator, sim, heights);
 
     const applyQuality = (level: QualityLevel): void => {
-      const high = level === 'high';
-      scene.shadowsEnabled = high;
-      smoke.setEnabled(high);
-      if (vegetation.setStreetTrees(high)) {
-        vegetation.rebuild(sim.map, heights);
-      }
+      scene.shadowsEnabled = level === 'high';
+      view.applyQuality(level, sim);
     };
     applyQuality(readStoredQuality());
 
-    const highlight = new HighlightRenderer(scene);
-    const picker    = new TilePicker(scene, cameraController);
+    toolController.onTileChanged((coord) => view.syncPaintedTile(sim, coord));
 
-    // ── Helper: refresh building warning states and power overlay ────────────
-    const refreshPowerVisuals = () => {
-      sim.map.forEach((tile) => {
-        buildings.updatePowerState(tile.x, tile.y, tile.powered);
-      });
-      overlay.refresh(sim.map);
-    };
-
-    // ── Helper: rebuild all renderers from current sim state (used after load) ─
-    const rebuildAllRenderers = () => {
-      heights = HeightField.fromMap(sim.map);
-      buildings.setHeightField(heights);
-      terrain.buildCityGrid(sim.map, heights);
-      overlay.rebuild(sim.map, heights);
-      roads.rebuild(sim.map, heights);
-      vegetation.setHeightField(heights);
-      vegetation.rebuild(sim.map, heights);
-      smoke.rebuild(sim.map, heights);
-
-      sim.map.forEach((tile) => buildings.removeBuilding(tile.x, tile.y));
-      for (const instance of sim.growth.buildings.values()) {
-        const tile = sim.getTile(instance.x, instance.y);
-        if (tile) buildings.addBuilding(instance, tile.zoneType);
-      }
-
-      refreshPowerVisuals();
-      trafficVehicles.rebuildGraph(sim.map, heights);
-      redrawLook();
-    };
-
-    // ── Renderer reacts to tile mutations via ToolController callback ─────────
-    toolController.onTileChanged((coord) => {
-      const tile = sim.getTile(coord.x, coord.y);
-      if (tile) {
-        terrain.updateCityTile(tile);
-        roads.updateAround(sim.map, coord);
-        vegetation.updateAround(sim.map, coord);
-        trafficVehicles.rebuildGraph(sim.map, heights);
-        if (tile.buildingId === 'small_power_plant' || tile.buildingId === null) {
-          smoke.rebuild(sim.map, heights);
-        }
-        if (tile.buildingId === null) {
-          buildings.removeBuilding(coord.x, coord.y);
-        } else {
-          // Service building placed — add its mesh and refresh power visuals.
-          const instance = sim.growth.buildings.get(tileKey(coord.x, coord.y));
-          if (instance) {
-            buildings.addBuilding(instance, tile.zoneType);
-          }
-          refreshPowerVisuals();
-        }
-        redrawLook();
-      }
-    });
-
-    // ── Growth system updates renderer when buildings appear ─────────────────
     sim.onGrowth = (changed) => {
-      let grew = false;
-      for (const coord of changed) {
-        const tile = sim.getTile(coord.x, coord.y);
-        if (!tile) continue;
-        terrain.updateCityTile(tile);
-        if (tile.buildingId !== null) {
-          const instance = sim.growth.buildings.get(tileKey(coord.x, coord.y));
-          if (instance) {
-            buildings.addBuilding(instance, tile.zoneType);
-            grew = true;
-          }
-        } else {
-          buildings.removeBuilding(coord.x, coord.y);
-        }
-      }
-      if (grew) audio.play(GROWTH_VOICE, 'growth');
-      if (changed.length > 0) redrawLook();
+      if (view.syncGrowth(sim, changed)) audio.play(GROWTH_VOICE, 'growth');
     };
-
-    // ── Power system fires when coverage changes (monthly or on placement) ───
-    sim.onPowerChanged = () => {
-      refreshPowerVisuals();
-    };
-
-    // ── Land value system fires when values change (monthly or on park placement)
-    sim.onLandValueChanged = () => {
-      overlay.refresh(sim.map);
-    };
-
-    // ── Traffic system fires monthly when pressure is recalculated ────────────
+    sim.onPowerChanged = () => view.refreshPowerVisuals(sim);
+    sim.onLandValueChanged = () => view.overlay.refresh(sim.map);
     sim.onTrafficChanged = () => {
-      overlay.refresh(sim.map);
-      trafficVehicles.syncDensity(sim.map);
-      vegetation.refreshStreets(sim.map);
+      view.overlay.refresh(sim.map);
+      view.traffic.syncDensity(sim.map);
+      view.vegetation.refreshStreets(sim.map);
     };
-
-    // ── Walkability system fires monthly when scores are recalculated ─────────
-    sim.onWalkabilityChanged = () => {
-      overlay.refresh(sim.map);
-    };
-
-    // ── Transit system fires monthly when access scores are recalculated ──────
-    sim.onTransitChanged = () => {
-      overlay.refresh(sim.map);
-    };
-
-    sim.onCrimeChanged = () => {
-      overlay.refresh(sim.map);
-    };
+    sim.onWalkabilityChanged = () => view.overlay.refresh(sim.map);
+    sim.onTransitChanged = () => view.overlay.refresh(sim.map);
+    sim.onCrimeChanged = () => view.overlay.refresh(sim.map);
 
     let simSpeed: SimSpeed = 2;
 
@@ -279,19 +150,18 @@ export class App {
       look.minimap.setMarker(camera.target.x, camera.target.z);
       look.redraw(sim.map);
     };
+    view.onRedraw = redrawLook;
     redrawLook();
 
     look.minimap.onJump((x, y) => {
-      cameraController.lookAtTile(x, y, heights.tileCenter(x, y));
-      highlight.show({ x, y }, heights);
+      cameraController.lookAtTile(x, y, view.heights.tileCenter(x, y));
+      view.highlight.show({ x, y }, view.heights);
       redrawLook();
     });
 
     cameraController.onModeChange(() => redrawLook());
+    view.picker.onDragEnd(() => toolController.resetDrag());
 
-    picker.onDragEnd(() => toolController.resetDrag());
-
-    // ── Toolbar UI ───────────────────────────────────────────────────────────
     const toolbar = new Toolbar(toolbarEl, toolController);
     toolbar.build(allTools);
 
@@ -310,12 +180,12 @@ export class App {
       id,
       label,
       title,
-      getOn: () => overlay.isMode(mode),
+      getOn: () => view.overlay.isMode(mode),
       setOn: (next: boolean) => {
         if (next) {
-          overlay.setMode(mode, sim.map);
-        } else if (overlay.isMode(mode)) {
-          overlay.setMode(null);
+          view.overlay.setMode(mode, sim.map);
+        } else if (view.overlay.isMode(mode)) {
+          view.overlay.setMode(null);
         }
       },
     });
@@ -347,7 +217,7 @@ export class App {
       const dt = engine.getDeltaTime() / 1000;
       if (simSpeed > 0) {
         sim.tick(dt * simSpeed);
-        trafficVehicles.update(dt);
+        view.traffic.update(dt);
         if (sim.stats.bankruptcyWarning && !wasBankrupt) {
           audio.play(BANKRUPT_VOICE, 'warn');
         }
@@ -365,14 +235,14 @@ export class App {
       hud.update(sim.stats, sim.clock);
     });
 
-    picker.onPick((coord, via) => {
+    view.picker.onPick((coord, via) => {
       const result = toolController.applyToTile(coord, sim);
-      highlight.show(coord, heights);
+      view.highlight.show(coord, view.heights);
       hud.update(sim.stats, sim.clock);
       budgetPanel.update(sim.stats);
 
       const tile     = sim.getTile(coord.x, coord.y);
-      const pickData = buildings.selectBuilding(coord.x, coord.y);
+      const pickData = view.buildings.selectBuilding(coord.x, coord.y);
       const tool     = toolController.activeTool;
 
       if (result === 'repeat') return;
@@ -397,35 +267,13 @@ export class App {
       );
     });
 
-    new CityMenu(cityMenuEl, {
-      hasSave: SaveSystem.hasSave(),
-      onSave: () => {
-        SaveSystem.save(sim);
-        statusEl.textContent = 'City saved in this browser.';
-      },
-      onLoad: () => {
-        const ok = SaveSystem.load(sim);
-        if (ok) {
-          rebuildAllRenderers();
-          hud.update(sim.stats, sim.clock);
-          budgetPanel.update(sim.stats);
-          budgetPanel.syncTaxSliders(sim.stats);
-          statusEl.textContent = 'City loaded.';
-        } else {
-          statusEl.textContent = 'No save found.';
-        }
-      },
-      onNewCity: () => {
-        window.location.reload();
-      },
-    });
+    mountCityMenu(cityMenuEl, { sim, view, hud, budget: budgetPanel, statusEl });
     new SettingsPanel(settingsEl, {
       audio,
       onSun: (day) => applyDaylight({ scene, sun, fill, sky }, day),
       onQuality: applyQuality,
     });
 
-    // ── Periodic HUD refresh (every second) ──────────────────────────────────
     setInterval(() => {
       hud.update(sim.stats, sim.clock);
       budgetPanel.update(sim.stats);

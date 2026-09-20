@@ -14,7 +14,7 @@ The city is already a **perspective 3D WebGL city**, not an orthographic postcar
 1. **City-health simulation** the HUD pretends to care about but cannot yet play (crime, fire, evaluation, density).
 2. **Honest player feedback** when growth stalls or the city is sick.
 3. **Presentation depth** leftover after C1–C2 (optional GLB/SSAO). Untextured PBR + sky dome are shipped.
-4. **Coordinator debt** (`App.ts` still constructs the whole game).
+4. **Coordinator leftover** (`App.ts` still lists tools and HUD; mesh rebuild and city file live in `CityView` / `cityFile`).
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
 
@@ -91,7 +91,7 @@ Buildings **do** empty after sustained neglect. Status is city-local (HUD adviso
 | Slice | What to ship |
 |---|---|
 | D1 `npm test` | `openpublica` script that runs root Jest (done in this polish PR) |
-| D2 Split `App.ts` | Extract “rebuild all renderers” + save/load wiring from the constructor |
+| D2 Split `App.ts` **shipped** | `CityView` rebuilds meshes; `mountCityMenu` owns save/load |
 | D3 Render tests | Keep GPU tests out of Jest; add a few more **pure** layout tests (picker math, daylight lerp) |
 
 ---
@@ -119,9 +119,9 @@ Unchanged from the 3D plan:
 5. ~~**Zoning plats + downtown** (B3).~~ Shipped: Dezone, hard empty-lot colours, C/M land value near housing.
 6. ~~**Degradation** (B2).~~ Shipped: four stressed months then downgrade/leave; HUD emptying advisory.
 7. ~~**PBR + sky** (C1–C2).~~ Shipped: metallic-roughness colours (low IBL) + fog-matching sky dome.
-8. **App.ts split** (D2) whenever the next feature would add another 80 lines to the constructor.
+8. ~~**App.ts split** (D2).~~ Shipped: `CityView` + `mountCityMenu`.
 
-GLB (C4) and SSAO (C5) stay optional.
+GLB (C4) and SSAO (C5) stay optional. C3 skirt is optional.
 
 ---
 
