@@ -39,6 +39,7 @@ export class SpeedBar {
       btn.dataset.speed = String(spec.value);
       btn.textContent = spec.label;
       btn.title = spec.hint;
+      if (spec.value === 0) btn.setAttribute('aria-keyshortcuts', 'P');
       btn.addEventListener('click', () => this.setSpeed(spec.value));
       group.appendChild(btn);
       this._buttons.push(btn);
