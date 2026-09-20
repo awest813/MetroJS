@@ -4,11 +4,13 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true,
+    strictPort: true,
   },
   optimizeDeps: {
-    // Vite 8's Rolldown prebundle can evaluate Babylon Matrix constructors
-    // before PerformanceConfigurator static fields exist, which crashes with
-    // "Cannot read properties of undefined (reading 'MatrixTrackPrecisionChange')".
-    exclude: ['@babylonjs/core'],
+    // Vite 6 esbuild-prebundles Babylon so the browser does not fetch the
+    // hundreds of raw ESM files (that stalls Chrome). Do not `exclude` core
+    // on Vite 6 — that path is only a workaround for Vite 8 Rolldown, which
+    // crashes with MatrixTrackPrecisionChange.
+    include: ['@babylonjs/core'],
   },
 });

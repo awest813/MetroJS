@@ -1,6 +1,12 @@
 import '../ui/styles.css';
 import { App } from './App';
 
-window.addEventListener('DOMContentLoaded', () => {
+function boot(): void {
   new App();
-});
+}
+
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', boot, { once: true });
+} else {
+  boot();
+}
