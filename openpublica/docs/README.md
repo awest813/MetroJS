@@ -84,7 +84,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] City menu + Settings: save/load confirms, mute/quality/sun, key list (Look is minimap + Frame)
 - [x] MIT `simplex-noise` + `alea` for seeded hills and tree jitter (lakes still use `terrainHash`)
 
-Follow [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md) for degradation, and optional PBR/sky/GLB. City-health, mayor Score/advisory, highways, water towers, and zoning plats/downtown are in the HUD.
+Follow [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md) for optional PBR/sky/GLB. City-health, mayor Score/advisory, highways, water, zoning plats/downtown, and building degradation are in the HUD.
 
 ## 3D port
 

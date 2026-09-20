@@ -20,6 +20,9 @@ import {
   STARTER_RESIDENTIAL_DEMAND,
   demandForZone,
   tileHasAdjacentRoad,
+  zoneBuildingIsStressed,
+  STRESS_MONTHS_TO_CHANGE,
+  ABANDON_COOLDOWN_MONTHS,
 } from './zoneGrowthHints';
 
 /** Maximum demand value (clamps residentialDemand, commercialDemand, industrialDemand). */
@@ -47,6 +50,7 @@ export function tileKey(x: number, y: number): string {
  *
  * - Runs once per simulated month.
  * - Grows placeholder buildings on zoned tiles adjacent to roads.
+ * - After four consecutive stressed months, zone buildings downgrade or leave.
  * - Updates city stats (population, jobs) and demand values.
  */
 export class ZoneGrowthSystem {
@@ -147,6 +151,8 @@ export class ZoneGrowthSystem {
     // buildings and the current power plant layout are both reflected.
     this._power.tick(map, this.buildings, this.defs);
 
+    this._degradeBuildings(map, stats, changedTiles);
+
     this._recalcStats(stats, map);
     this._economy.tick(map, this.buildings, this._defs, stats);
 
@@ -235,6 +241,7 @@ export class ZoneGrowthSystem {
       if (tile.terrain === TerrainType.Water) return;
       if (tile.roadType !== RoadType.None)  return;
       if (tile.buildingId !== null)         return;
+      if (tile.neglectMonths > 0)           return;
 
       // Must be adjacent to at least one road tile.
       if (!tileHasAdjacentRoad(map, tile.x, tile.y)) return;
@@ -268,6 +275,77 @@ export class ZoneGrowthSystem {
 
       changedTiles.push({ x: tile.x, y: tile.y });
     });
+  }
+
+  /**
+   * Zone-grown buildings (not parks/plants/stations) take stress from no road,
+   * no demand, no power, heavy smog, or high crime.
+   *
+   * After STRESS_MONTHS_TO_CHANGE consecutive stressed months the building
+   * steps down to a smaller def in the same zone, or leaves the lot if none
+   * remains. Demand/tax/power formulas are unchanged. Crime is last month's
+   * value (CrimeSystem runs after this monthly pass).
+   */
+  private _degradeBuildings(
+    map: CityMap,
+    stats: CityStats,
+    changedTiles: Array<{ x: number; y: number }>,
+  ): void {
+    const leaving: Array<{ x: number; y: number }> = [];
+
+    map.forEach((tile) => {
+      if (tile.buildingId === null) {
+        if (tile.neglectMonths > 0) tile.neglectMonths -= 1;
+        return;
+      }
+
+      const def = this._defs.get(tile.buildingId);
+      if (!def || def.isService) {
+        tile.neglectMonths = 0;
+        return;
+      }
+
+      if (!zoneBuildingIsStressed(tile, map, stats)) {
+        tile.neglectMonths = 0;
+        return;
+      }
+
+      tile.neglectMonths += 1;
+      if (tile.neglectMonths < STRESS_MONTHS_TO_CHANGE) return;
+
+      const smaller = this._pickSmallerDef(tile.zoneType, def);
+      if (smaller) {
+        const key = tileKey(tile.x, tile.y);
+        this.buildings.set(key, { defId: smaller.id, x: tile.x, y: tile.y });
+        tile.buildingId = smaller.id;
+        tile.neglectMonths = 0;
+        changedTiles.push({ x: tile.x, y: tile.y });
+        return;
+      }
+
+      leaving.push({ x: tile.x, y: tile.y });
+    });
+
+    for (const coord of leaving) {
+      this.removeAt(coord.x, coord.y);
+      const tile = map.getTile(coord.x, coord.y);
+      if (!tile) continue;
+      tile.buildingId = null;
+      tile.neglectMonths = ABANDON_COOLDOWN_MONTHS;
+      changedTiles.push(coord);
+    }
+  }
+
+  private _pickSmallerDef(zoneType: ZoneType, current: BuildingDef): BuildingDef | undefined {
+    const bucket = this._defsByZone.get(zoneType);
+    if (!bucket) return undefined;
+    const curSize = current.population + current.jobs;
+    const smaller = bucket.filter(
+      (d) => !d.isService && d.population + d.jobs < curSize,
+    );
+    if (smaller.length === 0) return undefined;
+    smaller.sort((a, b) => (b.population + b.jobs) - (a.population + a.jobs));
+    return smaller[0];
   }
 
   /** Recompute population and jobs from all placed buildings.

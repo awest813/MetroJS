@@ -66,6 +66,7 @@ interface Census {
   extremeRoads: number;
   lotsNeedRoad: number;
   zonedCount: number;
+  strugglingCount: number;
 }
 
 function survey(
@@ -89,8 +90,10 @@ function survey(
   let extremeRoads = 0;
   let lotsNeedRoad = 0;
   let zonedCount = 0;
+  let strugglingCount = 0;
   map.forEach((tile) => {
     if (tile.zoneType !== ZoneType.None) zonedCount += 1;
+    if (tile.neglectMonths >= 2 && tile.buildingId !== null) strugglingCount += 1;
     if (tile.roadType !== RoadType.None && tile.trafficPressure >= EXTREME_PRESSURE) {
       extremeRoads += 1;
     }
@@ -104,7 +107,7 @@ function survey(
     }
   });
 
-  return { hasPlant, buildingCount, unpoweredCount, extremeRoads, lotsNeedRoad, zonedCount };
+  return { hasPlant, buildingCount, unpoweredCount, extremeRoads, lotsNeedRoad, zonedCount, strugglingCount };
 }
 
 function score(stats: CityStats, census: Census): number {
@@ -150,6 +153,12 @@ function listAdvisories(stats: CityStats, census: Census): Advisory[] {
     out.push({
       id: 'unpowered',
       message: `${census.unpoweredCount} building${census.unpoweredCount === 1 ? '' : 's'} unpowered — expand the plant radius.`,
+    });
+  }
+  if (census.strugglingCount > 0) {
+    out.push({
+      id: 'abandon',
+      message: 'Buildings are emptying — restore power, demand, or road access.',
     });
   }
   if (stats.pollutionAverage >= 40) {

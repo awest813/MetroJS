@@ -27,6 +27,7 @@ export class SaveCodec {
         roadType:   tile.roadType,
         zoneType:   tile.zoneType,
         buildingId: tile.buildingId,
+        neglectMonths: tile.neglectMonths,
       });
     });
 
@@ -85,7 +86,8 @@ export class SaveCodec {
       tile.terrain    = saved.terrain    ?? tile.terrain;
       tile.roadType   = saved.roadType   ?? 0;
       tile.zoneType   = saved.zoneType   ?? 0;
-      tile.buildingId = saved.buildingId ?? null;
+      tile.buildingId    = saved.buildingId ?? null;
+      tile.neglectMonths = saved.neglectMonths ?? 0;
     }
 
     // ── Buildings registry ───────────────────────────────────────────────────

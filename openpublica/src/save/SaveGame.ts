@@ -12,6 +12,7 @@ export interface SavedTile {
   roadType:   number;
   zoneType:   number;
   buildingId: string | null;
+  neglectMonths?: number;
 }
 
 /** Serialised building instance. */

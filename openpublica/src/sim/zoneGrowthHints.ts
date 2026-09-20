@@ -11,6 +11,18 @@ import type { CityTile } from './CityTile';
  */
 export const STARTER_RESIDENTIAL_DEMAND = 40;
 
+/** Consecutive stressed months before a zone building downgrades or leaves. */
+export const STRESS_MONTHS_TO_CHANGE = 4;
+
+/** Empty months after abandon before the lot may grow again. */
+export const ABANDON_COOLDOWN_MONTHS = 2;
+
+/** Tile pollution at or above this stresses a zone building. */
+export const POLLUTION_STRESS_THRESHOLD = 60;
+
+/** Tile crime at or above this stresses a zone building. */
+export const CRIME_STRESS_THRESHOLD = 50;
+
 export function tileHasAdjacentRoad(map: CityMap, x: number, y: number): boolean {
   const neighbours = [
     map.getTile(x, y - 1),
@@ -42,6 +54,9 @@ export function formatGrowthHint(
   if (tile.terrain === TerrainType.Water) return null;
   if (tile.buildingId !== null) {
     if (tile.buildingId === 'small_park') return null;
+    if (tile.neglectMonths >= 2) {
+      return 'struggling — restore power, demand, or road access';
+    }
     if (!tile.powered) return 'unpowered — place a power plant nearby';
     return null;
   }
@@ -72,4 +87,18 @@ export function formatGrowthHint(
     return 'waiting to grow (will run underpowered until a plant covers it)';
   }
   return 'waiting to grow';
+}
+
+/**
+ * True when a zone-grown building should gain a neglect month.
+ * Services are filtered by the caller. Crime is typically last month's value.
+ */
+export function zoneBuildingIsStressed(tile: CityTile, map: CityMap, stats: CityStats): boolean {
+  if (tile.zoneType === ZoneType.None) return true;
+  if (!tileHasAdjacentRoad(map, tile.x, tile.y)) return true;
+  if (demandForZone(tile.zoneType, stats) <= 0) return true;
+  if (!tile.powered) return true;
+  if (tile.pollution >= POLLUTION_STRESS_THRESHOLD) return true;
+  if (tile.crime >= CRIME_STRESS_THRESHOLD) return true;
+  return false;
 }

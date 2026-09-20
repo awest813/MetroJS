@@ -42,6 +42,14 @@ describe('formatInspectStatus', () => {
     expect(formatInspectStatus('Inspect', tile, null)).toContain('watered');
   });
 
+  it('should mark a struggling building', () => {
+    const map = new CityMap(4, 4);
+    const tile = map.getTile(1, 1)!;
+    tile.buildingId = 'small_house';
+    tile.neglectMonths = 3;
+    expect(formatInspectStatus('Inspect', tile, 'small_house')).toContain('struggling');
+  });
+
   it('should call out an empty zoned lot', () => {
     const map = new CityMap(4, 4);
     const tile = map.getTile(2, 2)!;

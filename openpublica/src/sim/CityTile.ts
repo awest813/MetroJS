@@ -71,6 +71,11 @@ export interface ICityTile {
    * reduce traffic pressure.
    */
   transitAccess:  number;
+  /**
+   * Consecutive stressed months for zone-grown buildings, or a short
+   * cooldown after a lot empties so it does not immediately grow back.
+   */
+  neglectMonths:   number;
 }
 
 /** Mutable tile used by the simulation engine. */
@@ -93,6 +98,7 @@ export class CityTile implements ICityTile {
   noise:           number;
   walkability:     number;
   transitAccess:   number;
+  neglectMonths:   number;
 
   constructor(x: number, y: number) {
     this.x               = x;
@@ -113,5 +119,6 @@ export class CityTile implements ICityTile {
     this.noise           = 0;
     this.walkability     = 0;
     this.transitAccess   = 0;
+    this.neglectMonths   = 0;
   }
 }

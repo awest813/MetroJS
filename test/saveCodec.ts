@@ -179,6 +179,24 @@ describe('SaveCodec.decode', () => {
     expect(restored.stats.waterAverage).toBe(60);
   });
 
+  it('should restore tile.neglectMonths', () => {
+    const sim = makeSim();
+    sim.getTile(2, 2)!.neglectMonths = 3;
+    const restored = roundTrip(sim);
+    expect(restored.getTile(2, 2)!.neglectMonths).toBe(3);
+  });
+
+  it('should default missing neglectMonths to 0', () => {
+    const sim = makeSim();
+    const save = SaveCodec.encode(sim);
+    save.tiles.forEach((t) => {
+      delete t.neglectMonths;
+    });
+    const restored = CitySim.createCity(save.mapWidth, save.mapHeight);
+    SaveCodec.decode(save, restored);
+    expect(restored.getTile(0, 0)!.neglectMonths).toBe(0);
+  });
+
   it('should restore stats.approval', () => {
     const sim = makeSim();
     sim.stats.approval = 71;

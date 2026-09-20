@@ -247,6 +247,7 @@ export class CitySim {
       tile.zoneType   = ZoneType.None;
       tile.buildingId = null;
       this.growth.removeAt(x, y);
+      tile.neglectMonths = 0;
       this._refreshWater();
     }
   }

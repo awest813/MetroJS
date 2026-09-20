@@ -222,19 +222,22 @@ export class App {
 
     // ── Growth system updates renderer when buildings appear ─────────────────
     sim.onGrowth = (changed) => {
+      let grew = false;
       for (const coord of changed) {
         const tile = sim.getTile(coord.x, coord.y);
-        if (tile) {
-          terrain.updateCityTile(tile);
-          if (tile.buildingId !== null) {
-            const instance = sim.growth.buildings.get(tileKey(coord.x, coord.y));
-            if (instance) {
-              buildings.addBuilding(instance, tile.zoneType);
-            }
+        if (!tile) continue;
+        terrain.updateCityTile(tile);
+        if (tile.buildingId !== null) {
+          const instance = sim.growth.buildings.get(tileKey(coord.x, coord.y));
+          if (instance) {
+            buildings.addBuilding(instance, tile.zoneType);
+            grew = true;
           }
+        } else {
+          buildings.removeBuilding(coord.x, coord.y);
         }
       }
-      if (changed.length > 0) audio.play(GROWTH_VOICE, 'growth');
+      if (grew) audio.play(GROWTH_VOICE, 'growth');
       if (changed.length > 0) redrawLook();
     };
 
