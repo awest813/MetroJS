@@ -534,6 +534,19 @@ input:focus-visible {
   min-height: 28px;
 }
 
+.look-sun-end {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 10px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.look-sun-end:hover {
+  color: #c8d8e8;
+}
+
 .look-sun input[type='range'] {
   flex: 1;
   min-width: 0;

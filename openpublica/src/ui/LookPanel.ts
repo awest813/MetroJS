@@ -80,11 +80,14 @@ export class LookPanel {
     tools.appendChild(this._qualityBtn);
     this._syncQuality(initial.quality);
 
-    const sunRow = document.createElement('label');
+    const sunRow = document.createElement('div');
     sunRow.className = 'look-sun';
     sunRow.title = 'Sun angle only — does not change the simulation';
-    const sunCaption = document.createElement('span');
+    const sunCaption = document.createElement('button');
+    sunCaption.type = 'button';
+    sunCaption.className = 'look-sun-end';
     sunCaption.textContent = 'Dawn';
+    sunCaption.title = 'Warm morning light';
     const slider = document.createElement('input');
     slider.type = 'range';
     slider.min = '0';
@@ -92,7 +95,7 @@ export class LookPanel {
     slider.step = '1';
     slider.value = String(Math.round(initial.sun * 100));
     slider.setAttribute('aria-label', 'Sun angle from dawn to dusk');
-    slider.addEventListener('input', () => {
+    const applySun = (): void => {
       const day = Number(slider.value) / 100;
       try {
         globalThis.localStorage?.setItem(SUN_STORAGE_KEY, String(day));
@@ -100,9 +103,21 @@ export class LookPanel {
         /* ignore */
       }
       handlers.onSun(day);
+    };
+    slider.addEventListener('input', applySun);
+    sunCaption.addEventListener('click', () => {
+      slider.value = '0';
+      applySun();
     });
-    const duskCaption = document.createElement('span');
+    const duskCaption = document.createElement('button');
+    duskCaption.type = 'button';
+    duskCaption.className = 'look-sun-end';
     duskCaption.textContent = 'Dusk';
+    duskCaption.title = 'Cool evening light';
+    duskCaption.addEventListener('click', () => {
+      slider.value = '100';
+      applySun();
+    });
     sunRow.append(sunCaption, slider, duskCaption);
     container.appendChild(sunRow);
   }
