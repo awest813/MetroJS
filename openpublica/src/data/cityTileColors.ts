@@ -29,14 +29,20 @@ const BUILDING_COLORS: Record<ZoneType, TileColor> = {
   [ZoneType.MixedUse]:    { r: 0.10, g: 0.50, b: 0.42 }, // dark teal
 };
 
+/** Lush green for park tiles (no zone tint — parks are services). */
+const PARK_GROUND: TileColor = { r: 0.18, g: 0.52, b: 0.22 };
+
 /**
  * Returns the display colour for a CityTile.
  *
- * Priority: building > zone > terrain.
+ * Priority: park > zoned building > zone > terrain.
  * Roads are extruded meshes (RoadRenderer); the ground under them stays
  * a darkened terrain colour so asphalt is not painted onto the heightfield.
  */
 export function cityTileColor(tile: CityTile): TileColor {
+  if (tile.buildingId === 'small_park') {
+    return PARK_GROUND;
+  }
   if (tile.buildingId !== null && tile.zoneType !== ZoneType.None) {
     return BUILDING_COLORS[tile.zoneType];
   }

@@ -67,7 +67,8 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Heightfield, water basins, height-aware picking (Phase B)
 - [x] Map terrain generation (lakes, river, dirt beaches)
 - [x] Extruded road / trolley meshes (Phase C)
-- [x] Building kits + instancing (Phase D; parks still wait for Phase E trees)
+- [x] Building kits + instancing (Phase D)
+- [x] Parks, street trees, and plant smoke (Phase E)
 - [ ] Sound effects
 
 ## 3D port

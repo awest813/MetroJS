@@ -8,6 +8,8 @@ import { WalkabilityOverlayRenderer } from '../render/WalkabilityOverlayRenderer
 import { TransitOverlayRenderer } from '../render/TransitOverlayRenderer';
 import { DecorativeCarRenderer } from '../render/DecorativeCarRenderer';
 import { RoadRenderer } from '../render/RoadRenderer';
+import { VegetationRenderer } from '../render/VegetationRenderer';
+import { SmokeRenderer } from '../render/SmokeRenderer';
 import { TilePicker } from '../render/TilePicker';
 import { HighlightRenderer } from '../render/HighlightRenderer';
 import { WaterRenderer } from '../render/WaterRenderer';
@@ -120,6 +122,10 @@ export class App {
     const decorativeCars = new DecorativeCarRenderer(scene, shadowGenerator);
     const roads = new RoadRenderer(scene, shadowGenerator);
     roads.rebuild(sim.map, heights);
+    const vegetation = new VegetationRenderer(scene, shadowGenerator);
+    vegetation.rebuild(sim.map, heights);
+    const smoke = new SmokeRenderer(scene);
+    smoke.rebuild(sim.map, heights);
 
     const highlight = new HighlightRenderer(scene);
     const picker    = new TilePicker(scene, cameraController);
@@ -143,6 +149,9 @@ export class App {
       walkabilityOverlay.build(sim.map, heights);
       transitOverlay.build(sim.map, heights);
       roads.rebuild(sim.map, heights);
+      vegetation.setHeightField(heights);
+      vegetation.rebuild(sim.map, heights);
+      smoke.rebuild(sim.map, heights);
 
       sim.map.forEach((tile) => buildings.removeBuilding(tile.x, tile.y));
       for (const instance of sim.growth.buildings.values()) {
@@ -160,6 +169,10 @@ export class App {
       if (tile) {
         terrain.updateCityTile(tile);
         roads.updateAround(sim.map, coord);
+        vegetation.updateAround(sim.map, coord);
+        if (tile.buildingId === 'small_power_plant' || tile.buildingId === null) {
+          smoke.rebuild(sim.map, heights);
+        }
         if (tile.buildingId === null) {
           buildings.removeBuilding(coord.x, coord.y);
         } else {
@@ -203,6 +216,7 @@ export class App {
     sim.onTrafficChanged = () => {
       if (trafficOverlay.isVisible) trafficOverlay.refresh(sim.map);
       decorativeCars.refresh(sim.map, heights);
+      vegetation.refreshStreets(sim.map);
     };
 
     // ── Walkability system fires monthly when scores are recalculated ─────────
