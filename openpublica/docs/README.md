@@ -1,6 +1,8 @@
 # OpenPublica
 
-A GPLv3 browser-native 2.5D city-builder.
+A GPLv3 browser-native city-builder. The live renderer is a Babylon.js **2.5D**
+orthographic prototype. The plan to turn it into a true perspective 3D web city
+is in [FULL_3D_WEB_PORT_PLAN.md](./FULL_3D_WEB_PORT_PLAN.md).
 
 ## Licence
 
@@ -32,7 +34,7 @@ openpublica/
 │   ├── tools/    Player tools (Inspect, Road, Residential, Bulldoze)
 │   ├── ui/       HTML/CSS user interface (Toolbar, styles)
 │   ├── data/     Shared constants, enums, and types
-│   └── save/     Save/load system (Phase 2 placeholder)
+│   └── save/     Save/load (SaveSystem / SaveCodec)
 ├── docs/         Documentation
 ├── index.html
 ├── vite.config.ts
@@ -51,19 +53,23 @@ The project enforces a strict boundary between simulation and rendering:
 | UI | `src/ui/` | ❌ not allowed |
 | Coordinator | `src/app/App.ts` | ✅ wires both sides |
 
-## Phase 1 Features
+## Current features (as of 2026-09)
 
 - [x] Vite + TypeScript (strict) project
-- [x] Babylon.js scene with orthographic angled camera
-- [x] 64×64 tile map rendered in a single draw call (vertex-coloured mesh)
+- [x] Babylon.js scene with **orthographic** angled camera (not free 3D yet)
+- [x] 64×64 `CityMap` with monthly sim (growth, power, economy, land value, traffic, walkability, transit, pollution)
+- [x] Procedural box buildings and vertex-coloured terrain (no Micropolis tile sheets)
 - [x] Mouse tile picking via `scene.pick()`
-- [x] Yellow highlight on selected tile
-- [x] Toolbar: Inspect · Road · Residential · Bulldoze
-
-## Phase 2 Roadmap (not yet implemented)
-
-- [ ] Simulation tick loop (population, traffic, demand)
-- [ ] Save/load via `SaveSystem`
-- [ ] Map terrain generation
-- [ ] Overlay maps (traffic density, crime, etc.)
+- [x] Tools: Inspect, Road, R/C/I/Mixed zone brushes, Bulldoze, Power plant, Park, Trolley avenue
+- [x] Overlays: power, land value, traffic, walkability, transit
+- [x] Save/load via `SaveSystem`
+- [ ] Perspective camera, shadows, heightfield, road meshes, building kits — see the 3D plan
+- [ ] Map terrain generation (water/hills)
 - [ ] Sound effects
+
+## 3D port
+
+Do not treat this README’s original “Phase 1 isometric board” as the end state.
+Follow [FULL_3D_WEB_PORT_PLAN.md](./FULL_3D_WEB_PORT_PLAN.md) for camera, lighting,
+terrain volume, instanced building kits, and input (tool paint vs orbit).
+Simulation code in `src/sim/` must stay Babylon-free.
