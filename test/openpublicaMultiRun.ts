@@ -31,7 +31,7 @@ function finiteStats(sim: CitySim): void {
     'population', 'jobs', 'money', 'residentialDemand', 'commercialDemand',
     'industrialDemand', 'resTaxRate', 'comTaxRate', 'indTaxRate',
     'monthlyIncome', 'monthlyExpenses', 'happiness', 'walkability',
-    'transitAccess', 'pollutionAverage', 'crimeAverage',
+    'transitAccess', 'pollutionAverage', 'crimeAverage', 'fireAverage',
   ];
   for (const key of numeric) {
     expect(Number.isFinite(s[key] as number)).toBe(true);

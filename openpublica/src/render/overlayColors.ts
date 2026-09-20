@@ -12,7 +12,8 @@ export type OverlayMode =
   | 'transit'
   | 'pollution'
   | 'density'
-  | 'crime';
+  | 'crime'
+  | 'fire';
 
 export interface OverlayRgba {
   readonly r: number;
@@ -49,6 +50,7 @@ export function colorForOverlay(mode: OverlayMode, tile: CityTile): OverlayRgba 
     case 'pollution':   return colorForPollution(tile.pollution);
     case 'density':     return colorForDensity(tile.populationDensity);
     case 'crime':       return colorForCrime(tile.crime);
+    case 'fire':        return colorForFire(tile.fireCoverage);
   }
 }
 
@@ -137,6 +139,18 @@ export function colorForCrime(crime: number): OverlayRgba {
     g: 0.12 * (1 - t),
     b: 0.18 * (1 - t),
     a: 0.28 + 0.42 * t,
+  };
+}
+
+/** Orange fire coverage; clear at 0 (underserved lots stay readable). */
+export function colorForFire(coverage: number): OverlayRgba {
+  const t = clamp01(coverage / 100);
+  if (t <= 0) return OVERLAY_CLEAR;
+  return {
+    r: 0.95,
+    g: 0.35 + 0.40 * t,
+    b: 0.08,
+    a: 0.22 + 0.38 * t,
   };
 }
 

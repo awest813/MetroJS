@@ -50,6 +50,15 @@
     "policeRadius": 10
   },
   {
+    "id": "small_fire_station",
+    "name": "Small Fire Station",
+    "zoneType": 0,
+    "population": 0,
+    "jobs": 4,
+    "isService": true,
+    "fireRadius": 10
+  },
+  {
     "id": "small_park",
     "name": "Small Park",
     "zoneType": 0,

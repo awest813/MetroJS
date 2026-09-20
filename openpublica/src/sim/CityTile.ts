@@ -50,6 +50,8 @@ export interface ICityTile {
   populationDensity: number;
   /** Police service [0–100] from a powered station radius. */
   policeCoverage:  number;
+  /** Fire service [0–100] from a powered station radius. No disasters yet. */
+  fireCoverage:    number;
   /** Street crime [0–100] from density, land value, and police. */
   crime:           number;
   trafficPressure: number;
@@ -85,6 +87,7 @@ export class CityTile implements ICityTile {
   pollution:       number;
   populationDensity: number;
   policeCoverage:  number;
+  fireCoverage:    number;
   crime:           number;
   trafficPressure: number;
   noise:           number;
@@ -104,6 +107,7 @@ export class CityTile implements ICityTile {
     this.pollution       = 0;
     this.populationDensity = 0;
     this.policeCoverage  = 0;
+    this.fireCoverage    = 0;
     this.crime           = 0;
     this.trafficPressure = 0;
     this.noise           = 0;

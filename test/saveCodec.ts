@@ -77,6 +77,13 @@ describe('SaveCodec.encode', () => {
     expect(save.stats.crimeAverage).toBe(22);
   });
 
+  it('should capture stats.fireAverage', () => {
+    const sim = makeSim();
+    sim.stats.fireAverage = 55;
+    const save = SaveCodec.encode(sim);
+    expect(save.stats.fireAverage).toBe(55);
+  });
+
   it('should capture the buildings registry', () => {
     const sim = makeSim();
     sim.stats.money = 100_000;
@@ -158,18 +165,26 @@ describe('SaveCodec.decode', () => {
     expect(restored.stats.crimeAverage).toBe(18);
   });
 
+  it('should restore stats.fireAverage', () => {
+    const sim = makeSim();
+    sim.stats.fireAverage = 41;
+    const restored = roundTrip(sim);
+    expect(restored.stats.fireAverage).toBe(41);
+  });
+
   it('should use safe defaults for missing stat fields (simulate older save)', () => {
     const sim  = makeSim();
     const save = SaveCodec.encode(sim);
-    // Simulate an older save that lacks newer stats fields.
     (save.stats as unknown as Record<string, unknown>)['transitAccess'] = undefined;
     (save.stats as unknown as Record<string, unknown>)['pollutionAverage'] = undefined;
     (save.stats as unknown as Record<string, unknown>)['crimeAverage'] = undefined;
+    (save.stats as unknown as Record<string, unknown>)['fireAverage'] = undefined;
     const restored = CitySim.createCity(save.mapWidth, save.mapHeight);
     SaveCodec.decode(save, restored);
     expect(restored.stats.transitAccess).toBe(0);
     expect(restored.stats.pollutionAverage).toBe(0);
     expect(restored.stats.crimeAverage).toBe(0);
+    expect(restored.stats.fireAverage).toBe(0);
   });
 });
 
@@ -222,7 +237,7 @@ describe('SaveCodec.migrate', () => {
         residentialDemand: 0, commercialDemand: 0, industrialDemand: 20,
         resTaxRate: 9, comTaxRate: 9, indTaxRate: 9,
         monthlyIncome: 0, monthlyExpenses: 0, bankruptcyWarning: false,
-        happiness: 100, walkability: 0, transitAccess: 0, pollutionAverage: 0, crimeAverage: 0,
+        happiness: 100, walkability: 0, transitAccess: 0, pollutionAverage: 0, crimeAverage: 0, fireAverage: 0,
       },
     };
     const result = SaveCodec.migrate(raw);

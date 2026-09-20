@@ -60,4 +60,9 @@ export interface BuildingDef {
    * Radius (in tiles) of police coverage. Only while the station tile is powered.
    */
   readonly policeRadius?: number;
+  /**
+   * Radius (in tiles) of fire coverage. Only while the station tile is powered.
+   * No disaster simulation uses this yet — it is a coverage field for HUD/overlay.
+   */
+  readonly fireRadius?: number;
 }

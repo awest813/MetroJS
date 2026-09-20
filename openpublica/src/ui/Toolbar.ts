@@ -5,7 +5,7 @@ const TOOL_GROUPS: ReadonlyArray<ReadonlyArray<string>> = [
   ['inspect'],
   ['road', 'trolleyAvenue', 'bulldoze'],
   ['zoneResidentialLow', 'zoneCommercialLow', 'zoneIndustrialLight', 'zoneMixedUse'],
-  ['placePowerPlant', 'placePark', 'placePoliceStation'],
+  ['placePowerPlant', 'placePark', 'placePoliceStation', 'placeFireStation'],
 ];
 
 /**

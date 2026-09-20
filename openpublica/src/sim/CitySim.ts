@@ -13,6 +13,7 @@ import { TransitSystem } from './TransitSystem';
 import { PollutionSystem } from './PollutionSystem';
 import { PopulationDensitySystem } from './PopulationDensitySystem';
 import { PoliceCoverageSystem } from './PoliceCoverageSystem';
+import { FireCoverageSystem } from './FireCoverageSystem';
 import { CrimeSystem } from './CrimeSystem';
 import { tileKey } from './ZoneGrowthSystem';
 import { STARTER_RESIDENTIAL_DEMAND } from './zoneGrowthHints';
@@ -65,6 +66,11 @@ export interface CityStats {
    * tiles, computed by CrimeSystem each month.
    */
   crimeAverage: number;
+  /**
+   * Mean fire coverage [0–100] on occupied (density > 0) tiles.
+   * Computed by FireCoverageSystem. Zero when nobody lives in the city yet.
+   */
+  fireAverage: number;
 }
 
 /**
@@ -88,6 +94,7 @@ export class CitySim {
   readonly pollution:    PollutionSystem;
   readonly density:      PopulationDensitySystem;
   readonly police:       PoliceCoverageSystem;
+  readonly fire:         FireCoverageSystem;
   readonly crime:        CrimeSystem;
   readonly traffic:      TrafficPressureSystem;
   readonly walkability:  WalkabilitySystem;
@@ -132,7 +139,7 @@ export class CitySim {
   onTransitChanged: (() => void) | null = null;
 
   /**
-   * Called after density, police coverage, and crime are recalculated.
+   * Called after density, police, fire coverage, and crime are recalculated.
    */
   onCrimeChanged: (() => void) | null = null;
 
@@ -143,6 +150,7 @@ export class CitySim {
     this.pollution    = new PollutionSystem();
     this.density      = new PopulationDensitySystem();
     this.police       = new PoliceCoverageSystem();
+    this.fire         = new FireCoverageSystem();
     this.crime        = new CrimeSystem();
     this.landValue    = new LandValueSystem();
     this.traffic      = new TrafficPressureSystem();
@@ -167,6 +175,7 @@ export class CitySim {
       transitAccess:     0,
       pollutionAverage:  0,
       crimeAverage:      0,
+      fireAverage:       0,
     };
   }
 
@@ -258,6 +267,7 @@ export class CitySim {
   private _refreshCityHealth(applyCrimeHappiness: boolean): void {
     this.density.tick(this.map, this.growth.buildings, this.growth.defs);
     this.police.tick(this.map, this.growth.buildings, this.growth.defs);
+    this.fire.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
     this.crime.tick(this.map, this.stats, applyCrimeHappiness);
     if (this.onCrimeChanged) this.onCrimeChanged();
   }

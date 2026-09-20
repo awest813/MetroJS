@@ -59,6 +59,7 @@ export class SaveCodec {
         transitAccess:     sim.stats.transitAccess,
         pollutionAverage:  sim.stats.pollutionAverage,
         crimeAverage:      sim.stats.crimeAverage,
+        fireAverage:       sim.stats.fireAverage,
       },
       tiles,
       buildings,
@@ -112,6 +113,7 @@ export class SaveCodec {
     sim.stats.transitAccess     = s.transitAccess     ?? 0;
     sim.stats.pollutionAverage  = s.pollutionAverage  ?? 0;
     sim.stats.crimeAverage      = s.crimeAverage      ?? 0;
+    sim.stats.fireAverage       = s.fireAverage       ?? 0;
 
     // ── Clock ────────────────────────────────────────────────────────────────
     sim.clock.restore(save.clockTotalSeconds ?? 0);

@@ -5,6 +5,7 @@ import { PopulationDensitySystem } from '../openpublica/src/sim/PopulationDensit
 import { ZoneType } from '../openpublica/src/sim/CityTile';
 import { MONTH_SECONDS } from '../openpublica/src/data/constants';
 import { PlacePoliceStationTool, POLICE_STATION_COST } from '../openpublica/src/tools/PlacePoliceStationTool';
+import { PlaceFireStationTool, FIRE_STATION_COST } from '../openpublica/src/tools/PlaceFireStationTool';
 
 function tickOneMonth(sim: CitySim): void {
   sim.tick(MONTH_SECONDS);
@@ -16,7 +17,7 @@ function emptyStats() {
     industrialDemand: 0, resTaxRate: 9, comTaxRate: 9, indTaxRate: 9,
     monthlyIncome: 0, monthlyExpenses: 0, bankruptcyWarning: false,
     happiness: 100, walkability: 0, transitAccess: 0, pollutionAverage: 0,
-    crimeAverage: 0,
+    crimeAverage: 0, fireAverage: 0,
   };
 }
 
@@ -87,6 +88,46 @@ describe('PoliceCoverageSystem', () => {
     expect(sim.getTile(12, 22)!.policeCoverage).toBeGreaterThan(0);
     expect(sim.getTile(12, 23)!.policeCoverage).toBe(0);
     expect(sim.getTile(0, 0)!.policeCoverage).toBe(0);
+  });
+});
+
+describe('FireCoverageSystem', () => {
+  it('should ignore an unpowered fire station', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(12, 12, 'small_fire_station', 0);
+
+    expect(sim.getTile(12, 12)!.powered).toBe(false);
+    expect(sim.getTile(12, 12)!.fireCoverage).toBe(0);
+    expect(sim.stats.fireAverage).toBe(0);
+  });
+
+  it('should radiate fire coverage from a powered station', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(12, 12, 'small_power_plant', 0);
+    sim.placeServiceBuilding(12, 13, 'small_fire_station', 0);
+
+    expect(sim.getTile(12, 13)!.powered).toBe(true);
+    expect(sim.getTile(12, 13)!.fireCoverage).toBe(100);
+    expect(sim.getTile(12, 14)!.fireCoverage).toBeGreaterThan(0);
+    expect(sim.getTile(12, 14)!.fireCoverage).toBeLessThan(100);
+    expect(sim.getTile(12, 22)!.fireCoverage).toBeGreaterThan(0);
+    expect(sim.getTile(12, 23)!.fireCoverage).toBe(0);
+  });
+
+  it('should average fire coverage only on occupied tiles', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(12, 12, 'small_power_plant', 0);
+    sim.placeServiceBuilding(12, 13, 'small_fire_station', 0);
+    sim.growth.buildings.set('12,14', { defId: 'small_house', x: 12, y: 14 });
+    sim.getTile(12, 14)!.buildingId = 'small_house';
+    sim.getTile(12, 14)!.zoneType = ZoneType.Residential;
+    tickOneMonth(sim);
+
+    expect(sim.stats.fireAverage).toBeGreaterThan(0);
+    expect(sim.stats.fireAverage).toBeLessThanOrEqual(100);
   });
 });
 
@@ -182,5 +223,14 @@ describe('city health wiring', () => {
     expect(tool.apply({ x: 3, y: 3 }, sim)).toBe(true);
     expect(sim.stats.money).toBe(start - POLICE_STATION_COST);
     expect(sim.getTile(3, 3)!.buildingId).toBe('small_police_station');
+  });
+
+  it('should deduct FIRE_STATION_COST via the fire tool', () => {
+    const sim = CitySim.createCity(8, 8);
+    const start = sim.stats.money;
+    const tool = new PlaceFireStationTool();
+    expect(tool.apply({ x: 3, y: 3 }, sim)).toBe(true);
+    expect(sim.stats.money).toBe(start - FIRE_STATION_COST);
+    expect(sim.getTile(3, 3)!.buildingId).toBe('small_fire_station');
   });
 });

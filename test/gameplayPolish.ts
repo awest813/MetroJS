@@ -74,6 +74,12 @@ describe('explainToolFailure', () => {
     expect(explainToolFailure('placePoliceStation', { x: 0, y: 0 }, sim)).toMatch(/Need \$400/);
   });
 
+  it('should refuse a fire station without funds', () => {
+    const sim = CitySim.createCity(8, 8);
+    sim.stats.money = 0;
+    expect(explainToolFailure('placeFireStation', { x: 0, y: 0 }, sim)).toMatch(/Need \$400/);
+  });
+
   it('should refuse a power plant on an occupied lot', () => {
     const sim = CitySim.createCity(8, 8);
     expect(sim.placeServiceBuilding(2, 2, 'small_park', 0)).toBe(true);

@@ -3,6 +3,7 @@ import {
   BUILDING_KITS,
   BUILDING_SHAPES,
   CIVIC_DEF_IDS,
+  FIRE_DEF_IDS,
   SKIP_MESH_DEF_IDS,
   kitPalette,
   kitForDef,
@@ -15,6 +16,7 @@ const BUILDING_JSON_IDS = [
   'light_workshop',
   'small_power_plant',
   'small_police_station',
+  'small_fire_station',
   'small_park',
   'shopfront_apartments',
   'corner_store_flats',
@@ -69,6 +71,15 @@ describe('buildingVisuals kits', () => {
     const kit = BUILDING_KITS.small_police_station;
     expect(kit.parts.some((p) => p.slot === 'accent')).toBe(true);
     expect(kit.parts.some((p) => p.slot === 'glass')).toBe(true);
+  });
+
+  it('should give the fire station a red kit with a bay', () => {
+    expect(FIRE_DEF_IDS.has('small_fire_station')).toBe(true);
+    const kit = BUILDING_KITS.small_fire_station;
+    expect(kit.parts.some((p) => p.slot === 'accent')).toBe(true);
+    expect(kit.parts.some((p) => p.slot === 'glass')).toBe(true);
+    const fire = kitPalette('fire', ZoneType.None);
+    expect(fire.body.r).toBeGreaterThan(fire.body.b);
   });
 
   it('should give mixed-use kits a podium plus upper storeys', () => {

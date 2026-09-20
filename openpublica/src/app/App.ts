@@ -27,6 +27,7 @@ import { BulldozeTool } from '../tools/BulldozeTool';
 import { PlacePowerPlantTool } from '../tools/PlacePowerPlantTool';
 import { PlaceParkTool } from '../tools/PlaceParkTool';
 import { PlacePoliceStationTool } from '../tools/PlacePoliceStationTool';
+import { PlaceFireStationTool } from '../tools/PlaceFireStationTool';
 import { TrolleyAvenueTool } from '../tools/TrolleyAvenueTool';
 import { ToolController } from '../tools/ToolController';
 import { CameraController } from '../render/CameraController';
@@ -99,6 +100,7 @@ export class App {
     const powerPlantTool    = new PlacePowerPlantTool();
     const parkTool          = new PlaceParkTool();
     const policeTool        = new PlacePoliceStationTool();
+    const fireTool          = new PlaceFireStationTool();
     const trolleyAvenueTool = new TrolleyAvenueTool();
 
     const allTools = [
@@ -112,6 +114,7 @@ export class App {
       powerPlantTool,
       parkTool,
       policeTool,
+      fireTool,
       trolleyAvenueTool,
     ];
 
@@ -314,6 +317,7 @@ export class App {
       overlaySpec('pollution-overlay-btn', 'Smog', 'Pollution haze', 'pollution'),
       overlaySpec('density-overlay-btn', 'Crowd', 'Population density', 'density'),
       overlaySpec('crime-overlay-btn', 'Crime', 'Crime from density minus police', 'crime'),
+      overlaySpec('fire-overlay-btn', 'Fire', 'Fire coverage from powered stations', 'fire'),
     ]);
 
     const hud = new CityHUD(hudEl);

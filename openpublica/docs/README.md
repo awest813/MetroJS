@@ -67,8 +67,8 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] 64×64 `CityMap` with monthly sim (growth, power, economy, land value, traffic, walkability, transit, pollution)
 - [x] Procedural kit buildings (instanced) and vertex-coloured heightfield (no Micropolis tile sheets)
 - [x] Mouse tile picking via terrain/water ray hits
-- [x] Tools: Inspect, Road, R/C/I/Mixed zone brushes, Bulldoze, Power plant, Park, Police, Trolley avenue
-- [x] Overlays: power, land value, traffic, walkability, transit, pollution, crowd, crime (one height-aware mesh)
+- [x] Tools: Inspect, Road, R/C/I/Mixed zone brushes, Bulldoze, Power plant, Park, Police, Fire, Trolley avenue
+- [x] Overlays: power, land value, traffic, walkability, transit, pollution, crowd, crime, fire (one height-aware mesh)
 - [x] Save/load via `SaveSystem`
 - [x] Perspective camera, sun/shadows, orbit vs paint input (Phase A)
 - [x] Heightfield, water basins, height-aware picking (Phase B)
@@ -84,7 +84,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] City menu + Settings: save/load confirms, mute/quality/sun, key list (Look is minimap + Frame)
 - [x] MIT `simplex-noise` + `alea` for seeded hills and tree jitter (lakes still use `terrainHash`)
 
-Follow [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md) for fire/evaluation, advisory/degradation, and optional PBR/sky/GLB. Density, police coverage, and crime are in the sim (Crowd/Crime overlays, HUD Crime).
+Follow [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md) for evaluation, advisory/degradation, and optional PBR/sky/GLB. Density, police, crime, and fire coverage are in the sim.
 
 ## 3D port
 

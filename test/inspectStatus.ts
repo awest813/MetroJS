@@ -26,10 +26,12 @@ describe('formatInspectStatus', () => {
     const tile = map.getTile(2, 1)!;
     tile.populationDensity = 24;
     tile.policeCoverage = 80;
+    tile.fireCoverage = 40;
     tile.crime = 12;
     const line = formatInspectStatus('Inspect', tile, null);
     expect(line).toContain('density 24');
     expect(line).toContain('police 80');
+    expect(line).toContain('fire 40');
     expect(line).toContain('crime 12');
   });
 
