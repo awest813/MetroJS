@@ -38,8 +38,9 @@ import { BudgetPanel } from '../ui/BudgetPanel';
 import { formatInspectStatus } from '../ui/inspectStatus';
 import { SaveSystem } from '../save/SaveSystem';
 import { SpeedBar, type SimSpeed } from '../ui/SpeedBar';
-import { SoundBar } from '../ui/SoundBar';
-import { LookPanel, readStoredQuality, readStoredSun, type QualityLevel } from '../ui/LookPanel';
+import { LookPanel } from '../ui/LookPanel';
+import { SettingsPanel } from '../ui/SettingsPanel';
+import { readStoredQuality, readStoredSun, type QualityLevel } from '../ui/settingsStore';
 import { AudioBus } from '../audio/AudioBus';
 import { BANKRUPT_VOICE, FAIL_VOICE, GROWTH_VOICE, sfxForTool } from '../audio/voices';
 import { explainToolFailure } from '../tools/toolFeedback';
@@ -56,6 +57,7 @@ export class App {
     const toolbarEl  = document.getElementById('toolbar');
     const overlayEl  = document.getElementById('overlay-bar');
     const cityMenuEl = document.getElementById('city-menu');
+    const settingsEl = document.getElementById('settings-panel');
     const statusEl   = document.getElementById('status-bar');
     const hudEl      = document.getElementById('city-hud');
     const budgetEl   = document.getElementById('budget-panel');
@@ -64,11 +66,11 @@ export class App {
 
     if (
       !(canvas instanceof HTMLCanvasElement) ||
-      !toolbarEl || !overlayEl || !cityMenuEl ||
+      !toolbarEl || !overlayEl || !cityMenuEl || !settingsEl ||
       !statusEl || !hudEl || !budgetEl || !cameraEl || !lookEl
     ) {
       throw new Error(
-        'Required DOM elements not found: #game-canvas, #toolbar, #overlay-bar, #city-menu, #status-bar, #city-hud, #budget-panel, #camera-bar, #look-panel',
+        'Required DOM elements not found: #game-canvas, #toolbar, #overlay-bar, #city-menu, #settings-panel, #status-bar, #city-hud, #budget-panel, #camera-bar, #look-panel',
       );
     }
 
@@ -250,15 +252,7 @@ export class App {
 
     let simSpeed: SimSpeed = 2;
 
-    const look = new LookPanel(
-      lookEl,
-      {
-        onFrame: () => cameraController.resetView(),
-        onSun: (day) => applyDaylight({ scene, sun, fill }, day),
-        onQuality: applyQuality,
-      },
-      { sun: readStoredSun(), quality: readStoredQuality() },
-    );
+    const look = new LookPanel(lookEl, () => cameraController.resetView());
     const redrawLook = (): void => {
       look.minimap.setMarker(camera.target.x, camera.target.z);
       look.redraw(sim.map);
@@ -284,7 +278,6 @@ export class App {
       simSpeed = next;
       if (next === 0) statusEl.textContent = 'Paused. P resumes. ] speeds up.';
     });
-    new SoundBar(cameraEl, audio);
 
     const overlaySpec = (
       id: string,
@@ -377,9 +370,10 @@ export class App {
     });
 
     new CityMenu(cityMenuEl, {
+      hasSave: SaveSystem.hasSave(),
       onSave: () => {
         SaveSystem.save(sim);
-        statusEl.textContent = 'City saved.';
+        statusEl.textContent = 'City saved in this browser.';
       },
       onLoad: () => {
         const ok = SaveSystem.load(sim);
@@ -394,9 +388,13 @@ export class App {
         }
       },
       onNewCity: () => {
-        SaveSystem.deleteSave();
         window.location.reload();
       },
+    });
+    new SettingsPanel(settingsEl, {
+      audio,
+      onSun: (day) => applyDaylight({ scene, sun, fill }, day),
+      onQuality: applyQuality,
     });
 
     // ── Periodic HUD refresh (every second) ──────────────────────────────────

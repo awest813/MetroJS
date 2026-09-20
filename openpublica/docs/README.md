@@ -76,6 +76,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Unified 3D overlay mesh including pollution (Phase G)
 - [x] Procedural sound (paint, growth, mute); unlocked on first gesture, M to mute
 - [x] Camera polish: HTML minimap, Home/Frame, sun slider, High/Low quality
+- [x] City menu + Settings: save/load confirms, mute/quality/sun, key list (Look is minimap + Frame)
 
 ## 3D port
 

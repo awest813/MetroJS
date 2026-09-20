@@ -65,6 +65,7 @@ input:focus-visible {
   gap: 8px;
   z-index: 10;
   pointer-events: none;
+  overflow-y: auto;
 }
 
 #left-rail > * {
@@ -73,7 +74,8 @@ input:focus-visible {
 
 #toolbar,
 #overlay-bar,
-#city-menu {
+#city-menu,
+#settings-panel {
   background: var(--chrome-bg);
   border: 1px solid var(--chrome-border);
   border-radius: var(--radius);
@@ -184,6 +186,73 @@ input:focus-visible {
 .confirm-ok {
   background: #6b2a18 !important;
   border-color: #a04020 !important;
+}
+
+.city-file-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.city-menu-note {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.35;
+  padding: 2px 6px 0;
+}
+
+.settings-fold {
+  margin: 0;
+}
+
+.settings-fold summary {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+  padding: 2px 6px 6px;
+}
+
+.settings-fold summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-fold summary::after {
+  content: '▾';
+  float: right;
+  font-size: 11px;
+}
+
+.settings-fold:not([open]) summary::after {
+  content: '▸';
+}
+
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-keys {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.4;
+  padding: 4px 6px 2px;
+}
+
+#settings-panel .settings-sun {
+  width: 100%;
+}
+
+#settings-panel .look-sun-end {
+  width: auto;
+  background: none;
+  border: none;
+  padding: 6px 2px;
+  text-align: center;
 }
 
 /* ── City HUD (top, inset for rail + budget) ─── */
@@ -456,11 +525,7 @@ input:focus-visible {
   gap: 4px;
 }
 
-#camera-bar .sound-toggle {
-  min-width: 58px;
-}
-
-/* ── Look: minimap, sun, quality ──────────────── */
+/* ── Look: minimap and frame ──────────────────── */
 #look-panel,
 .look-panel {
   position: absolute;
@@ -499,13 +564,7 @@ input:focus-visible {
   border: 1px solid #1e2e3e;
 }
 
-.look-tools {
-  display: flex;
-  gap: 4px;
-}
-
-.look-tools button {
-  flex: 1;
+.look-frame {
   background: var(--btn-bg);
   color: var(--btn-fg);
   border: 1px solid var(--btn-border);
@@ -513,16 +572,11 @@ input:focus-visible {
   padding: 5px 6px;
   font-size: 11px;
   cursor: pointer;
+  width: 100%;
 }
 
-.look-tools button:hover {
+.look-frame:hover {
   background: var(--btn-hover);
-}
-
-.look-tools button.active {
-  background: var(--accent);
-  border-color: var(--accent-border);
-  color: #fff;
 }
 
 .look-sun {
@@ -597,7 +651,8 @@ input:focus-visible {
 
   #toolbar,
   #overlay-bar,
-  #city-menu {
+  #city-menu,
+  #settings-panel {
     flex-direction: row;
     flex-wrap: nowrap;
     overflow: visible;
@@ -605,6 +660,24 @@ input:focus-visible {
     border: none;
     padding: 0;
     backdrop-filter: none;
+  }
+
+  #city-menu,
+  #settings-panel {
+    flex-direction: column;
+    min-width: 148px;
+  }
+
+  .city-file-actions {
+    flex-direction: row;
+  }
+
+  .settings-fold {
+    min-width: 148px;
+  }
+
+  .settings-keys {
+    display: none;
   }
 
   .rail-group {
@@ -621,6 +694,19 @@ input:focus-visible {
   }
 
   #left-rail button {
+    width: auto;
+  }
+
+  #city-menu .city-file-actions button {
+    flex: 1;
+    text-align: center;
+  }
+
+  #settings-panel button {
+    width: 100%;
+  }
+
+  #settings-panel .look-sun-end {
     width: auto;
   }
 

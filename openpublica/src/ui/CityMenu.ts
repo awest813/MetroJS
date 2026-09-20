@@ -1,16 +1,24 @@
 /**
- * Save / load / new city controls plus an in-chrome confirm for new city
- * (no blocking `window.confirm`).
+ * Save / load / new city, with in-chrome confirms (no window.confirm).
  */
 export class CityMenu {
+  private readonly _loadBtn: HTMLButtonElement;
+  private readonly _newBtn: HTMLButtonElement;
+  private readonly _note: HTMLElement;
+  private readonly _loadConfirm: HTMLDivElement;
+  private readonly _newConfirm: HTMLDivElement;
+  private _hasSave: boolean;
+
   constructor(
     container: HTMLElement,
     handlers: {
+      hasSave: boolean;
       onSave: () => void;
       onLoad: () => void;
       onNewCity: () => void;
     },
   ) {
+    this._hasSave = handlers.hasSave;
     container.innerHTML = '';
     container.classList.add('rail-group');
     container.setAttribute('role', 'group');
@@ -21,51 +29,137 @@ export class CityMenu {
     heading.textContent = 'City';
     container.appendChild(heading);
 
+    const actions = document.createElement('div');
+    actions.className = 'city-file-actions';
+    container.appendChild(actions);
+
     const saveBtn = document.createElement('button');
     saveBtn.type = 'button';
     saveBtn.id = 'save-btn';
     saveBtn.textContent = 'Save';
-    saveBtn.title = 'Save city to this browser';
-    saveBtn.addEventListener('click', () => handlers.onSave());
-    container.appendChild(saveBtn);
-
-    const loadBtn = document.createElement('button');
-    loadBtn.type = 'button';
-    loadBtn.id = 'load-btn';
-    loadBtn.textContent = 'Load';
-    loadBtn.title = 'Load the last save';
-    loadBtn.addEventListener('click', () => handlers.onLoad());
-    container.appendChild(loadBtn);
-
-    const newBtn = document.createElement('button');
-    newBtn.type = 'button';
-    newBtn.id = 'new-city-btn';
-    newBtn.textContent = 'New';
-    newBtn.title = 'Abandon this city and generate a new map';
-    container.appendChild(newBtn);
-
-    const confirm = document.createElement('div');
-    confirm.className = 'rail-confirm';
-    confirm.hidden = true;
-    confirm.innerHTML = `
-      <p>Start a new city? Unsaved progress is lost.</p>
-      <div class="rail-confirm-actions">
-        <button type="button" class="confirm-ok">New city</button>
-        <button type="button" class="confirm-cancel">Cancel</button>
-      </div>
-    `;
-    container.appendChild(confirm);
-
-    newBtn.addEventListener('click', () => {
-      confirm.hidden = false;
-      newBtn.disabled = true;
+    saveBtn.title = 'Save this city in the browser (Ctrl+S)';
+    saveBtn.addEventListener('click', () => {
+      this._hideConfirms();
+      handlers.onSave();
+      this.setHasSave(true);
     });
-    confirm.querySelector('.confirm-cancel')!.addEventListener('click', () => {
-      confirm.hidden = true;
-      newBtn.disabled = false;
+    actions.appendChild(saveBtn);
+
+    this._loadBtn = document.createElement('button');
+    this._loadBtn.type = 'button';
+    this._loadBtn.id = 'load-btn';
+    this._loadBtn.textContent = 'Load';
+    actions.appendChild(this._loadBtn);
+
+    this._newBtn = document.createElement('button');
+    this._newBtn.type = 'button';
+    this._newBtn.id = 'new-city-btn';
+    this._newBtn.textContent = 'New';
+    this._newBtn.title = 'Generate a new map. Last Save is kept.';
+    actions.appendChild(this._newBtn);
+
+    this._note = document.createElement('p');
+    this._note.className = 'city-menu-note';
+    container.appendChild(this._note);
+
+    this._loadConfirm = _makeConfirm(
+      'Replace this city with the last save? Unsaved work is lost.',
+      'Load save',
+    );
+    this._newConfirm = _makeConfirm(
+      'Generate a new map? Unsaved work is lost. Your last Save is kept.',
+      'New map',
+    );
+    container.appendChild(this._loadConfirm);
+    container.appendChild(this._newConfirm);
+
+    this._loadBtn.addEventListener('click', () => {
+      if (!this._hasSave) return;
+      this._newConfirm.hidden = true;
+      this._newBtn.disabled = false;
+      this._loadConfirm.hidden = false;
     });
-    confirm.querySelector('.confirm-ok')!.addEventListener('click', () => {
+    this._loadConfirm.querySelector('.confirm-cancel')!.addEventListener('click', () => {
+      this._hideConfirms();
+    });
+    this._loadConfirm.querySelector('.confirm-ok')!.addEventListener('click', () => {
+      this._hideConfirms();
+      handlers.onLoad();
+    });
+
+    this._newBtn.addEventListener('click', () => {
+      this._loadConfirm.hidden = true;
+      this._newConfirm.hidden = false;
+      this._newBtn.disabled = true;
+    });
+    this._newConfirm.querySelector('.confirm-cancel')!.addEventListener('click', () => {
+      this._hideConfirms();
+    });
+    this._newConfirm.querySelector('.confirm-ok')!.addEventListener('click', () => {
       handlers.onNewCity();
     });
+
+    window.addEventListener('keydown', (event) => {
+      if (_isTypingTarget(event.target)) return;
+      if ((event.ctrlKey || event.metaKey) && (event.key === 's' || event.key === 'S')) {
+        event.preventDefault();
+        this._hideConfirms();
+        handlers.onSave();
+        this.setHasSave(true);
+        return;
+      }
+      if (event.key === 'Escape') this._hideConfirms();
+    });
+
+    this._syncLoad();
   }
+
+  setHasSave(hasSave: boolean): void {
+    this._hasSave = hasSave;
+    this._syncLoad();
+  }
+
+  private _hideConfirms(): void {
+    this._loadConfirm.hidden = true;
+    this._newConfirm.hidden = true;
+    this._newBtn.disabled = false;
+    this._syncLoad();
+  }
+
+  private _syncLoad(): void {
+    this._loadBtn.disabled = !this._hasSave;
+    this._loadBtn.title = this._hasSave
+      ? 'Replace this city with the last save'
+      : 'No save in this browser yet';
+    this._note.textContent = this._hasSave ? 'Save kept in this browser.' : 'No save yet.';
+  }
+}
+
+function _makeConfirm(message: string, okLabel: string): HTMLDivElement {
+  const confirm = document.createElement('div');
+  confirm.className = 'rail-confirm';
+  confirm.hidden = true;
+  const p = document.createElement('p');
+  p.textContent = message;
+  const actions = document.createElement('div');
+  actions.className = 'rail-confirm-actions';
+  const ok = document.createElement('button');
+  ok.type = 'button';
+  ok.className = 'confirm-ok';
+  ok.textContent = okLabel;
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'confirm-cancel';
+  cancel.textContent = 'Cancel';
+  actions.append(ok, cancel);
+  confirm.append(p, actions);
+  return confirm;
+}
+
+function _isTypingTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  );
 }
