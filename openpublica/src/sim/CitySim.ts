@@ -15,6 +15,7 @@ import { PopulationDensitySystem } from './PopulationDensitySystem';
 import { PoliceCoverageSystem } from './PoliceCoverageSystem';
 import { FireCoverageSystem } from './FireCoverageSystem';
 import { CrimeSystem } from './CrimeSystem';
+import { EvaluationSystem } from './EvaluationSystem';
 import { tileKey } from './ZoneGrowthSystem';
 import { STARTER_RESIDENTIAL_DEMAND } from './zoneGrowthHints';
 
@@ -71,6 +72,14 @@ export interface CityStats {
    * Computed by FireCoverageSystem. Zero when nobody lives in the city yet.
    */
   fireAverage: number;
+  /**
+   * Mayor approval [0–100] from EvaluationSystem. Starts at 100.
+   */
+  approval: number;
+  /**
+   * Top city-wide advisory, or empty when nothing is wrong enough to flag.
+   */
+  advisory: string;
 }
 
 /**
@@ -96,6 +105,7 @@ export class CitySim {
   readonly police:       PoliceCoverageSystem;
   readonly fire:         FireCoverageSystem;
   readonly crime:        CrimeSystem;
+  readonly evaluation:   EvaluationSystem;
   readonly traffic:      TrafficPressureSystem;
   readonly walkability:  WalkabilitySystem;
   readonly transit:      TransitSystem;
@@ -152,6 +162,7 @@ export class CitySim {
     this.police       = new PoliceCoverageSystem();
     this.fire         = new FireCoverageSystem();
     this.crime        = new CrimeSystem();
+    this.evaluation   = new EvaluationSystem();
     this.landValue    = new LandValueSystem();
     this.traffic      = new TrafficPressureSystem();
     this.walkability  = new WalkabilitySystem();
@@ -176,7 +187,10 @@ export class CitySim {
       pollutionAverage:  0,
       crimeAverage:      0,
       fireAverage:       0,
+      approval:          100,
+      advisory:          '',
     };
+    this.evaluate();
   }
 
   // ── Factory ──────────────────────────────────────────────────────────────
@@ -269,7 +283,16 @@ export class CitySim {
     this.police.tick(this.map, this.growth.buildings, this.growth.defs);
     this.fire.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
     this.crime.tick(this.map, this.stats, applyCrimeHappiness);
+    this.evaluate();
     if (this.onCrimeChanged) this.onCrimeChanged();
+  }
+
+  /**
+   * Recalculate mayor approval and the top advisory from current map/stats.
+   * Safe to call after tax changes or placement; does not advance the clock.
+   */
+  evaluate(): void {
+    this.evaluation.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
   }
 
   // ── Economy ───────────────────────────────────────────────────────────────

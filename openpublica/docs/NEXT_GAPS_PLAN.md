@@ -57,7 +57,7 @@ The HUD shows Poll / Happy / Walk / Transit, but there is **no** police, fire, c
 | A2 Police **shipped** | Station def + tool + coverage radius like power; `tile.policeCoverage` | Sprite cops |
 | A3 Crime **shipped** | `tile.crime` from density, land value, police; HUD average | Hidden Micropolis crime RNG as-is |
 | A4 Fire **shipped** | Station def + tool + `tile.fireCoverage`; Fire overlay + HUD average | Disasters in the same PR |
-| A5 Evaluation | Monthly score / approval / top problems from pollution, crime, traffic, taxes, power, bankruptcy | Census graphs in the same PR |
+| A5 Evaluation **shipped** | Monthly score / approval / top problems from pollution, crime, traffic, taxes, power, bankruptcy | Census graphs in the same PR |
 
 **Exit:** A grown city can be “unsafe” or “underserved” in HUD + overlay without opening the console.
 
@@ -67,7 +67,7 @@ Buildings do not shrink when demand, power, pollution, or access fail. Status te
 
 | Slice | What to ship |
 |---|---|
-| B1 Advisory | Structured messages (no power plant, bankrupt, smog spike, no road access) in the status bar / a small feed |
+| B1 Advisory **shipped** | Structured messages (no power plant, bankrupt, smog spike, no road access) in the HUD feed |
 | B2 Degradation | Existing buildings can downgrade or vanish after sustained bad conditions (tune slowly; keep formulas documented) |
 | B3 Downtown | Optional commercial/mixed boost from a computed city centroid |
 
@@ -113,7 +113,7 @@ Unchanged from the 3D plan:
 
 1. ~~**Density + crime overlay inputs** (A1–A3).~~ Shipped: Crowd/Crime overlays, Police tool, HUD Crime.
 2. ~~**Fire coverage** (A4).~~ Shipped: Fire tool, overlay, HUD Fire (no disasters).
-3. **Evaluation + advisory** (A5 + B1) — this is the first “mayor” moment.
+3. ~~**Evaluation + advisory** (A5 + B1).~~ Shipped: HUD Score + mayor alert line.
 4. **PBR + sky** (C1–C2) — visual, no sim.
 5. **App.ts split** (D2) whenever the next feature would add another 80 lines to the constructor.
 6. **Degradation** (B2) only after advisory exists so the player is told why lots empty.

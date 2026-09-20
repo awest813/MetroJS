@@ -17,7 +17,7 @@ function emptyStats() {
     industrialDemand: 0, resTaxRate: 9, comTaxRate: 9, indTaxRate: 9,
     monthlyIncome: 0, monthlyExpenses: 0, bankruptcyWarning: false,
     happiness: 100, walkability: 0, transitAccess: 0, pollutionAverage: 0,
-    crimeAverage: 0, fireAverage: 0,
+    crimeAverage: 0, fireAverage: 0, approval: 100, advisory: '',
   };
 }
 

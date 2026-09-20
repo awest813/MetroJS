@@ -348,6 +348,8 @@ export class App {
       sim.stats.resTaxRate = res;
       sim.stats.comTaxRate = com;
       sim.stats.indTaxRate = ind;
+      sim.evaluate();
+      hud.update(sim.stats, sim.clock);
     });
 
     picker.onPick((coord, via) => {

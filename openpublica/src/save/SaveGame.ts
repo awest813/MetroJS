@@ -41,6 +41,8 @@ export interface SavedStats {
   pollutionAverage:  number;
   crimeAverage:      number;
   fireAverage:       number;
+  approval:          number;
+  advisory:          string;
 }
 
 /** Top-level save-game document stored in localStorage. */

@@ -15,6 +15,8 @@ export class CityHUD {
   private readonly _pollution:     HTMLElement;
   private readonly _crime:         HTMLElement;
   private readonly _fire:          HTMLElement;
+  private readonly _approval:      HTMLElement;
+  private readonly _advisory:      HTMLElement;
   private readonly _resFill: HTMLElement;
   private readonly _comFill: HTMLElement;
   private readonly _indFill: HTMLElement;
@@ -35,7 +37,9 @@ export class CityHUD {
         <span class="hud-item hud-muted" id="hud-pollution" title="Average pollution">Poll 0</span>
         <span class="hud-item hud-muted" id="hud-crime" title="Average crime">Crime 0</span>
         <span class="hud-item hud-muted" id="hud-fire" title="Average fire coverage on occupied lots">Fire 0</span>
+        <span class="hud-item" id="hud-approval" title="Mayor approval">Score 100</span>
       </div>
+      <div id="hud-advisory" class="hud-advisory" title="Top city problem">Zone land and place a power plant.</div>
       <div id="hud-demand" title="Zone demand">
         <div class="demand-row">
           <span class="demand-label">Res</span>
@@ -71,6 +75,8 @@ export class CityHUD {
     this._pollution     = root.querySelector('#hud-pollution')!;
     this._crime         = root.querySelector('#hud-crime')!;
     this._fire          = root.querySelector('#hud-fire')!;
+    this._approval      = root.querySelector('#hud-approval')!;
+    this._advisory      = root.querySelector('#hud-advisory')!;
     this._resFill  = root.querySelector('#hud-res-fill')!;
     this._comFill  = root.querySelector('#hud-com-fill')!;
     this._indFill  = root.querySelector('#hud-ind-fill')!;
@@ -93,6 +99,10 @@ export class CityHUD {
     this._pollution.textContent     = `Poll ${stats.pollutionAverage}`;
     this._crime.textContent         = `Crime ${stats.crimeAverage}`;
     this._fire.textContent          = `Fire ${stats.fireAverage}`;
+    this._approval.textContent      = `Score ${stats.approval}`;
+    const alert = stats.advisory.trim().length > 0;
+    this._advisory.textContent = alert ? stats.advisory : 'No mayor alerts.';
+    this._advisory.classList.toggle('hud-advisory-alert', alert);
 
     this._setBar(this._resFill, this._resLabel, stats.residentialDemand);
     this._setBar(this._comFill, this._comLabel, stats.commercialDemand);

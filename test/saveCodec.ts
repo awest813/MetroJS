@@ -172,6 +172,17 @@ describe('SaveCodec.decode', () => {
     expect(restored.stats.fireAverage).toBe(41);
   });
 
+  it('should restore stats.approval', () => {
+    const sim = makeSim();
+    sim.stats.approval = 71;
+    sim.stats.advisory = 'custom';
+    const restored = roundTrip(sim);
+    // Load re-runs evaluation, so advisory is derived — approval follows the live city.
+    expect(restored.stats.approval).toBeGreaterThanOrEqual(0);
+    expect(restored.stats.approval).toBeLessThanOrEqual(100);
+    expect(typeof restored.stats.advisory).toBe('string');
+  });
+
   it('should use safe defaults for missing stat fields (simulate older save)', () => {
     const sim  = makeSim();
     const save = SaveCodec.encode(sim);
@@ -179,12 +190,16 @@ describe('SaveCodec.decode', () => {
     (save.stats as unknown as Record<string, unknown>)['pollutionAverage'] = undefined;
     (save.stats as unknown as Record<string, unknown>)['crimeAverage'] = undefined;
     (save.stats as unknown as Record<string, unknown>)['fireAverage'] = undefined;
+    (save.stats as unknown as Record<string, unknown>)['approval'] = undefined;
+    (save.stats as unknown as Record<string, unknown>)['advisory'] = undefined;
     const restored = CitySim.createCity(save.mapWidth, save.mapHeight);
     SaveCodec.decode(save, restored);
     expect(restored.stats.transitAccess).toBe(0);
     expect(restored.stats.pollutionAverage).toBe(0);
     expect(restored.stats.crimeAverage).toBe(0);
     expect(restored.stats.fireAverage).toBe(0);
+    expect(restored.stats.approval).toBe(100);
+    expect(restored.stats.advisory).toBe('');
   });
 });
 
@@ -237,7 +252,7 @@ describe('SaveCodec.migrate', () => {
         residentialDemand: 0, commercialDemand: 0, industrialDemand: 20,
         resTaxRate: 9, comTaxRate: 9, indTaxRate: 9,
         monthlyIncome: 0, monthlyExpenses: 0, bankruptcyWarning: false,
-        happiness: 100, walkability: 0, transitAccess: 0, pollutionAverage: 0, crimeAverage: 0, fireAverage: 0,
+        happiness: 100, walkability: 0, transitAccess: 0, pollutionAverage: 0, crimeAverage: 0, fireAverage: 0, approval: 100, advisory: '',
       },
     };
     const result = SaveCodec.migrate(raw);

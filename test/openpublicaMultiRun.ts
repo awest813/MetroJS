@@ -31,7 +31,7 @@ function finiteStats(sim: CitySim): void {
     'population', 'jobs', 'money', 'residentialDemand', 'commercialDemand',
     'industrialDemand', 'resTaxRate', 'comTaxRate', 'indTaxRate',
     'monthlyIncome', 'monthlyExpenses', 'happiness', 'walkability',
-    'transitAccess', 'pollutionAverage', 'crimeAverage', 'fireAverage',
+    'transitAccess', 'pollutionAverage', 'crimeAverage', 'fireAverage', 'approval',
   ];
   for (const key of numeric) {
     expect(Number.isFinite(s[key] as number)).toBe(true);
@@ -39,6 +39,7 @@ function finiteStats(sim: CitySim): void {
   expect(s.population).toBeGreaterThanOrEqual(0);
   expect(s.jobs).toBeGreaterThanOrEqual(0);
   expect(typeof s.bankruptcyWarning).toBe('boolean');
+  expect(typeof s.advisory).toBe('string');
 }
 
 function playCity(seed: number): CitySim {

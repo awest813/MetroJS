@@ -1,0 +1,116 @@
+import { CitySim } from '../openpublica/src/sim/CitySim';
+import { ZoneType, RoadType } from '../openpublica/src/sim/CityTile';
+import { MONTH_SECONDS } from '../openpublica/src/data/constants';
+
+function tickOneMonth(sim: CitySim): void {
+  sim.tick(MONTH_SECONDS);
+}
+
+describe('EvaluationSystem', () => {
+  it('should start a blank city at full approval with a plant advisory', () => {
+    const sim = CitySim.createCity(8, 8);
+    expect(sim.stats.approval).toBe(100);
+    expect(sim.stats.advisory).toMatch(/power plant/i);
+  });
+
+  it('should tell the player when zoned lots have no plant', () => {
+    const sim = CitySim.createCity(8, 8);
+    sim.setZone(2, 2, ZoneType.Residential);
+    sim.evaluate();
+    expect(sim.stats.approval).toBe(88);
+    expect(sim.stats.advisory).toMatch(/lots stay dark/i);
+  });
+
+  it('should clear the no-plant advisory after placing a generator', () => {
+    const sim = CitySim.createCity(16, 16);
+    sim.stats.money = 100_000;
+    sim.setZone(4, 4, ZoneType.Residential);
+    sim.placeServiceBuilding(8, 8, 'small_power_plant', 0);
+    expect(sim.stats.advisory).not.toMatch(/power plant/i);
+    expect(sim.stats.approval).toBeGreaterThanOrEqual(50);
+    expect(sim.stats.approval).toBeLessThanOrEqual(100);
+  });
+
+  it('should flag zoned lots that need a neighbouring road', () => {
+    const sim = CitySim.createCity(16, 16);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(8, 8, 'small_power_plant', 0);
+    sim.setZone(2, 2, ZoneType.Residential);
+    sim.stats.pollutionAverage = 0;
+    sim.evaluate();
+    expect(sim.stats.advisory).toMatch(/road next door/i);
+  });
+
+  it('should cut approval for high taxes', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    const baseline = sim.stats.approval;
+    sim.stats.resTaxRate = 18;
+    sim.evaluate();
+    expect(sim.stats.approval).toBe(baseline - (18 - 9) * 3);
+    expect(sim.stats.advisory).toMatch(/taxes are high/i);
+  });
+
+  it('should cut approval when bankrupt', () => {
+    const sim = CitySim.createCity(8, 8);
+    sim.stats.bankruptcyWarning = true;
+    sim.evaluate();
+    expect(sim.stats.approval).toBe(65);
+    expect(sim.stats.advisory).toMatch(/bankrupt/i);
+  });
+
+  it('should mention unpowered buildings', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(20, 20, 'small_power_plant', 0);
+    sim.growth.buildings.set('1,1', { defId: 'small_house', x: 1, y: 1 });
+    sim.getTile(1, 1)!.buildingId = 'small_house';
+    sim.getTile(1, 1)!.powered = false;
+    sim.evaluate();
+    expect(sim.stats.advisory).toMatch(/unpowered/i);
+  });
+
+  it('should mention a smog spike', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    sim.stats.pollutionAverage = 50;
+    sim.evaluate();
+    expect(sim.stats.advisory).toMatch(/smog/i);
+  });
+
+  it('should mention high crime', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    sim.stats.pollutionAverage = 0;
+    sim.stats.crimeAverage = 40;
+    sim.evaluate();
+    expect(sim.stats.advisory).toMatch(/crime/i);
+  });
+
+  it('should mention jammed traffic', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    sim.stats.pollutionAverage = 0;
+    for (let x = 10; x < 14; x++) {
+      sim.placeRoad(x, 10, RoadType.Street);
+      sim.getTile(x, 10)!.trafficPressure = 10;
+    }
+    sim.evaluate();
+    expect(sim.stats.advisory).toMatch(/traffic/i);
+  });
+
+  it('should keep approval in 0–100 after a dirty month', () => {
+    const sim = CitySim.createCity(8, 8);
+    sim.stats.pollutionAverage = 100;
+    sim.stats.crimeAverage = 100;
+    sim.stats.bankruptcyWarning = true;
+    sim.stats.resTaxRate = 20;
+    tickOneMonth(sim);
+    expect(sim.stats.approval).toBeGreaterThanOrEqual(0);
+    expect(sim.stats.approval).toBeLessThanOrEqual(100);
+  });
+});

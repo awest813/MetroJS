@@ -49,6 +49,7 @@ export class SaveSystem {
       return false;
     }
     SaveCodec.decode(save, sim);
+    sim.evaluate();
     console.info('[SaveSystem] Game loaded.');
     return true;
   }
