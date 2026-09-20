@@ -6,6 +6,7 @@ import { ZoneType } from '../openpublica/src/sim/CityTile';
 import { MONTH_SECONDS } from '../openpublica/src/data/constants';
 import { PlacePoliceStationTool, POLICE_STATION_COST } from '../openpublica/src/tools/PlacePoliceStationTool';
 import { PlaceFireStationTool, FIRE_STATION_COST } from '../openpublica/src/tools/PlaceFireStationTool';
+import { PlaceWaterTowerTool, WATER_TOWER_COST } from '../openpublica/src/tools/PlaceWaterTowerTool';
 
 function tickOneMonth(sim: CitySim): void {
   sim.tick(MONTH_SECONDS);
@@ -17,7 +18,7 @@ function emptyStats() {
     industrialDemand: 0, resTaxRate: 9, comTaxRate: 9, indTaxRate: 9,
     monthlyIncome: 0, monthlyExpenses: 0, bankruptcyWarning: false,
     happiness: 100, walkability: 0, transitAccess: 0, pollutionAverage: 0,
-    crimeAverage: 0, fireAverage: 0, approval: 100, advisory: '',
+    crimeAverage: 0, fireAverage: 0, waterAverage: 0, approval: 100, advisory: '',
   };
 }
 
@@ -131,6 +132,40 @@ describe('FireCoverageSystem', () => {
   });
 });
 
+describe('WaterCoverageSystem', () => {
+  it('should ignore an unpowered water tower', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(12, 12, 'small_water_tower', 0);
+    expect(sim.getTile(12, 12)!.powered).toBe(false);
+    expect(sim.getTile(12, 12)!.watered).toBe(false);
+    expect(sim.stats.waterAverage).toBe(0);
+  });
+
+  it('should water zoned lots inside a powered tower radius', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(12, 12, 'small_power_plant', 0);
+    sim.placeServiceBuilding(12, 13, 'small_water_tower', 0);
+    sim.setZone(12, 14, ZoneType.Residential);
+    expect(sim.getTile(12, 14)!.watered).toBe(true);
+    expect(sim.stats.waterAverage).toBe(100);
+    expect(sim.getTile(0, 0)!.watered).toBe(false);
+  });
+
+  it('should drop waterAverage after bulldozing the only zoned lot', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(12, 12, 'small_power_plant', 0);
+    sim.placeServiceBuilding(12, 13, 'small_water_tower', 0);
+    sim.setZone(12, 14, ZoneType.Residential);
+    expect(sim.stats.waterAverage).toBe(100);
+    sim.bulldoze(12, 14);
+    expect(sim.stats.waterAverage).toBe(0);
+    expect(sim.getTile(12, 14)!.watered).toBe(true);
+  });
+});
+
 describe('CrimeSystem', () => {
   it('should keep empty tiles at crime 0', () => {
     const map = new CityMap(4, 4);
@@ -232,5 +267,14 @@ describe('city health wiring', () => {
     expect(tool.apply({ x: 3, y: 3 }, sim)).toBe(true);
     expect(sim.stats.money).toBe(start - FIRE_STATION_COST);
     expect(sim.getTile(3, 3)!.buildingId).toBe('small_fire_station');
+  });
+
+  it('should deduct WATER_TOWER_COST via the water tool', () => {
+    const sim = CitySim.createCity(8, 8);
+    const start = sim.stats.money;
+    const tool = new PlaceWaterTowerTool();
+    expect(tool.apply({ x: 3, y: 3 }, sim)).toBe(true);
+    expect(sim.stats.money).toBe(start - WATER_TOWER_COST);
+    expect(sim.getTile(3, 3)!.buildingId).toBe('small_water_tower');
   });
 });

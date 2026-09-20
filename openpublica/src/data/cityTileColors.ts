@@ -82,6 +82,7 @@ function _cornerColor(map: CityMap, cx: number, cy: number): TileColor {
  */
 const POLICE_GROUND: TileColor = { r: 0.18, g: 0.26, b: 0.40 };
 const FIRE_GROUND: TileColor = { r: 0.48, g: 0.18, b: 0.12 };
+const WATER_GROUND: TileColor = { r: 0.16, g: 0.38, b: 0.46 };
 
 export function cityTileColor(tile: CityTile): TileColor {
   if (tile.buildingId === 'small_park') {
@@ -92,6 +93,9 @@ export function cityTileColor(tile: CityTile): TileColor {
   }
   if (tile.buildingId === 'small_fire_station') {
     return FIRE_GROUND;
+  }
+  if (tile.buildingId === 'small_water_tower') {
+    return WATER_GROUND;
   }
   if (tile.buildingId !== null && tile.zoneType !== ZoneType.None) {
     return BUILDING_COLORS[tile.zoneType];

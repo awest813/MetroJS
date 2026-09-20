@@ -13,7 +13,8 @@ export type OverlayMode =
   | 'pollution'
   | 'density'
   | 'crime'
-  | 'fire';
+  | 'fire'
+  | 'water';
 
 export interface OverlayRgba {
   readonly r: number;
@@ -51,6 +52,7 @@ export function colorForOverlay(mode: OverlayMode, tile: CityTile): OverlayRgba 
     case 'density':     return colorForDensity(tile.populationDensity);
     case 'crime':       return colorForCrime(tile.crime);
     case 'fire':        return colorForFire(tile.fireCoverage);
+    case 'water':       return colorForWater(tile.watered);
   }
 }
 
@@ -152,6 +154,12 @@ export function colorForFire(coverage: number): OverlayRgba {
     b: 0.08,
     a: 0.22 + 0.38 * t,
   };
+}
+
+/** Cyan mains; dry tiles stay clear. */
+export function colorForWater(watered: boolean): OverlayRgba {
+  if (!watered) return OVERLAY_CLEAR;
+  return { r: 0.20, g: 0.55, b: 0.85, a: 0.38 };
 }
 
 function clamp01(n: number): number {

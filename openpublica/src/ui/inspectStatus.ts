@@ -54,6 +54,7 @@ export function formatInspectStatus(
   if (tile.populationDensity > 0) parts.push(`density ${tile.populationDensity}`);
   if (tile.policeCoverage > 0) parts.push(`police ${tile.policeCoverage}`);
   if (tile.fireCoverage > 0) parts.push(`fire ${tile.fireCoverage}`);
+  if (tile.watered) parts.push('watered');
   if (tile.crime > 0) parts.push(`crime ${tile.crime}`);
   if (tile.pollution > 0) parts.push(`pollution ${tile.pollution}`);
   if (growthHint) parts.push(growthHint);

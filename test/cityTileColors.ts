@@ -50,4 +50,13 @@ describe('terrain colour blending', () => {
     grass.terrain = TerrainType.Grass;
     expect(cityTileColor(station).r).toBeGreaterThan(cityTileColor(grass).r);
   });
+
+  it('should keep a water tower lot cooler than grass', () => {
+    const map = new CityMap(2, 2);
+    const tower = map.getTile(0, 0)!;
+    tower.buildingId = 'small_water_tower';
+    const grass = map.getTile(1, 0)!;
+    grass.terrain = TerrainType.Grass;
+    expect(cityTileColor(tower).b).toBeGreaterThan(cityTileColor(grass).b);
+  });
 });

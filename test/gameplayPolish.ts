@@ -61,6 +61,12 @@ describe('explainToolFailure', () => {
     expect(explainToolFailure('road', { x: 0, y: 0 }, sim)).toMatch(/Need \$10/);
   });
 
+  it('should mention funds for a highway', () => {
+    const sim = CitySim.createCity(8, 8);
+    sim.stats.money = 0;
+    expect(explainToolFailure('highway', { x: 0, y: 0 }, sim)).toMatch(/Need \$25/);
+  });
+
   it('should skip charging a second street on the same tile', () => {
     const sim = CitySim.createCity(8, 8);
     const tool = new RoadTool();
@@ -78,6 +84,12 @@ describe('explainToolFailure', () => {
     const sim = CitySim.createCity(8, 8);
     sim.stats.money = 0;
     expect(explainToolFailure('placeFireStation', { x: 0, y: 0 }, sim)).toMatch(/Need \$400/);
+  });
+
+  it('should refuse a water tower without funds', () => {
+    const sim = CitySim.createCity(8, 8);
+    sim.stats.money = 0;
+    expect(explainToolFailure('placeWaterTower', { x: 0, y: 0 }, sim)).toMatch(/Need \$350/);
   });
 
   it('should refuse a power plant on an occupied lot', () => {

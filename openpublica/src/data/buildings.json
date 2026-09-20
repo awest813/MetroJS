@@ -59,6 +59,15 @@
     "fireRadius": 10
   },
   {
+    "id": "small_water_tower",
+    "name": "Small Water Tower",
+    "zoneType": 0,
+    "population": 0,
+    "jobs": 2,
+    "isService": true,
+    "waterRadius": 10
+  },
+  {
     "id": "small_park",
     "name": "Small Park",
     "zoneType": 0,

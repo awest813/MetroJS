@@ -3,9 +3,9 @@ import type { ToolController } from '../tools/ToolController';
 
 const TOOL_GROUPS: ReadonlyArray<ReadonlyArray<string>> = [
   ['inspect'],
-  ['road', 'trolleyAvenue', 'bulldoze'],
+  ['road', 'highway', 'trolleyAvenue', 'bulldoze'],
   ['zoneResidentialLow', 'zoneCommercialLow', 'zoneIndustrialLight', 'zoneMixedUse'],
-  ['placePowerPlant', 'placePark', 'placePoliceStation', 'placeFireStation'],
+  ['placePowerPlant', 'placePark', 'placePoliceStation', 'placeFireStation', 'placeWaterTower'],
 ];
 
 /**

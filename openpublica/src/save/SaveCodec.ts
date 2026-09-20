@@ -60,6 +60,7 @@ export class SaveCodec {
         pollutionAverage:  sim.stats.pollutionAverage,
         crimeAverage:      sim.stats.crimeAverage,
         fireAverage:       sim.stats.fireAverage,
+        waterAverage:      sim.stats.waterAverage,
         approval:          sim.stats.approval,
         advisory:          sim.stats.advisory,
       },
@@ -116,6 +117,7 @@ export class SaveCodec {
     sim.stats.pollutionAverage  = s.pollutionAverage  ?? 0;
     sim.stats.crimeAverage      = s.crimeAverage      ?? 0;
     sim.stats.fireAverage       = s.fireAverage       ?? 0;
+    sim.stats.waterAverage      = s.waterAverage      ?? 0;
     sim.stats.approval          = s.approval          ?? 100;
     sim.stats.advisory          = s.advisory          ?? '';
 

@@ -29,6 +29,7 @@ export class TrolleyAvenueTool implements Tool {
     if (!sim.isBuildable(coord.x, coord.y)) return false;
     const tile = sim.getTile(coord.x, coord.y);
     if (!tile || tile.roadType === RoadType.TrolleyAvenue) return false;
+    if (tile.buildingId !== null) return false;
     const cost = TROLLEY_AVENUE_COST;
     if (!sim.deductMoney(cost)) {
       console.warn(`[TrolleyAve] Insufficient funds (need $${cost}, have $${sim.stats.money})`);

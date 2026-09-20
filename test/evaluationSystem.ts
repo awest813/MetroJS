@@ -103,6 +103,17 @@ describe('EvaluationSystem', () => {
     expect(sim.stats.advisory).toMatch(/traffic/i);
   });
 
+  it('should mention dry lots when zones have no water', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    sim.stats.pollutionAverage = 0;
+    sim.placeRoad(10, 10, RoadType.Street);
+    sim.setZone(10, 11, ZoneType.Residential);
+    sim.evaluate();
+    expect(sim.stats.advisory).toMatch(/water tower/i);
+  });
+
   it('should keep approval in 0–100 after a dirty month', () => {
     const sim = CitySim.createCity(8, 8);
     sim.stats.pollutionAverage = 100;

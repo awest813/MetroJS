@@ -53,6 +53,8 @@ export function sfxForTool(toolName: string): Voice | null {
       return null;
     case 'road':
       return { kind: 'blip', freq: 196, duration: 0.055, gain: 0.055, type: 'triangle' };
+    case 'highway':
+      return { kind: 'blip', freq: 148, duration: 0.07, gain: 0.055, type: 'triangle' };
     case 'trolleyAvenue':
       return { kind: 'blip', freq: 164, duration: 0.08, gain: 0.05, type: 'square' };
     case 'zoneResidentialLow':
@@ -73,6 +75,8 @@ export function sfxForTool(toolName: string): Voice | null {
       return { kind: 'blip', freq: 220, duration: 0.09, gain: 0.05, type: 'square' };
     case 'placeFireStation':
       return { kind: 'blip', freq: 196, duration: 0.10, gain: 0.05, type: 'sawtooth' };
+    case 'placeWaterTower':
+      return { kind: 'blip', freq: 262, duration: 0.10, gain: 0.05, type: 'sine', slide: 40 };
     default:
       return { kind: 'blip', freq: 280, duration: 0.04, gain: 0.035, type: 'sine' };
   }

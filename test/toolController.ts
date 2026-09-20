@@ -192,9 +192,19 @@ describe('RoadTool', () => {
   it('should place a Highway road with the correct cost', () => {
     const sim  = makeSim(1_000);
     const tool = new RoadTool(RoadType.Highway);
+    expect(tool.name).toBe('highway');
     tool.apply(ORIGIN, sim);
     expect(sim.getTile(0, 0)?.roadType).toBe(RoadType.Highway);
     expect(sim.stats.money).toBe(1_000 - ROAD_COST[RoadType.Highway]);
+  });
+
+  it('should not pave over a building', () => {
+    const sim  = makeSim(1_000);
+    sim.placeServiceBuilding(0, 0, 'small_park', 0);
+    const money = sim.stats.money;
+    expect(new RoadTool().apply(ORIGIN, sim)).toBe(false);
+    expect(sim.getTile(0, 0)?.roadType).toBe(RoadType.None);
+    expect(sim.stats.money).toBe(money);
   });
 
   it('should default to Street road type', () => {

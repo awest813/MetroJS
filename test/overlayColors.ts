@@ -7,6 +7,7 @@ import {
   colorForCrime,
   colorForDensity,
   colorForFire,
+  colorForWater,
   colorForPollution,
   colorForPower,
   colorForTraffic,
@@ -39,6 +40,8 @@ describe('overlayColors', () => {
     expect(colorForDensity(0)).toEqual(OVERLAY_CLEAR);
     expect(colorForCrime(0)).toEqual(OVERLAY_CLEAR);
     expect(colorForFire(0)).toEqual(OVERLAY_CLEAR);
+    expect(colorForWater(false)).toEqual(OVERLAY_CLEAR);
+    expect(colorForWater(true).b).toBeGreaterThan(colorForWater(true).r);
     const crowd = colorForDensity(80);
     const heat = colorForCrime(80);
     const cover = colorForFire(80);
@@ -66,10 +69,12 @@ describe('overlayColors', () => {
     tile.populationDensity = 70;
     tile.crime = 55;
     tile.fireCoverage = 80;
+    tile.watered = true;
     expect(colorForOverlay('pollution', tile).a).toBeGreaterThan(0);
     expect(colorForOverlay('power', tile).g).toBeGreaterThan(0.5);
     expect(colorForOverlay('density', tile).a).toBeGreaterThan(0);
     expect(colorForOverlay('crime', tile).a).toBeGreaterThan(0);
     expect(colorForOverlay('fire', tile).a).toBeGreaterThan(0);
+    expect(colorForOverlay('water', tile).a).toBeGreaterThan(0);
   });
 });

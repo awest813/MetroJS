@@ -173,5 +173,8 @@ function listAdvisories(stats: CityStats, census: Census): Advisory[] {
   if (stats.population > 0 && stats.fireAverage < 20) {
     out.push({ id: 'fire', message: 'Fire coverage is thin — place a powered fire station.' });
   }
+  if (census.zonedCount > 0 && stats.waterAverage < 25) {
+    out.push({ id: 'water', message: 'Lots are dry — place a powered water tower.' });
+  }
   return out;
 }

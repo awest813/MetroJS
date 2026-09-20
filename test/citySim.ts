@@ -38,6 +38,7 @@ describe('CitySim', () => {
       expect(sim.stats.pollutionAverage).toBe(0);
       expect(sim.stats.crimeAverage).toBe(0);
       expect(sim.stats.fireAverage).toBe(0);
+      expect(sim.stats.waterAverage).toBe(0);
       expect(sim.stats.approval).toBe(100);
       expect(sim.stats.advisory).toMatch(/power plant/i);
       expect(sim.stats.resTaxRate).toBe(9);

@@ -41,6 +41,12 @@ const IND_INCOME_PER_JOB_PER_PCT = 0.3;
 const ROAD_MAINTENANCE_PER_TILE = 2;
 
 /**
+ * Monthly maintenance per highway tile. Between street and trolley:
+ * a wider deck, not overhead wire.
+ */
+const HIGHWAY_MAINTENANCE_PER_TILE = 4;
+
+/**
  * Monthly maintenance cost (dollars) per trolley avenue tile.
  * Higher than a normal street because of overhead wire maintenance,
  * track upkeep, and transit operations.
@@ -70,7 +76,9 @@ const SERVICE_BUILDING_MONTHLY_COST = 50;
  *
  * ## Expense formula
  * ```
- * monthlyExpenses = roadTileCount       × ROAD_MAINTENANCE_PER_TILE
+ * monthlyExpenses = streetTileCount   × ROAD_MAINTENANCE_PER_TILE
+ *                 + highwayTileCount  × HIGHWAY_MAINTENANCE_PER_TILE
+ *                 + trolleyTileCount  × TROLLEY_MAINTENANCE_PER_TILE
  *                 + serviceBuildingCount × SERVICE_BUILDING_MONTHLY_COST
  * ```
  *
@@ -124,20 +132,21 @@ export class EconomySystem {
     // ── Expenses ───────────────────────────────────────────────────────────
     // Count road tiles by type so trolley avenues can carry a higher rate.
     let streetTileCount  = 0;
+    let highwayTileCount = 0;
     let trolleyTileCount = 0;
     map.forEach((tile) => {
       if (tile.roadType === RoadType.TrolleyAvenue) {
         trolleyTileCount += 1;
-      } else if (tile.roadType !== RoadType.None) {
+      } else if (tile.roadType === RoadType.Highway) {
+        highwayTileCount += 1;
+      } else if (tile.roadType === RoadType.Street) {
         streetTileCount += 1;
       }
     });
 
-    // Expenses = street tiles × maintenance rate
-    //          + trolley tiles × trolley maintenance rate
-    //          + service buildings × monthly operating cost
     stats.monthlyExpenses = Math.floor(
       streetTileCount  * ROAD_MAINTENANCE_PER_TILE    +
+      highwayTileCount * HIGHWAY_MAINTENANCE_PER_TILE +
       trolleyTileCount * TROLLEY_MAINTENANCE_PER_TILE +
       serviceBuildingCount * SERVICE_BUILDING_MONTHLY_COST,
     );

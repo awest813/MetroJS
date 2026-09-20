@@ -11,6 +11,7 @@ import { TilePicker } from '../render/TilePicker';
 import { HighlightRenderer } from '../render/HighlightRenderer';
 import { WaterRenderer } from '../render/WaterRenderer';
 import { CitySim } from '../sim/CitySim';
+import { RoadType } from '../sim/CityTile';
 import { generateTerrain } from '../sim/TerrainGenerator';
 import { HeightField } from '../sim/HeightField';
 import { tileKey } from '../sim/ZoneGrowthSystem';
@@ -28,6 +29,7 @@ import { PlacePowerPlantTool } from '../tools/PlacePowerPlantTool';
 import { PlaceParkTool } from '../tools/PlaceParkTool';
 import { PlacePoliceStationTool } from '../tools/PlacePoliceStationTool';
 import { PlaceFireStationTool } from '../tools/PlaceFireStationTool';
+import { PlaceWaterTowerTool } from '../tools/PlaceWaterTowerTool';
 import { TrolleyAvenueTool } from '../tools/TrolleyAvenueTool';
 import { ToolController } from '../tools/ToolController';
 import { CameraController } from '../render/CameraController';
@@ -92,6 +94,7 @@ export class App {
     // ── Tools ────────────────────────────────────────────────────────────────
     const inspectTool       = new InspectTool();
     const roadTool          = new RoadTool();
+    const highwayTool       = new RoadTool(RoadType.Highway);
     const residentialTool   = createResidentialLowBrush();
     const commercialTool    = createCommercialLowBrush();
     const industrialTool    = createIndustrialLightBrush();
@@ -101,11 +104,13 @@ export class App {
     const parkTool          = new PlaceParkTool();
     const policeTool        = new PlacePoliceStationTool();
     const fireTool          = new PlaceFireStationTool();
+    const waterTool         = new PlaceWaterTowerTool();
     const trolleyAvenueTool = new TrolleyAvenueTool();
 
     const allTools = [
       inspectTool,
       roadTool,
+      highwayTool,
       residentialTool,
       commercialTool,
       industrialTool,
@@ -115,6 +120,7 @@ export class App {
       parkTool,
       policeTool,
       fireTool,
+      waterTool,
       trolleyAvenueTool,
     ];
 
@@ -318,6 +324,7 @@ export class App {
       overlaySpec('density-overlay-btn', 'Crowd', 'Population density', 'density'),
       overlaySpec('crime-overlay-btn', 'Crime', 'Crime from density minus police', 'crime'),
       overlaySpec('fire-overlay-btn', 'Fire', 'Fire coverage from powered stations', 'fire'),
+      overlaySpec('water-overlay-btn', 'Mains', 'Watered lots from powered towers', 'water'),
     ]);
 
     const hud = new CityHUD(hudEl);

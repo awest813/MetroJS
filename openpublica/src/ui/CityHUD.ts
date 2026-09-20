@@ -15,6 +15,7 @@ export class CityHUD {
   private readonly _pollution:     HTMLElement;
   private readonly _crime:         HTMLElement;
   private readonly _fire:          HTMLElement;
+  private readonly _water:         HTMLElement;
   private readonly _approval:      HTMLElement;
   private readonly _advisory:      HTMLElement;
   private readonly _resFill: HTMLElement;
@@ -37,6 +38,7 @@ export class CityHUD {
         <span class="hud-item hud-muted" id="hud-pollution" title="Average pollution">Poll 0</span>
         <span class="hud-item hud-muted" id="hud-crime" title="Average crime">Crime 0</span>
         <span class="hud-item hud-muted" id="hud-fire" title="Average fire coverage on occupied lots">Fire 0</span>
+        <span class="hud-item hud-muted" id="hud-water" title="Percent of zoned lots that are watered">Water 0</span>
         <span class="hud-item" id="hud-approval" title="Mayor approval">Score 100</span>
       </div>
       <div id="hud-advisory" class="hud-advisory" title="Top city problem">Zone land and place a power plant.</div>
@@ -75,6 +77,7 @@ export class CityHUD {
     this._pollution     = root.querySelector('#hud-pollution')!;
     this._crime         = root.querySelector('#hud-crime')!;
     this._fire          = root.querySelector('#hud-fire')!;
+    this._water         = root.querySelector('#hud-water')!;
     this._approval      = root.querySelector('#hud-approval')!;
     this._advisory      = root.querySelector('#hud-advisory')!;
     this._resFill  = root.querySelector('#hud-res-fill')!;
@@ -99,6 +102,7 @@ export class CityHUD {
     this._pollution.textContent     = `Poll ${stats.pollutionAverage}`;
     this._crime.textContent         = `Crime ${stats.crimeAverage}`;
     this._fire.textContent          = `Fire ${stats.fireAverage}`;
+    this._water.textContent         = `Water ${stats.waterAverage}`;
     this._approval.textContent      = `Score ${stats.approval}`;
     const alert = stats.advisory.trim().length > 0;
     this._advisory.textContent = alert ? stats.advisory : 'No mayor alerts.';

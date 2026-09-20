@@ -84,6 +84,16 @@ describe('EconomySystem income', () => {
     expect(sim.stats.monthlyExpenses).toBe(12);
   });
 
+  it('should charge highway tiles more than streets and less than trolley', () => {
+    const sim = CitySim.createCity(8, 8);
+    sim.placeRoad(0, 0, RoadType.Highway);
+    sim.placeRoad(1, 0, RoadType.Highway);
+    sim.stats.population = 0;
+    tickOneMonth(sim);
+    // 2 × $4 = $8
+    expect(sim.stats.monthlyExpenses).toBe(8);
+  });
+
   it('should set bankruptcyWarning when treasury goes negative', () => {
     const sim = CitySim.createCity(8, 8);
     // Place enough streets to drain all money before income arrives.

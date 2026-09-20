@@ -18,6 +18,7 @@ import {
   CIVIC_DEF_IDS,
   DEFAULT_SHAPE,
   FIRE_DEF_IDS,
+  WATER_DEF_IDS,
   SERVICE_DEF_IDS,
   SKIP_MESH_DEF_IDS,
   kitForDef,
@@ -27,7 +28,7 @@ import {
   type KitPalette,
 } from './buildingVisuals';
 
-type KitVariant = 'zone' | 'service' | 'civic' | 'fire' | 'warning';
+type KitVariant = 'zone' | 'service' | 'civic' | 'fire' | 'water' | 'warning';
 
 /** Data stored in `mesh.metadata` — only render-safe ids, never sim objects. */
 export interface BuildingPickData {
@@ -244,6 +245,7 @@ function _tileKey(x: number, y: number): string {
 function kitKindForDef(defId: string): Exclude<KitVariant, 'warning'> {
   if (SERVICE_DEF_IDS.has(defId)) return 'service';
   if (FIRE_DEF_IDS.has(defId)) return 'fire';
+  if (WATER_DEF_IDS.has(defId)) return 'water';
   if (CIVIC_DEF_IDS.has(defId)) return 'civic';
   return 'zone';
 }

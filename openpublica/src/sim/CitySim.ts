@@ -14,6 +14,7 @@ import { PollutionSystem } from './PollutionSystem';
 import { PopulationDensitySystem } from './PopulationDensitySystem';
 import { PoliceCoverageSystem } from './PoliceCoverageSystem';
 import { FireCoverageSystem } from './FireCoverageSystem';
+import { WaterCoverageSystem } from './WaterCoverageSystem';
 import { CrimeSystem } from './CrimeSystem';
 import { EvaluationSystem } from './EvaluationSystem';
 import { tileKey } from './ZoneGrowthSystem';
@@ -73,6 +74,10 @@ export interface CityStats {
    */
   fireAverage: number;
   /**
+   * Percent of zoned tiles that are watered [0–100].
+   */
+  waterAverage: number;
+  /**
    * Mayor approval [0–100] from EvaluationSystem. Starts at 100.
    */
   approval: number;
@@ -104,6 +109,7 @@ export class CitySim {
   readonly density:      PopulationDensitySystem;
   readonly police:       PoliceCoverageSystem;
   readonly fire:         FireCoverageSystem;
+  readonly water:        WaterCoverageSystem;
   readonly crime:        CrimeSystem;
   readonly evaluation:   EvaluationSystem;
   readonly traffic:      TrafficPressureSystem;
@@ -149,7 +155,7 @@ export class CitySim {
   onTransitChanged: (() => void) | null = null;
 
   /**
-   * Called after density, police, fire coverage, and crime are recalculated.
+   * Called after density, police, fire, water coverage, and crime are recalculated.
    */
   onCrimeChanged: (() => void) | null = null;
 
@@ -161,6 +167,7 @@ export class CitySim {
     this.density      = new PopulationDensitySystem();
     this.police       = new PoliceCoverageSystem();
     this.fire         = new FireCoverageSystem();
+    this.water        = new WaterCoverageSystem();
     this.crime        = new CrimeSystem();
     this.evaluation   = new EvaluationSystem();
     this.landValue    = new LandValueSystem();
@@ -187,6 +194,7 @@ export class CitySim {
       pollutionAverage:  0,
       crimeAverage:      0,
       fireAverage:       0,
+      waterAverage:      0,
       approval:          100,
       advisory:          '',
     };
@@ -220,6 +228,7 @@ export class CitySim {
     const tile = this.map.getTile(x, y);
     if (!tile || tile.terrain === TerrainType.Water) return;
     tile.zoneType = zoneType;
+    this._refreshWater();
   }
 
   /** Place a road on the tile at (x, y). No-op if out of bounds or water. */
@@ -227,6 +236,7 @@ export class CitySim {
     const tile = this.map.getTile(x, y);
     if (!tile || tile.terrain === TerrainType.Water) return;
     tile.roadType = roadType;
+    this._refreshWater();
   }
 
   /** Clear the road, zone, and building from the tile at (x, y). No-op if out of bounds. */
@@ -237,6 +247,7 @@ export class CitySim {
       tile.zoneType   = ZoneType.None;
       tile.buildingId = null;
       this.growth.removeAt(x, y);
+      this._refreshWater();
     }
   }
 
@@ -278,10 +289,17 @@ export class CitySim {
     return true;
   }
 
+  /** Recalculate watered tiles and HUD waterAverage after zone/road/bulldoze. */
+  private _refreshWater(): void {
+    this.water.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+    this.evaluate();
+  }
+
   private _refreshCityHealth(applyCrimeHappiness: boolean): void {
     this.density.tick(this.map, this.growth.buildings, this.growth.defs);
     this.police.tick(this.map, this.growth.buildings, this.growth.defs);
     this.fire.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+    this.water.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
     this.crime.tick(this.map, this.stats, applyCrimeHappiness);
     this.evaluate();
     if (this.onCrimeChanged) this.onCrimeChanged();

@@ -11,6 +11,7 @@ import { POWER_PLANT_COST } from './PlacePowerPlantTool';
 import { PARK_COST } from './PlaceParkTool';
 import { POLICE_STATION_COST } from './PlacePoliceStationTool';
 import { FIRE_STATION_COST } from './PlaceFireStationTool';
+import { WATER_TOWER_COST } from './PlaceWaterTowerTool';
 
 function fundsLine(need: number, have: number): string {
   return `Need $${need.toLocaleString()} (have $${have.toLocaleString()})`;
@@ -31,13 +32,23 @@ export function explainToolFailure(
 
   switch (toolName) {
     case 'road':
+      if (tile.buildingId !== null) return 'Clear the building before paving.';
       if (tile.roadType === RoadType.Street) return 'Already a street.';
       if (!sim.canAfford(ROAD_COST[RoadType.Street])) {
         return fundsLine(ROAD_COST[RoadType.Street], sim.stats.money);
       }
       return 'Could not place a street here.';
 
+    case 'highway':
+      if (tile.buildingId !== null) return 'Clear the building before paving.';
+      if (tile.roadType === RoadType.Highway) return 'Already a highway.';
+      if (!sim.canAfford(ROAD_COST[RoadType.Highway])) {
+        return fundsLine(ROAD_COST[RoadType.Highway], sim.stats.money);
+      }
+      return 'Could not place a highway here.';
+
     case 'trolleyAvenue':
+      if (tile.buildingId !== null) return 'Clear the building before paving.';
       if (tile.roadType === RoadType.TrolleyAvenue) return 'Already a trolley avenue.';
       if (!sim.canAfford(TROLLEY_AVENUE_COST)) {
         return fundsLine(TROLLEY_AVENUE_COST, sim.stats.money);
@@ -88,6 +99,14 @@ export function explainToolFailure(
         return fundsLine(FIRE_STATION_COST, sim.stats.money);
       }
       return 'Could not place a fire station.';
+
+    case 'placeWaterTower':
+      if (tile.buildingId !== null) return 'That lot already has a building.';
+      if (tile.roadType !== RoadType.None) return 'Clear the road before placing a tower.';
+      if (!sim.canAfford(WATER_TOWER_COST)) {
+        return fundsLine(WATER_TOWER_COST, sim.stats.money);
+      }
+      return 'Could not place a water tower.';
 
     default:
       return 'Nothing happened.';

@@ -65,4 +65,9 @@ export interface BuildingDef {
    * No disaster simulation uses this yet — it is a coverage field for HUD/overlay.
    */
   readonly fireRadius?: number;
+  /**
+   * Radius (in tiles) of water mains. Only while the tower tile is powered.
+   * Writes `tile.watered`; does not change growth formulas.
+   */
+  readonly waterRadius?: number;
 }

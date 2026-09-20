@@ -41,6 +41,7 @@ export interface SavedStats {
   pollutionAverage:  number;
   crimeAverage:      number;
   fireAverage:       number;
+  waterAverage:      number;
   approval:          number;
   advisory:          string;
 }

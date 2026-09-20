@@ -80,8 +80,10 @@ function _miniColor(
   if (buildingId === 'small_power_plant') return [210, 196, 72];
   if (buildingId === 'small_police_station') return [48, 88, 168];
   if (buildingId === 'small_fire_station') return [196, 72, 48];
+  if (buildingId === 'small_water_tower') return [48, 140, 168];
   if (road === RoadType.TrolleyAvenue) return [92, 64, 42];
-  if (road === RoadType.Street || road === RoadType.Highway) return [48, 50, 54];
+  if (road === RoadType.Highway) return [32, 34, 38];
+  if (road === RoadType.Street) return [48, 50, 54];
   if (buildingId !== null) {
     if (zone === ZoneType.Residential) return [48, 92, 168];
     if (zone === ZoneType.Commercial) return [196, 150, 28];

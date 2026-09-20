@@ -35,6 +35,13 @@ describe('formatInspectStatus', () => {
     expect(line).toContain('crime 12');
   });
 
+  it('should mention watered lots', () => {
+    const map = new CityMap(4, 4);
+    const tile = map.getTile(0, 1)!;
+    tile.watered = true;
+    expect(formatInspectStatus('Inspect', tile, null)).toContain('watered');
+  });
+
   it('should mention trolley without repeating HUD money', () => {
     const map = new CityMap(4, 4);
     const tile = map.getTile(0, 0)!;

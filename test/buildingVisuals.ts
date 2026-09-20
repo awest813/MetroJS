@@ -4,6 +4,7 @@ import {
   BUILDING_SHAPES,
   CIVIC_DEF_IDS,
   FIRE_DEF_IDS,
+  WATER_DEF_IDS,
   SKIP_MESH_DEF_IDS,
   kitPalette,
   kitForDef,
@@ -17,6 +18,7 @@ const BUILDING_JSON_IDS = [
   'small_power_plant',
   'small_police_station',
   'small_fire_station',
+  'small_water_tower',
   'small_park',
   'shopfront_apartments',
   'corner_store_flats',
@@ -80,6 +82,14 @@ describe('buildingVisuals kits', () => {
     expect(kit.parts.some((p) => p.slot === 'glass')).toBe(true);
     const fire = kitPalette('fire', ZoneType.None);
     expect(fire.body.r).toBeGreaterThan(fire.body.b);
+  });
+
+  it('should give the water tower a tank kit', () => {
+    expect(WATER_DEF_IDS.has('small_water_tower')).toBe(true);
+    const kit = BUILDING_KITS.small_water_tower;
+    expect(kit.parts.some((p) => p.shape === 'cylinder' && p.slot === 'body')).toBe(true);
+    const water = kitPalette('water', ZoneType.None);
+    expect(water.body.b).toBeGreaterThan(water.body.r);
   });
 
   it('should give mixed-use kits a podium plus upper storeys', () => {

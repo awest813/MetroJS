@@ -49,7 +49,7 @@ Ordered by what a player actually hits, then by what other work depends on.
 
 ### Gap A — City-health loop (sim + HUD)
 
-The HUD shows Poll / Happy / Walk / Transit, but there is **no** police, fire, crime, population-density field, city score, or complaint list. Inspect still logs `watered=false` forever.
+The HUD shows Poll / Happy / Walk / Transit plus Crime / Fire / Water / Score. Density, police, fire, crime, evaluation, and water coverage are playable. Remaining city-health work is degradation (B2), not more unused HUD fields.
 
 | Slice | What to ship | Must not |
 |---|---|---|
@@ -58,6 +58,7 @@ The HUD shows Poll / Happy / Walk / Transit, but there is **no** police, fire, c
 | A3 Crime **shipped** | `tile.crime` from density, land value, police; HUD average | Hidden Micropolis crime RNG as-is |
 | A4 Fire **shipped** | Station def + tool + `tile.fireCoverage`; Fire overlay + HUD average | Disasters in the same PR |
 | A5 Evaluation **shipped** | Monthly score / approval / top problems from pollution, crime, traffic, taxes, power, bankruptcy | Census graphs in the same PR |
+| A6 Roads + water **shipped** | Highway tool + maintenance; `tile.watered` from powered towers; HUD Water / Mains overlay | Power-line network; growth/tax formulas |
 
 **Exit:** A grown city can be “unsafe” or “underserved” in HUD + overlay without opening the console.
 
@@ -114,9 +115,10 @@ Unchanged from the 3D plan:
 1. ~~**Density + crime overlay inputs** (A1–A3).~~ Shipped: Crowd/Crime overlays, Police tool, HUD Crime.
 2. ~~**Fire coverage** (A4).~~ Shipped: Fire tool, overlay, HUD Fire (no disasters).
 3. ~~**Evaluation + advisory** (A5 + B1).~~ Shipped: HUD Score + mayor alert line.
-4. **PBR + sky** (C1–C2) — visual, no sim.
-5. **App.ts split** (D2) whenever the next feature would add another 80 lines to the constructor.
-6. **Degradation** (B2) only after advisory exists so the player is told why lots empty.
+4. ~~**Highways + water towers** (A6).~~ Shipped: Highway tool, Water HUD/overlay, dry-lots advisory.
+5. **PBR + sky** (C1–C2) — visual, no sim.
+6. **App.ts split** (D2) whenever the next feature would add another 80 lines to the constructor.
+7. **Degradation** (B2) after advisory, so the player is told why lots empty.
 
 GLB (C4) and SSAO (C5) stay optional after C1–C2.
 

@@ -13,19 +13,27 @@ export const ROAD_COST: Record<RoadType, number> = {
 
 /** Places a road tile and deducts the placement cost from city funds. */
 export class RoadTool implements Tool {
-  readonly name = 'road';
-  readonly label = '🛣️ Road';
+  readonly name: string;
+  readonly label: string;
 
   private readonly _roadType: RoadType;
 
   constructor(roadType: RoadType = RoadType.Street) {
     this._roadType = roadType;
+    if (roadType === RoadType.Highway) {
+      this.name  = 'highway';
+      this.label = 'Highway';
+    } else {
+      this.name  = 'road';
+      this.label = 'Road';
+    }
   }
 
   apply(coord: TileCoord, sim: CitySim): boolean {
     if (!sim.isBuildable(coord.x, coord.y)) return false;
     const tile = sim.getTile(coord.x, coord.y);
     if (!tile || tile.roadType === this._roadType) return false;
+    if (tile.buildingId !== null) return false;
     const cost = ROAD_COST[this._roadType];
     if (!sim.deductMoney(cost)) {
       console.warn(`[Road] Insufficient funds (need $${cost}, have $${sim.stats.money})`);
