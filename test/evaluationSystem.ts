@@ -22,10 +22,18 @@ describe('EvaluationSystem', () => {
 
   it('should tell the player when zoned lots have no plant', () => {
     const sim = CitySim.createCity(8, 8);
-    sim.setZone(2, 2, ZoneType.Residential);
+    sim.placeRoad(2, 2, RoadType.Street);
+    sim.setZone(2, 3, ZoneType.Residential);
     sim.evaluate();
     expect(sim.stats.approval).toBe(88);
     expect(sim.stats.advisory).toMatch(/lots stay dark/i);
+  });
+
+  it('should name orphan lots before the generic plant line', () => {
+    const sim = CitySim.createCity(8, 8);
+    sim.setZone(2, 2, ZoneType.Residential);
+    sim.evaluate();
+    expect(sim.stats.advisory).toMatch(/road next door/i);
   });
 
   it('should clear the no-plant advisory after placing a generator', () => {
@@ -125,7 +133,12 @@ describe('EvaluationSystem', () => {
     expect(sim.stats.advisory).toMatch(/waiting for growth/i);
 
     sim.stats.population = 40;
+    sim.stats.jobs = 0;
     sim.stats.fireAverage = 100;
+    sim.evaluate();
+    expect(sim.stats.advisory).toMatch(/zone shops/i);
+
+    sim.stats.jobs = 40;
     sim.evaluate();
     expect(sim.stats.advisory).toMatch(/water tower/i);
   });
@@ -138,6 +151,7 @@ describe('EvaluationSystem', () => {
     sim.placeRoad(10, 10, RoadType.Street);
     sim.setZone(10, 11, ZoneType.Residential);
     sim.stats.population = 40;
+    sim.stats.jobs = 40;
     sim.stats.fireAverage = 0;
     sim.stats.waterAverage = 100;
     sim.evaluate();
@@ -179,6 +193,35 @@ describe('EvaluationSystem', () => {
     sim.evaluate();
     expect(sim.stats.advisory).toMatch(/unpowered/i);
     expect(sim.stats.advisory).toMatch(/coverage is off/i);
+  });
+
+  it('should keep waiting for growth after people arrive when jobs are keeping up', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    sim.stats.pollutionAverage = 0;
+    sim.placeRoad(10, 10, RoadType.Street);
+    sim.setZone(10, 11, ZoneType.Residential);
+    sim.stats.population = 12;
+    sim.stats.jobs = 12;
+    sim.evaluate();
+    expect(sim.stats.advisory).toMatch(/waiting for growth/i);
+  });
+
+  it('should warn that dark houses will leave once people live there', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    sim.stats.pollutionAverage = 0;
+    sim.placeRoad(20, 20, RoadType.Street);
+    sim.getTile(20, 21)!.zoneType = ZoneType.Residential;
+    sim.getTile(20, 21)!.buildingId = 'small_house';
+    sim.getTile(20, 21)!.powered = false;
+    sim.growth.buildings.set('20,21', { defId: 'small_house', x: 20, y: 21 });
+    sim.stats.population = 8;
+    sim.stats.jobs = 8;
+    sim.evaluate();
+    expect(sim.stats.advisory).toMatch(/dark and will leave/i);
   });
 
   it('should keep approval in 0–100 after a dirty month', () => {

@@ -1,5 +1,6 @@
 import type { CityStats } from '../sim/CitySim';
 import type { SimulationClock } from '../sim/SimulationClock';
+import { formatPopulation } from './chromeCopy';
 
 /**
  * City HUD — compact vitals plus demand. Never mutates sim internals.
@@ -29,7 +30,7 @@ export class CityHUD {
     root.innerHTML = `
       <div id="hud-status">
         <span class="hud-item" id="hud-money" title="Treasury">$0</span>
-        <span class="hud-item" id="hud-pop" title="Population">Pop 0</span>
+        <span class="hud-item" id="hud-pop" title="Population. Dark means those residents have no power and may leave.">Pop 0</span>
         <span class="hud-item" id="hud-jobs" title="Jobs">Jobs 0</span>
         <span class="hud-item" id="hud-date" title="Calendar">Jan 2000</span>
         <span class="hud-item hud-muted" id="hud-happiness" title="Happiness">Happy 100</span>
@@ -93,7 +94,7 @@ export class CityHUD {
       ? `$${stats.money.toLocaleString()}  bankrupt`
       : `$${stats.money.toLocaleString()}`;
     this._money.classList.toggle('hud-money-warning', stats.bankruptcyWarning);
-    this._pop.textContent  = `Pop ${stats.population.toLocaleString()}`;
+    this._pop.textContent  = formatPopulation(stats.population, stats.darkPopulation);
     this._jobs.textContent = `Jobs ${stats.jobs.toLocaleString()}`;
     this._date.textContent = `${clock.monthName} ${clock.year}`;
     this._happiness.textContent     = `Happy ${stats.happiness}`;

@@ -135,6 +135,7 @@ describe('PowerSystem and zone growth', () => {
     expect(tile.powered).toBe(false);
     // Population should be floor(4 × 0.75) = 3 (unpowered factor).
     expect(sim.stats.population).toBe(3);
+    expect(sim.stats.darkPopulation).toBe(3);
   });
 
   it('powered buildings should contribute full population', () => {
@@ -154,5 +155,6 @@ describe('PowerSystem and zone growth', () => {
     expect(tile.powered).toBe(true);
     // Population should be full 4 (powered).
     expect(sim.stats.population).toBe(4);
+    expect(sim.stats.darkPopulation).toBe(0);
   });
 });

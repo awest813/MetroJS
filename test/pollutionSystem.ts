@@ -91,7 +91,7 @@ describe('PollutionSystem', () => {
       road.trafficPressure = 10;
 
       const stats = {
-        population: 0, jobs: 0, money: 0, residentialDemand: 0, commercialDemand: 0,
+        population: 0, darkPopulation: 0, jobs: 0, money: 0, residentialDemand: 0, commercialDemand: 0,
         industrialDemand: 0, resTaxRate: 9, comTaxRate: 9, indTaxRate: 9,
         monthlyIncome: 0, monthlyExpenses: 0, serviceExpenses: 0,
         projectedIncome: 0, projectedExpenses: 0, bankruptcyWarning: false,

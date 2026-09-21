@@ -1,5 +1,6 @@
 import { CitySim } from '../openpublica/src/sim/CitySim';
-import { RoadType, ZoneType } from '../openpublica/src/sim/CityTile';
+import { RoadType, TerrainType, ZoneType } from '../openpublica/src/sim/CityTile';
+import { formatStrokeStatus } from '../openpublica/src/tools/toolFeedback';
 import { ToolController, strokeTiles } from '../openpublica/src/tools/ToolController';
 import { InspectTool } from '../openpublica/src/tools/InspectTool';
 import { RoadTool, ROAD_COST } from '../openpublica/src/tools/RoadTool';
@@ -174,6 +175,26 @@ describe('ToolController', () => {
 
     it('should be empty when the pointer has not moved', () => {
       expect(strokeTiles({ x: 4, y: 4 }, { x: 4, y: 4 })).toEqual([]);
+    });
+
+    it('should total the dollars spent and flag a street cut by water', () => {
+      const road = new RoadTool();
+      const ctrl = new ToolController(road);
+      const sim = makeSim();
+      sim.getTile(1, 0)!.terrain = TerrainType.Water;
+
+      ctrl.applyToTile({ x: 0, y: 0 }, sim);
+      ctrl.applyToTile({ x: 2, y: 0 }, sim);
+      const summary = ctrl.resetDrag();
+
+      expect(summary.spent).toBe(ROAD_COST[RoadType.Street] * 2);
+      expect(summary.applied).toBe(2);
+      expect(summary.blockedByWater).toBe(1);
+      expect(sim.getTile(1, 0)!.roadType).toBe(RoadType.None);
+      expect(formatStrokeStatus(road.label, summary)).toBe(
+        'Road spent $20. The street was cut by water.',
+      );
+      expect(formatStrokeStatus('Road', ctrl.resetDrag())).toBeNull();
     });
   });
 

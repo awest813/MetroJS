@@ -30,12 +30,13 @@ import { SettingsPanel } from '../ui/SettingsPanel';
 import { readStoredQuality, readStoredSun, type QualityLevel } from '../ui/settingsStore';
 import { AudioBus } from '../audio/AudioBus';
 import { BANKRUPT_VOICE, FAIL_VOICE, GROWTH_VOICE, sfxForTool } from '../audio/voices';
-import { explainToolFailure } from '../tools/toolFeedback';
+import { explainToolFailure, formatStrokeStatus } from '../tools/toolFeedback';
 import { formatGrowthHint } from '../sim/zoneGrowthHints';
 import { applyDaylight } from '../render/daylight';
 import { CityView } from './CityView';
 import { mountCityMenu } from './cityFile';
 import {
+  POWER_PLANT_SERVICE,
   createServiceTools,
   formatServiceHint,
   serviceRadius,
@@ -155,31 +156,63 @@ export class App {
     });
 
     cameraController.onModeChange(() => redrawLook());
-    view.picker.onDragEnd(() => toolController.resetDrag());
+    view.picker.onDragEnd(() => {
+      const stroke = toolController.resetDrag();
+      const line = formatStrokeStatus(toolController.activeTool.label, stroke);
+      if (line) statusEl.textContent = line;
+    });
+
+    const nearestPlant = (coord: { x: number; y: number } | null): { x: number; y: number } | null => {
+      let best: { x: number; y: number; dist: number } | null = null;
+      for (const instance of sim.growth.buildings.values()) {
+        const def = sim.growth.defs.get(instance.defId);
+        if (!def?.powerRadius) continue;
+        const dist = coord
+          ? (instance.x - coord.x) ** 2 + (instance.y - coord.y) ** 2
+          : 0;
+        if (!best || dist < best.dist) best = { x: instance.x, y: instance.y, dist };
+      }
+      return best;
+    };
 
     const previewCoverage = (coord: { x: number; y: number } | null): void => {
-      if (!coord) {
-        view.highlight.hideCoverage();
-        return;
-      }
       const tool = toolController.activeTool;
-      let spec = serviceSpecForTool(tool.name);
-      let defId = spec?.defId;
-      if (!spec) {
-        const hover = sim.getTile(coord.x, coord.y);
-        defId = hover?.buildingId ?? undefined;
-        if (defId) spec = serviceSpecForDef(defId);
-      }
-      if (!spec || !defId) {
-        view.highlight.hideCoverage();
+      const toolSpec = coord ? serviceSpecForTool(tool.name) : undefined;
+      if (coord && toolSpec) {
+        view.highlight.showCoverage(
+          coord,
+          serviceRadius(sim.growth.defs.get(toolSpec.defId)),
+          toolSpec.preview,
+          view.heights,
+        );
         return;
       }
-      view.highlight.showCoverage(
-        coord,
-        serviceRadius(sim.growth.defs.get(defId)),
-        spec.preview,
-        view.heights,
-      );
+      if (coord) {
+        const hover = sim.getTile(coord.x, coord.y);
+        const defId = hover?.buildingId ?? undefined;
+        const spec = defId ? serviceSpecForDef(defId) : undefined;
+        if (spec && defId) {
+          view.highlight.showCoverage(
+            coord,
+            serviceRadius(sim.growth.defs.get(defId)),
+            spec.preview,
+            view.heights,
+          );
+          return;
+        }
+      }
+      const plant = nearestPlant(coord);
+      const plantDef = plant ? sim.growth.defs.get(sim.getTile(plant.x, plant.y)?.buildingId ?? '') : undefined;
+      if (plant && plantDef?.powerRadius) {
+        view.highlight.showCoverage(
+          plant,
+          plantDef.powerRadius,
+          POWER_PLANT_SERVICE.preview,
+          view.heights,
+        );
+        return;
+      }
+      view.highlight.hideCoverage();
     };
 
     view.picker.onHover((coord) => {
@@ -311,7 +344,15 @@ export class App {
       );
     });
 
-    mountCityMenu(cityMenuEl, { sim, view, hud, budget: budgetPanel, statusEl });
+    mountCityMenu(cityMenuEl, {
+      sim,
+      view,
+      hud,
+      budget: budgetPanel,
+      statusEl,
+      onLoaded: () => previewCoverage(null),
+    });
+    previewCoverage(null);
     new SettingsPanel(settingsEl, {
       audio,
       onSun: (day) => applyDaylight({ scene, sun, fill, sky }, day),

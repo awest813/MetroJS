@@ -28,6 +28,13 @@ export const TALL_DEMAND = 60;
 /** Consecutive stressed months before a zone building downgrades or leaves. */
 export const STRESS_MONTHS_TO_CHANGE = 4;
 
+/**
+ * Monthly growth multiplier for a lot that already has power.
+ * Callers pass this only when the lot also touches a road. Unpowered lots stay
+ * on the base chance so a dark block still fills slowly.
+ */
+export const POWERED_ROAD_GROWTH_BOOST = 2.5;
+
 /** Empty months after abandon before the lot may grow again. */
 export const ABANDON_COOLDOWN_MONTHS = 2;
 
@@ -106,10 +113,16 @@ export function nextDevelopmentDef<T extends GrowthDef>(
  * Monthly chance an eligible lot develops. Demand scales the roll so a full
  * bar fills faster than a trickle, without making low demand impossible.
  */
-export function growthChance(landValue: number, demand: number, mixedBoost = 1): number {
+export function growthChance(
+  landValue: number,
+  demand: number,
+  mixedBoost = 1,
+  poweredBoost = 1,
+): number {
   const lvFactor = 0.5 + Math.max(0, landValue) / 100;
   const demandFactor = 0.45 + 0.55 * (Math.max(0, Math.min(100, demand)) / 100);
-  return Math.min(0.9, 0.32 * lvFactor * demandFactor * mixedBoost);
+  const power = Math.max(1, poweredBoost);
+  return Math.min(0.9, 0.32 * lvFactor * demandFactor * mixedBoost * power);
 }
 
 export function demandForZone(zoneType: ZoneType, stats: CityStats): number {
