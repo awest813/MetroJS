@@ -70,9 +70,10 @@ export class App {
       );
     }
 
-    const sim = CitySim.createCity(MAP_SIZE, MAP_SIZE);
-    generateTerrain(sim.map);
-    const heights = HeightField.fromMap(sim.map);
+    const terrainSeed = (Math.random() * 0x7fffffff) | 0;
+    const sim = CitySim.createCity(MAP_SIZE, MAP_SIZE, terrainSeed);
+    generateTerrain(sim.map, terrainSeed);
+    const heights = HeightField.fromMap(sim.map, terrainSeed);
 
     const audio = new AudioBus();
     const unlockAudio = (): void => {

@@ -20,6 +20,7 @@ import { EvaluationSystem } from './EvaluationSystem';
 import { tileKey } from './ZoneGrowthSystem';
 import { STARTER_RESIDENTIAL_DEMAND } from './zoneGrowthHints';
 import { serviceUpkeep } from './EconomySystem';
+import { DEFAULT_TERRAIN_SEED } from './TerrainGenerator';
 
 /** Aggregate statistics for the city, updated each tick. */
 export interface CityStats {
@@ -118,6 +119,10 @@ export class CitySim {
   readonly traffic:      TrafficPressureSystem;
   readonly walkability:  WalkabilitySystem;
   readonly transit:      TransitSystem;
+  /**
+   * Seed used to paint lakes/hills. Persisted so load rebuilds the same heightfield.
+   */
+  terrainSeed: number;
 
   /**
    * Called after each monthly growth tick with the list of tiles that received a
@@ -162,8 +167,9 @@ export class CitySim {
    */
   onCrimeChanged: (() => void) | null = null;
 
-  private constructor(map: CityMap) {
+  private constructor(map: CityMap, terrainSeed: number) {
     this.map          = map;
+    this.terrainSeed  = terrainSeed;
     this.clock        = new SimulationClock();
     this.power        = new PowerSystem();
     this.pollution    = new PollutionSystem();
@@ -208,8 +214,8 @@ export class CitySim {
   // ── Factory ──────────────────────────────────────────────────────────────
 
   /** Create a new city of the given tile dimensions. */
-  static createCity(width: number, height: number): CitySim {
-    return new CitySim(new CityMap(width, height));
+  static createCity(width: number, height: number, terrainSeed: number = DEFAULT_TERRAIN_SEED): CitySim {
+    return new CitySim(new CityMap(width, height), terrainSeed);
   }
 
   // ── Query ─────────────────────────────────────────────────────────────────
@@ -227,22 +233,31 @@ export class CitySim {
     return !!tile && tile.terrain !== TerrainType.Water;
   }
 
-  /** Assign a zone type to the tile at (x, y). No-op if out of bounds or water. */
+  /**
+   * Assign a zone type to the tile at (x, y).
+   * No-op if out of bounds, water, occupied by a building, or (when zoning) a road.
+   */
   setZone(x: number, y: number, zoneType: ZoneType): void {
     const tile = this.map.getTile(x, y);
     if (!tile || tile.terrain === TerrainType.Water) return;
+    if (tile.buildingId !== null) return;
+    if (zoneType !== ZoneType.None && tile.roadType !== RoadType.None) return;
     tile.zoneType = zoneType;
-    this._refreshWater();
+    this._refreshNetwork();
   }
 
-  /** Place a road on the tile at (x, y). No-op if out of bounds or water. */
+  /**
+   * Place a road on the tile at (x, y).
+   * No-op if out of bounds, water, or a building is on the tile.
+   * Paving an empty lot clears the zone — a street is not a housing plat.
+   */
   placeRoad(x: number, y: number, roadType: RoadType): void {
     const tile = this.map.getTile(x, y);
     if (!tile || tile.terrain === TerrainType.Water) return;
+    if (tile.buildingId !== null) return;
     tile.roadType = roadType;
-    // A street is not a housing plat — paving an empty lot clears the zone.
     tile.zoneType = ZoneType.None;
-    this._refreshWater();
+    this._refreshNetwork();
   }
 
   /** Clear the road, zone, and building from the tile at (x, y). No-op if out of bounds. */
@@ -272,6 +287,7 @@ export class CitySim {
     if (!tile || tile.terrain === TerrainType.Water) return false;
     if (tile.buildingId !== null) return false;
     if (tile.roadType !== RoadType.None) return false;
+    if (!this.growth.defs.has(defId)) return false;
 
     if (!this.deductMoney(cost)) {
       console.warn(
@@ -335,10 +351,12 @@ export class CitySim {
     }
   }
 
-  /** Recalculate watered tiles and HUD waterAverage after zone/road edits. */
-  private _refreshWater(): void {
+  /** Water coverage plus land value after zone/road edits (Value overlay stays honest). */
+  private _refreshNetwork(): void {
     this.water.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+    this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
     this.evaluate();
+    if (this.onLandValueChanged) this.onLandValueChanged();
   }
 
   private _refreshCityHealth(applyCrimeHappiness: boolean, notify = true): void {
@@ -383,46 +401,31 @@ export class CitySim {
     this.clock.tick(deltaSeconds);
 
     const changedTiles: Array<{ x: number; y: number }> = [];
-    const monthTicked = this.growth.tick(deltaSeconds, this.map, this.stats, changedTiles);
+    const monthTicked = this.growth.tick(
+      deltaSeconds,
+      this.map,
+      this.stats,
+      changedTiles,
+      () => this._refreshCityHealth(true),
+    );
 
     if (changedTiles.length > 0 && this.onGrowth) {
       this.onGrowth(changedTiles);
     }
 
-    // Power is recalculated inside growth.tick() each month; notify listeners.
-    if (monthTicked && this.onPowerChanged) {
-      this.onPowerChanged();
-    }
+    if (!monthTicked) return;
 
-    // Land value is also recalculated monthly; notify listeners.
-    if (monthTicked && this.onLandValueChanged) {
-      this.onLandValueChanged();
-    }
-
-    // Traffic pressure is recalculated monthly; notify listeners.
-    if (monthTicked && this.onTrafficChanged) {
-      this.onTrafficChanged();
-    }
-
-    // Walkability is recalculated monthly (after traffic); notify listeners.
-    if (monthTicked && this.onWalkabilityChanged) {
-      this.onWalkabilityChanged();
-    }
-
-    // Transit access is recalculated monthly (after walkability); notify listeners.
-    if (monthTicked && this.onTransitChanged) {
-      this.onTransitChanged();
-    }
-
-    if (monthTicked) {
-      this._refreshCityHealth(true);
-    }
+    if (this.onPowerChanged) this.onPowerChanged();
+    if (this.onLandValueChanged) this.onLandValueChanged();
+    if (this.onTrafficChanged) this.onTrafficChanged();
+    if (this.onWalkabilityChanged) this.onWalkabilityChanged();
+    if (this.onTransitChanged) this.onTransitChanged();
   }
 }
 
 /** Convenience wrapper around {@link CitySim.createCity}. */
-export function createCity(width: number, height: number): CitySim {
-  return CitySim.createCity(width, height);
+export function createCity(width: number, height: number, terrainSeed?: number): CitySim {
+  return CitySim.createCity(width, height, terrainSeed);
 }
 
 export { RoadType, ZoneType, TerrainType } from './CityTile';

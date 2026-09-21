@@ -8,7 +8,7 @@ import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 import rawDefs from '../data/buildings.json';
 
-import { MONTH_SECONDS } from '../data/constants';
+import { MONTH_CATCHUP_LIMIT, MONTH_SECONDS } from '../data/constants';
 import { EconomySystem } from './EconomySystem';
 import { PowerSystem } from './PowerSystem';
 import { PollutionSystem } from './PollutionSystem';
@@ -137,21 +137,38 @@ export class ZoneGrowthSystem {
 
   /**
    * Called every simulation tick.
-   * Returns an array of tile keys whose appearance changed (building placed),
-   * so callers can trigger render updates.
-   * Returns `true` if a monthly tick occurred (so CitySim can fire power callbacks).
+   * Returns `true` if at least one monthly pass ran (so CitySim can fire overlays).
+   * A large delta (tab resume) runs up to MONTH_CATCHUP_LIMIT months; leftover
+   * time stays in the accumulator. `afterMonth` runs after each month so crime
+   * and coverage exist before the next grow/degrade pass.
    */
   tick(
     deltaSeconds: number,
     map: CityMap,
     stats: CityStats,
     changedTiles: Array<{ x: number; y: number }>,
+    afterMonth?: () => void,
   ): boolean {
     this._secondsAccumulator += deltaSeconds;
 
-    if (this._secondsAccumulator < MONTH_SECONDS) return false;
-    this._secondsAccumulator -= MONTH_SECONDS;
+    let ran = false;
+    let months = 0;
+    while (this._secondsAccumulator >= MONTH_SECONDS && months < MONTH_CATCHUP_LIMIT) {
+      this._secondsAccumulator -= MONTH_SECONDS;
+      this._runMonth(map, stats, changedTiles);
+      afterMonth?.();
+      ran = true;
+      months += 1;
+    }
+    return ran;
+  }
 
+  /** One simulated month: pollution → growth → power → census → economy → traffic. */
+  private _runMonth(
+    map: CityMap,
+    stats: CityStats,
+    changedTiles: Array<{ x: number; y: number }>,
+  ): void {
     // Pollution runs before land value so desirability reflects the previous
     // month's traffic plus the current building layout.
     this._pollution.tick(map, this.buildings, this.defs, stats);
@@ -182,8 +199,6 @@ export class ZoneGrowthSystem {
     // Transit runs last so it can further reduce trafficPressure after walkability
     // has already adjusted it, and so its effects feed into next month's LV pass.
     this._transit.tick(map, stats);
-
-    return true;
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────

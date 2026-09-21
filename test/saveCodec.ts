@@ -310,6 +310,52 @@ describe('SaveCodec month progress', () => {
     restored.tick(0.5);
     expect(restored.getTile(4, 3)!.landValue).toBeGreaterThan(BASE_LAND_VALUE);
   });
+
+  it('should persist the terrain seed', () => {
+    const sim = CitySim.createCity(8, 8, 4242);
+    const restored = roundTrip(sim);
+    expect(restored.terrainSeed).toBe(4242);
+  });
+
+  it('should default a missing terrain seed', () => {
+    const sim = makeSim();
+    const save = SaveCodec.encode(sim);
+    delete save.terrainSeed;
+    const restored = CitySim.createCity(save.mapWidth, save.mapHeight, 1);
+    SaveCodec.decode(save, restored);
+    expect(restored.terrainSeed).toBe(2026);
+  });
+
+  it('should drop leftover roads when a save omits that tile', () => {
+    const live = makeSim();
+    live.placeRoad(1, 1, RoadType.Street);
+    const save = SaveCodec.encode(makeSim());
+    save.tiles = save.tiles.filter((t) => !(t.x === 1 && t.y === 1));
+    SaveCodec.decode(save, live);
+    expect(live.getTile(1, 1)?.roadType).toBe(RoadType.None);
+  });
+
+  it('should put a tile-only building back into the registry', () => {
+    const sim = makeSim();
+    sim.placeServiceBuilding(3, 3, 'small_park', 0);
+    const save = SaveCodec.encode(sim);
+    save.buildings = [];
+    const restored = CitySim.createCity(save.mapWidth, save.mapHeight);
+    SaveCodec.decode(save, restored);
+    expect(restored.growth.buildings.get('3,3')?.defId).toBe('small_park');
+    expect(restored.getTile(3, 3)?.buildingId).toBe('small_park');
+  });
+
+  it('should write registry defIds onto tiles', () => {
+    const sim = makeSim();
+    sim.placeServiceBuilding(2, 2, 'small_park', 0);
+    const save = SaveCodec.encode(sim);
+    const tile = save.tiles.find((t) => t.x === 2 && t.y === 2);
+    if (tile) tile.buildingId = null;
+    const restored = CitySim.createCity(save.mapWidth, save.mapHeight);
+    SaveCodec.decode(save, restored);
+    expect(restored.getTile(2, 2)?.buildingId).toBe('small_park');
+  });
 });
 
 describe('SaveSystem.load', () => {
@@ -340,7 +386,7 @@ describe('SaveSystem.load', () => {
 
     const loaded = makeSim();
     expect(loaded.getTile(5, 5)?.powered).toBe(false);
-    expect(SaveSystem.load(loaded)).toBe(true);
+    expect(SaveSystem.load(loaded)).toBe('loaded');
     expect(loaded.getTile(5, 5)?.powered).toBe(true);
     expect(loaded.getTile(5, 0)?.powered).toBe(true);
   });
@@ -350,7 +396,12 @@ describe('SaveSystem.load', () => {
     SaveSystem.save(small);
     const large = CitySim.createCity(16, 16);
     large.stats.money = 42;
-    expect(SaveSystem.load(large)).toBe(false);
+    expect(SaveSystem.load(large)).toBe('size-mismatch');
     expect(large.stats.money).toBe(42);
+  });
+
+  it('should report missing when nothing is stored', () => {
+    const sim = makeSim();
+    expect(SaveSystem.load(sim)).toBe('missing');
   });
 });

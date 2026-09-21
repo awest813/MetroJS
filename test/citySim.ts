@@ -97,6 +97,13 @@ describe('CitySim', () => {
       expect(sim.getTile(4, 4)?.zoneType).toBe(ZoneType.Commercial);
     });
 
+    it('should not zone a road tile at the sim layer', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.placeRoad(4, 4, RoadType.Street);
+      sim.setZone(4, 4, ZoneType.Residential);
+      expect(sim.getTile(4, 4)?.zoneType).toBe(ZoneType.None);
+    });
+
     it('should be a no-op for out-of-bounds coordinates', () => {
       const sim = CitySim.createCity(16, 16);
       expect(() => sim.setZone(99, 99, ZoneType.Industrial)).not.toThrow();
@@ -125,6 +132,14 @@ describe('CitySim', () => {
       expect(sim.getTile(2, 2)?.roadType).toBe(RoadType.Highway);
     });
 
+    it('should not pave over a building', () => {
+      const sim = CitySim.createCity(16, 16);
+      expect(sim.placeServiceBuilding(2, 2, 'small_park', 0)).toBe(true);
+      sim.placeRoad(2, 2, RoadType.Street);
+      expect(sim.getTile(2, 2)?.roadType).toBe(RoadType.None);
+      expect(sim.getTile(2, 2)?.buildingId).toBe('small_park');
+    });
+
     it('should be a no-op for out-of-bounds coordinates', () => {
       const sim = CitySim.createCity(16, 16);
       expect(() => sim.placeRoad(99, 99, RoadType.Street)).not.toThrow();
@@ -138,6 +153,12 @@ describe('CitySim', () => {
       expect(sim.placeServiceBuilding(3, 3, 'small_park', 0)).toBe(true);
       expect(sim.getTile(3, 3)?.buildingId).toBe('small_park');
       expect(sim.getTile(3, 3)?.zoneType).toBe(ZoneType.None);
+    });
+
+    it('should reject an unknown building def', () => {
+      const sim = CitySim.createCity(16, 16);
+      expect(sim.placeServiceBuilding(1, 1, 'not_a_building', 0)).toBe(false);
+      expect(sim.getTile(1, 1)?.buildingId).toBeNull();
     });
   });
 
@@ -199,6 +220,20 @@ describe('CitySim', () => {
       sim.placeServiceBuilding(6, 4, 'small_police_station', 0);
       sim.tick(MONTH_SECONDS);
       expect(sim.stats.jobs).toBe(0);
+    });
+
+    it('should catch up multiple due months in one tick', () => {
+      const sim = CitySim.createCity(8, 8);
+      sim.placeRoad(0, 0, RoadType.Street);
+      sim.placeRoad(1, 0, RoadType.Street);
+      sim.placeRoad(2, 0, RoadType.Street);
+      sim.placeRoad(3, 0, RoadType.Street);
+      const start = sim.stats.money;
+      sim.tick(MONTH_SECONDS * 2);
+      // 4 streets × $2 × 2 months
+      expect(sim.stats.money).toBe(start - 16);
+      expect(sim.stats.monthlyExpenses).toBe(8);
+      expect(sim.clock.totalSeconds).toBeCloseTo(MONTH_SECONDS * 2);
     });
   });
 });

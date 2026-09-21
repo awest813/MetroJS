@@ -56,6 +56,10 @@ export interface SaveGame {
   mapHeight:         number;
   /** SimulationClock total seconds elapsed at save time. */
   clockTotalSeconds: number;
+  /**
+   * Seed for lakes and hills. Older saves omit this; load uses the default map seed.
+   */
+  terrainSeed?:      number;
   stats:             SavedStats;
   tiles:             SavedTile[];
   buildings:         SavedBuilding[];
