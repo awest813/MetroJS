@@ -106,6 +106,8 @@ describe('EvaluationSystem', () => {
     sim.stats.pollutionAverage = 0;
     for (let x = 10; x < 14; x++) {
       sim.placeRoad(x, 10, RoadType.Street);
+    }
+    for (let x = 10; x < 14; x++) {
       sim.getTile(x, 10)!.trafficPressure = 10;
     }
     sim.evaluate();

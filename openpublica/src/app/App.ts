@@ -131,7 +131,7 @@ export class App {
     sim.onLandValueChanged = () => view.overlay.refresh(sim.map);
     sim.onTrafficChanged = () => {
       view.overlay.refresh(sim.map);
-      view.traffic.syncDensity(sim.map);
+      view.traffic.rebuildGraph(sim.map, view.heights);
       view.vegetation.refreshStreets(sim.map);
     };
     sim.onWalkabilityChanged = () => view.overlay.refresh(sim.map);
@@ -245,7 +245,7 @@ export class App {
       const dt = engine.getDeltaTime() / 1000;
       if (simSpeed > 0) {
         sim.tick(dt * simSpeed);
-        view.traffic.update(dt);
+        view.traffic.update(dt * simSpeed);
         if (sim.stats.bankruptcyWarning && !wasBankrupt) {
           audio.play(BANKRUPT_VOICE, 'warn');
         }

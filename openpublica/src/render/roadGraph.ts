@@ -157,9 +157,9 @@ export function summarizeTraffic(map: CityMap): {
   return { totalPressure, roadTileCount, trolleyTileCount };
 }
 
-/** Density from city-wide pressure. A short connected street still gets a couple of cars. */
+/** Density from city-wide pressure. A two-tile street still gets a car. */
 export function vehicleTargetCount(totalPressure: number, roadTileCount: number): number {
-  const bonus = roadTileCount >= 4 ? 2 : 0;
+  const bonus = roadTileCount >= 4 ? 2 : roadTileCount >= 2 ? 1 : 0;
   return Math.max(0, Math.min(MAX_VEHICLES, Math.round(totalPressure / 4) + bonus));
 }
 

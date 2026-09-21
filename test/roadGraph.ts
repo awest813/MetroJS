@@ -58,7 +58,7 @@ describe('roadGraph', () => {
   });
 
   it('should scale density from pressure and still seed a short street', () => {
-    expect(vehicleTargetCount(0, 3)).toBe(0);
+    expect(vehicleTargetCount(0, 3)).toBe(1);
     expect(vehicleTargetCount(0, 4)).toBe(2);
     expect(vehicleTargetCount(20, 10)).toBe(7);
     expect(vehicleTargetCount(400, 64)).toBe(48);

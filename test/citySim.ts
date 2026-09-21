@@ -144,6 +144,37 @@ describe('CitySim', () => {
       const sim = CitySim.createCity(16, 16);
       expect(() => sim.placeRoad(99, 99, RoadType.Street)).not.toThrow();
     });
+
+    it('should put traffic pressure on a new street beside a house immediately', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.growth.buildings.set('4,4', { defId: 'small_house', x: 4, y: 4 });
+      sim.getTile(4, 4)!.buildingId = 'small_house';
+      sim.getTile(4, 4)!.zoneType = ZoneType.Residential;
+      sim.placeRoad(4, 5, RoadType.Street);
+      expect(sim.getTile(4, 5)?.roadType).toBe(RoadType.Street);
+      expect(sim.getTile(4, 5)!.trafficPressure).toBeGreaterThan(0);
+      expect(sim.getTile(4, 5)!.noise).toBeGreaterThan(0);
+    });
+
+    it('should fire onTrafficChanged when a road is paved', () => {
+      const sim = CitySim.createCity(8, 8);
+      let fires = 0;
+      sim.onTrafficChanged = () => { fires += 1; };
+      sim.placeRoad(2, 2, RoadType.Street);
+      expect(fires).toBe(1);
+    });
+
+    it('should drop traffic pressure after the nearby house is bulldozed', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.growth.buildings.set('4,4', { defId: 'small_house', x: 4, y: 4 });
+      sim.getTile(4, 4)!.buildingId = 'small_house';
+      sim.getTile(4, 4)!.zoneType = ZoneType.Residential;
+      sim.placeRoad(4, 5, RoadType.Street);
+      expect(sim.getTile(4, 5)!.trafficPressure).toBeGreaterThan(0);
+      sim.bulldoze(4, 4);
+      expect(sim.getTile(4, 5)?.roadType).toBe(RoadType.Street);
+      expect(sim.getTile(4, 5)!.trafficPressure).toBe(0);
+    });
   });
 
   describe('placeServiceBuilding', () => {

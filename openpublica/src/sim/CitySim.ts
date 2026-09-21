@@ -335,11 +335,9 @@ export class CitySim {
 
     if (includeMonthlyOverlays) {
       this.growth.recomputeCensus(this.stats, this.map);
-      this.traffic.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
-      this.walkability.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
-      this.transit.tick(this.map, this.stats);
     }
 
+    this._refreshTrafficLayers();
     this._refreshCityHealth(applyCrimeHappiness, notify);
     this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
     this.previewEconomy();
@@ -348,20 +346,31 @@ export class CitySim {
     if (!notify) return;
     if (this.onPowerChanged) this.onPowerChanged();
     if (this.onLandValueChanged) this.onLandValueChanged();
-    if (includeMonthlyOverlays) {
-      if (this.onTrafficChanged) this.onTrafficChanged();
-      if (this.onWalkabilityChanged) this.onWalkabilityChanged();
-      if (this.onTransitChanged) this.onTransitChanged();
-    }
+    this._notifyTrafficOverlays();
   }
 
-  /** Water coverage plus land value after zone/road edits (Value overlay stays honest). */
+  /** Water, traffic, and land value after zone/road edits. */
   private _refreshNetwork(): void {
     this.water.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+    this._refreshTrafficLayers();
     this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
     this.previewEconomy();
     this.evaluate();
     if (this.onLandValueChanged) this.onLandValueChanged();
+    this._notifyTrafficOverlays();
+  }
+
+  /** Pressure, walk, and transit from the current buildings and road network. */
+  private _refreshTrafficLayers(): void {
+    this.traffic.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+    this.walkability.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+    this.transit.tick(this.map, this.stats);
+  }
+
+  private _notifyTrafficOverlays(): void {
+    if (this.onTrafficChanged) this.onTrafficChanged();
+    if (this.onWalkabilityChanged) this.onWalkabilityChanged();
+    if (this.onTransitChanged) this.onTransitChanged();
   }
 
   private _refreshCityHealth(applyCrimeHappiness: boolean, notify = true): void {

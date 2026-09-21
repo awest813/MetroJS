@@ -31,23 +31,23 @@ import {
   type RoadGraph,
 } from './roadGraph';
 
-const CAR_WIDTH = 0.18;
-const CAR_HEIGHT = 0.08;
-const CAR_DEPTH = 0.32;
-const CABIN_HEIGHT = 0.07;
-const CAR_CLEARANCE = 0.02;
-const LANE_OFFSET = 0.08;
+const CAR_WIDTH = 0.26;
+const CAR_HEIGHT = 0.11;
+const CAR_DEPTH = 0.46;
+const CABIN_HEIGHT = 0.09;
+const CAR_CLEARANCE = 0.03;
+const LANE_OFFSET = 0.10;
 
-const TROLLEY_WIDTH = 0.22;
-const TROLLEY_HEIGHT = 0.11;
-const TROLLEY_DEPTH = 0.72;
-const TROLLEY_CABIN_HEIGHT = 0.08;
+const TROLLEY_WIDTH = 0.28;
+const TROLLEY_HEIGHT = 0.14;
+const TROLLEY_DEPTH = 0.86;
+const TROLLEY_CABIN_HEIGHT = 0.10;
 
 const CAR_COLORS: ReadonlyArray<Color3> = [
-  new Color3(0.18, 0.28, 0.62),
-  new Color3(0.72, 0.22, 0.16),
-  new Color3(0.82, 0.80, 0.72),
-  new Color3(0.16, 0.16, 0.16),
+  new Color3(0.22, 0.42, 0.88),
+  new Color3(0.88, 0.28, 0.18),
+  new Color3(0.92, 0.86, 0.28),
+  new Color3(0.12, 0.12, 0.14),
 ];
 
 interface Actor {
@@ -202,6 +202,8 @@ export class TrafficVehicleRenderer {
     const cabin = src.cabin.createInstance(`traffic-car-cabin-${id}`);
     body.parent = root;
     cabin.parent = root;
+    body.isVisible = true;
+    cabin.isVisible = true;
     body.isPickable = false;
     cabin.isPickable = false;
     body.receiveShadows = true;
@@ -227,6 +229,8 @@ export class TrafficVehicleRenderer {
     const cabin = this._trolleyCabin.createInstance(`traffic-trolley-cabin-${id}`);
     body.parent = root;
     cabin.parent = root;
+    body.isVisible = true;
+    cabin.isVisible = true;
     body.isPickable = false;
     cabin.isPickable = false;
     body.receiveShadows = true;
