@@ -35,6 +35,7 @@ describe('PopulationDensitySystem', () => {
 
   it('should radiate density from a house without Micropolis tables', () => {
     const map = new CityMap(16, 16);
+    map.getTile(8, 8)!.powered = true;
     const system = new PopulationDensitySystem();
     const buildings = new Map([['8,8', { defId: 'small_house', x: 8, y: 8 }]]);
     const defs = new Map([
@@ -50,11 +51,26 @@ describe('PopulationDensitySystem', () => {
     expect(map.getTile(8, 13)!.populationDensity).toBe(0);
   });
 
+  it('should count unpowered residents at the same factor as the census', () => {
+    const map = new CityMap(8, 8);
+    const system = new PopulationDensitySystem();
+    const buildings = new Map([['4,4', { defId: 'small_house', x: 4, y: 4 }]]);
+    const defs = new Map([
+      ['small_house', { id: 'small_house', name: '', zoneType: ZoneType.Residential, population: 4, jobs: 0 }],
+    ]);
+
+    system.tick(map, buildings, defs);
+
+    // 4 × 0.75 × 6 = 18 at the dark house.
+    expect(map.getTile(4, 4)!.populationDensity).toBe(18);
+  });
+
   it('should clamp stacked density at 100', () => {
     const map = new CityMap(8, 8);
     const system = new PopulationDensitySystem();
     const buildings = new Map<string, { defId: string; x: number; y: number }>();
     for (let i = 0; i < 4; i++) {
+      map.getTile(3 + i, 4)!.powered = true;
       buildings.set(`${3 + i},4`, { defId: 'rowhouse', x: 3 + i, y: 4 });
     }
     const defs = new Map([
