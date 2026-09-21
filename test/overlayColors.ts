@@ -29,8 +29,11 @@ describe('overlayColors', () => {
     expect(high.g).toBeGreaterThan(high.r);
   });
 
-  it('should hide traffic off-road and redden busy streets', () => {
+  it('should hide traffic off-road, tint idle streets, and redden busy streets', () => {
     expect(colorForTraffic(RoadType.None, 20)).toEqual(OVERLAY_CLEAR);
+    const idle = colorForTraffic(RoadType.Street, 0);
+    expect(idle.a).toBeGreaterThan(0.2);
+    expect(idle.b).toBeGreaterThan(idle.r);
     const hot = colorForTraffic(RoadType.Street, 12);
     expect(hot.a).toBeGreaterThan(0.4);
     expect(hot.r).toBeGreaterThan(hot.g);

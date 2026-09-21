@@ -8,7 +8,7 @@ import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 import rawDefs from '../data/buildings.json';
 
-import { MONTH_SECONDS } from '../data/constants';
+import { MONTH_CATCHUP_LIMIT, MONTH_SECONDS } from '../data/constants';
 import { EconomySystem } from './EconomySystem';
 import { PowerSystem } from './PowerSystem';
 import { PollutionSystem } from './PollutionSystem';
@@ -18,7 +18,11 @@ import { WalkabilitySystem } from './WalkabilitySystem';
 import { TransitSystem } from './TransitSystem';
 import {
   STARTER_RESIDENTIAL_DEMAND,
+  UNPOWERED_FACTOR,
   demandForZone,
+  growthChance,
+  nextDevelopmentDef,
+  targetBuildingDef,
   tileHasAdjacentRoad,
   zoneBuildingIsStressed,
   STRESS_MONTHS_TO_CHANGE,
@@ -28,19 +32,14 @@ import {
 /** Maximum demand value (clamps residentialDemand, commercialDemand, industrialDemand). */
 const MAX_DEMAND = 100;
 
-/** Probability (0–1) that an eligible tile grows a building in any given month. */
-const GROW_CHANCE = 0.25;
-
-/**
- * Fraction of a building's population/jobs contribution when it lacks power.
- * A value of 0.75 means a 25% reduction while unpowered.
- */
-const UNPOWERED_FACTOR = 0.75;
-
 /** Cast the imported JSON to a typed array once at module load. */
 const BUILDING_DEFS: BuildingDef[] = rawDefs as BuildingDef[];
 
-/** Registry key for a tile position — exported for use by renderers. */
+/** Result of one `ZoneGrowthSystem.tick` — clock advances only for time actually committed. */
+export interface MonthTickResult {
+  monthsRun: number;
+  clockAdvance: number;
+}
 export function tileKey(x: number, y: number): string {
   return `${x},${y}`;
 }
@@ -112,6 +111,32 @@ export class ZoneGrowthSystem {
   }
 
   /**
+   * Align the intra-month growth accumulator with a restored clock.
+   * When `accumulator` is provided it is used as-is (may include pending catch-up
+   * months). Otherwise `totalSeconds % MONTH_SECONDS` is the time already elapsed
+   * in the current month.
+   */
+  restoreMonthProgress(totalSeconds: number, accumulator?: number): void {
+    if (typeof accumulator === 'number' && Number.isFinite(accumulator) && accumulator >= 0) {
+      this._secondsAccumulator = accumulator;
+      return;
+    }
+    const elapsed = Number.isFinite(totalSeconds) ? totalSeconds : 0;
+    const remainder = elapsed % MONTH_SECONDS;
+    this._secondsAccumulator = remainder < 0 ? remainder + MONTH_SECONDS : remainder;
+  }
+
+  /** Seconds waiting to be processed (intra-month remainder plus pending catch-up). */
+  get monthAccumulator(): number {
+    return this._secondsAccumulator;
+  }
+
+  /** Recompute population and private-sector jobs from the current buildings. */
+  recomputeCensus(stats: CityStats, map: CityMap): void {
+    this._recalcStats(stats, map);
+  }
+
+  /**
    * Remove the building instance at (x, y) from the registry.
    * Call this from CitySim.bulldoze() to keep the registry consistent.
    * Returns true if a building was found and removed.
@@ -122,21 +147,49 @@ export class ZoneGrowthSystem {
 
   /**
    * Called every simulation tick.
-   * Returns an array of tile keys whose appearance changed (building placed),
-   * so callers can trigger render updates.
-   * Returns `true` if a monthly tick occurred (so CitySim can fire power callbacks).
+   * A large delta (tab resume) runs up to MONTH_CATCHUP_LIMIT months; leftover
+   * time stays in the accumulator. `afterMonth` runs after each month so crime
+   * and coverage exist before the next grow/degrade pass.
+   *
+   * `clockAdvance` is the simulated time that actually ran (processed months plus
+   * live intra-month remainder). Pending catch-up months stay off the calendar.
    */
   tick(
     deltaSeconds: number,
     map: CityMap,
     stats: CityStats,
     changedTiles: Array<{ x: number; y: number }>,
-  ): boolean {
-    this._secondsAccumulator += deltaSeconds;
+    afterMonth?: () => void,
+  ): MonthTickResult {
+    const delta = Number.isFinite(deltaSeconds) && deltaSeconds > 0 ? deltaSeconds : 0;
+    const before = this._secondsAccumulator;
+    this._secondsAccumulator += delta;
 
-    if (this._secondsAccumulator < MONTH_SECONDS) return false;
-    this._secondsAccumulator -= MONTH_SECONDS;
+    let months = 0;
+    while (this._secondsAccumulator >= MONTH_SECONDS && months < MONTH_CATCHUP_LIMIT) {
+      this._secondsAccumulator -= MONTH_SECONDS;
+      this._runMonth(map, stats, changedTiles);
+      afterMonth?.();
+      months += 1;
+    }
 
+    const after = this._secondsAccumulator;
+    const pendingBefore = Math.floor(before / MONTH_SECONDS);
+    const pendingAfter = Math.floor(after / MONTH_SECONDS);
+    const liveRemainder = (value: number, pending: number): number =>
+      pending > 0 ? 0 : value - pending * MONTH_SECONDS;
+    const clockAdvance =
+      months * MONTH_SECONDS + liveRemainder(after, pendingAfter) - liveRemainder(before, pendingBefore);
+
+    return { monthsRun: months, clockAdvance };
+  }
+
+  /** One simulated month: pollution → growth → power → census → economy → traffic. */
+  private _runMonth(
+    map: CityMap,
+    stats: CityStats,
+    changedTiles: Array<{ x: number; y: number }>,
+  ): void {
     // Pollution runs before land value so desirability reflects the previous
     // month's traffic plus the current building layout.
     this._pollution.tick(map, this.buildings, this.defs, stats);
@@ -144,13 +197,23 @@ export class ZoneGrowthSystem {
     // Update land value before growth so growth decisions use fresh values.
     this._landValue.tick(map, this.buildings, this.defs);
 
-    this._updateDemand(stats);
-    this._growBuildings(map, stats, changedTiles);
+    this._updateResidentialDemand(stats);
+    this._growEmptyLots(map, stats, changedTiles, (zone) =>
+      zone === ZoneType.Residential || zone === ZoneType.MixedUse,
+    );
 
-    // Update power coverage before recalculating stats so that newly grown
-    // buildings and the current power plant layout are both reflected.
+    // Power before the census so new houses count fully, then shops can open
+    // against that population in the same month.
     this._power.tick(map, this.buildings, this.defs);
+    this._recalcStats(stats, map);
+    this._updateJobDemand(stats);
 
+    this._growEmptyLots(map, stats, changedTiles, (zone) =>
+      zone === ZoneType.Commercial || zone === ZoneType.Industrial || zone === ZoneType.MixedUse,
+    );
+    this._densifyBuildings(map, stats, changedTiles);
+
+    this._power.tick(map, this.buildings, this.defs);
     this._degradeBuildings(map, stats, changedTiles);
 
     this._recalcStats(stats, map);
@@ -167,8 +230,6 @@ export class ZoneGrowthSystem {
     // Transit runs last so it can further reduce trafficPressure after walkability
     // has already adjusted it, and so its effects feed into next month's LV pass.
     this._transit.tick(map, stats);
-
-    return true;
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────
@@ -183,96 +244,98 @@ export class ZoneGrowthSystem {
    * - industrial demand starts modestly positive and decays slowly toward 20.
    * - higher tax rates suppress demand (penalty); lower rates boost it.
    */
-  private _updateDemand(stats: CityStats): void {
-    // Each tax point above 9% reduces demand by 2 per month; below 9% adds 2.
+  /** Housing demand from last month's jobs. An empty city keeps the starter bar. */
+  private _updateResidentialDemand(stats: CityStats): void {
     const resTaxMod = (9 - stats.resTaxRate) * 2;
-    const comTaxMod = (9 - stats.comTaxRate) * 2;
-    const indTaxMod = (9 - stats.indTaxRate) * 2;
-
-    // Residential: people move in when there are more jobs than workers.
-    // Transit access also makes neighbourhoods more desirable to live in.
-    //   TRANSIT_RES_DEMAND_DIVISOR=50 → each 50 transit points adds 1 demand point/month.
-    // An empty city keeps starter housing demand so the first street can grow
-    // without waiting for factories (jobs ≤ pop would otherwise decay R to 0).
     const TRANSIT_RES_DEMAND_DIVISOR = 50;
     if (stats.population === 0) {
       stats.residentialDemand = STARTER_RESIDENTIAL_DEMAND;
-    } else {
-      const jobBalance      = stats.jobs - stats.population;
-      const transitResBoost = Math.round(stats.transitAccess / TRANSIT_RES_DEMAND_DIVISOR);
-      stats.residentialDemand = Math.max(
-        0,
-        Math.min(MAX_DEMAND, stats.residentialDemand + (jobBalance > 0 ? 5 : -2) + transitResBoost + resTaxMod),
-      );
+      return;
     }
+    const jobBalance = stats.jobs - stats.population;
+    const transitResBoost = Math.round(stats.transitAccess / TRANSIT_RES_DEMAND_DIVISOR);
+    stats.residentialDemand = Math.max(
+      0,
+      Math.min(MAX_DEMAND, stats.residentialDemand + (jobBalance > 0 ? 5 : -2) + transitResBoost + resTaxMod),
+    );
+  }
 
-    // Commercial: shops open when there are more residents to serve.
-    // Walkability and transit both boost foot traffic — commercial is sensitive to both.
-    //   WALK_COM_DEMAND_DIVISOR=25   → each 25 walkability points adds 1 demand/month.
-    //   TRANSIT_COM_DEMAND_DIVISOR=20 → each 20 transit points adds 1 demand/month.
-    const WALK_COM_DEMAND_DIVISOR   = 25;
+  /** Shop and factory demand from the census just taken, including this month's houses. */
+  private _updateJobDemand(stats: CityStats): void {
+    const comTaxMod = (9 - stats.comTaxRate) * 2;
+    const indTaxMod = (9 - stats.indTaxRate) * 2;
+    const WALK_COM_DEMAND_DIVISOR = 25;
     const TRANSIT_COM_DEMAND_DIVISOR = 20;
-    const popGrowthBoost    = stats.population > 0 ? 3 : -1;
-    const walkBoost         = Math.round(stats.walkability   / WALK_COM_DEMAND_DIVISOR);
-    const transitComBoost   = Math.round(stats.transitAccess / TRANSIT_COM_DEMAND_DIVISOR);
+    const popGrowthBoost = stats.population > 0 ? 3 : -1;
+    const walkBoost = Math.round(stats.walkability / WALK_COM_DEMAND_DIVISOR);
+    const transitComBoost = Math.round(stats.transitAccess / TRANSIT_COM_DEMAND_DIVISOR);
     stats.commercialDemand = Math.max(
       0,
       Math.min(MAX_DEMAND, stats.commercialDemand + popGrowthBoost + walkBoost + transitComBoost + comTaxMod),
     );
 
-    // Industrial: starts at a modest positive level, slowly converges to 20.
     const industrialTarget = 20;
-    const industrialDelta  = stats.industrialDemand < industrialTarget ? 2 : -1;
+    const industrialDelta = stats.industrialDemand < industrialTarget ? 2 : -1;
     stats.industrialDemand = Math.max(
       0,
       Math.min(MAX_DEMAND, stats.industrialDemand + industrialDelta + indTaxMod),
     );
   }
 
-  /** Try to grow a building on each eligible empty zoned tile. */
-  private _growBuildings(
+  /** Grow empty zoned lots whose zone passes `include`. */
+  private _growEmptyLots(
+    map: CityMap,
+    stats: CityStats,
+    changedTiles: Array<{ x: number; y: number }>,
+    include: (zone: ZoneType) => boolean,
+  ): void {
+    map.forEach((tile) => {
+      if (!include(tile.zoneType)) return;
+      if (tile.zoneType === ZoneType.None) return;
+      if (tile.terrain === TerrainType.Water) return;
+      if (tile.roadType !== RoadType.None) return;
+      if (tile.buildingId !== null) return;
+      if (tile.neglectMonths > 0) return;
+      if (!tileHasAdjacentRoad(map, tile.x, tile.y)) return;
+
+      const demand = demandForZone(tile.zoneType, stats);
+      if (demand <= 0) return;
+
+      const mixedBoost = (tile.zoneType === ZoneType.MixedUse &&
+        this._hasAdjacentActiveZone(map, tile.x, tile.y)) ? 1.3 : 1.0;
+      if (Math.random() > growthChance(tile.landValue, demand, mixedBoost)) return;
+
+      const bucket = this._defsByZone.get(tile.zoneType);
+      const def = bucket ? targetBuildingDef(bucket, tile.landValue, demand) : undefined;
+      if (!def) return;
+
+      this.buildings.set(tileKey(tile.x, tile.y), { defId: def.id, x: tile.x, y: tile.y });
+      tile.buildingId = def.id;
+      changedTiles.push({ x: tile.x, y: tile.y });
+    });
+  }
+
+  /** Step a healthy building up one size when land value and demand can carry it. */
+  private _densifyBuildings(
     map: CityMap,
     stats: CityStats,
     changedTiles: Array<{ x: number; y: number }>,
   ): void {
     map.forEach((tile) => {
-      // Must be a zoned tile with no existing building and no road on it.
-      if (tile.zoneType === ZoneType.None)  return;
-      if (tile.terrain === TerrainType.Water) return;
-      if (tile.roadType !== RoadType.None)  return;
-      if (tile.buildingId !== null)         return;
-      if (tile.neglectMonths > 0)           return;
+      if (tile.buildingId === null) return;
+      const current = this._defs.get(tile.buildingId);
+      if (!current || current.isService) return;
+      if (zoneBuildingIsStressed(tile, map, stats)) return;
 
-      // Must be adjacent to at least one road tile.
-      if (!tileHasAdjacentRoad(map, tile.x, tile.y)) return;
-
-      // Demand gate: only grow if demand is positive.
       const demand = demandForZone(tile.zoneType, stats);
       if (demand <= 0) return;
+      const bucket = this._defsByZone.get(tile.zoneType);
+      const next = bucket ? nextDevelopmentDef(bucket, current, tile.landValue, demand) : undefined;
+      if (!next) return;
+      if (Math.random() > growthChance(tile.landValue, demand)) return;
 
-      // Probabilistic growth — not every eligible tile grows every month.
-      // Land value biases the probability: higher value → more likely to grow.
-      // lvFactor ranges from 0.5 (LV=0) through 1.0 (LV=50) to 1.5 (LV=100).
-      // With the default GROW_CHANCE of 0.25, the effective chance stays well
-      // below the 0.9 safety cap (max = 0.25 × 1.5 = 0.375).
-      const lvFactor   = 0.5 + tile.landValue / 100;
-      // Mixed-use gets an extra boost when near existing residential or commercial
-      // zones, reflecting the real-world tendency for main-street corridors to form
-      // in already-active neighbourhoods.
-      const mixedBoost = (tile.zoneType === ZoneType.MixedUse &&
-        this._hasAdjacentActiveZone(map, tile.x, tile.y)) ? 1.3 : 1.0;
-      const growChance = Math.min(0.9, GROW_CHANCE * lvFactor * mixedBoost);
-      if (Math.random() > growChance) return;
-
-      const def = this._pickDef(tile.zoneType);
-      if (!def) return;
-
-      // Place the building.
-      const key = tileKey(tile.x, tile.y);
-      const instance = { defId: def.id, x: tile.x, y: tile.y };
-      this.buildings.set(key, instance);
-      tile.buildingId = def.id;
-
+      this.buildings.set(tileKey(tile.x, tile.y), { defId: next.id, x: tile.x, y: tile.y });
+      tile.buildingId = next.id;
       changedTiles.push({ x: tile.x, y: tile.y });
     });
   }
@@ -348,8 +411,12 @@ export class ZoneGrowthSystem {
     return smaller[0];
   }
 
-  /** Recompute population and jobs from all placed buildings.
-   *  Unpowered buildings contribute only UNPOWERED_FACTOR of their potential. */
+  /**
+   * Recompute population and jobs from placed buildings.
+   * Civic/service staffing is not counted as `stats.jobs` — those posts do not
+   * tax as C/I employment or create housing demand. Unpowered buildings
+   * contribute only UNPOWERED_FACTOR of their potential.
+   */
   private _recalcStats(stats: CityStats, map: CityMap): void {
     let population = 0;
     let jobs       = 0;
@@ -360,7 +427,7 @@ export class ZoneGrowthSystem {
       const tile   = map.getTile(instance.x, instance.y);
       const factor = (tile?.powered ?? false) ? 1.0 : UNPOWERED_FACTOR;
       population += def.population * factor;
-      jobs       += def.jobs       * factor;
+      if (!def.isService) jobs += def.jobs * factor;
     }
 
     stats.population = Math.floor(population);
@@ -388,10 +455,4 @@ export class ZoneGrowthSystem {
     );
   }
 
-  /** Picks a random building definition for the given zone type. */
-  private _pickDef(zoneType: ZoneType): BuildingDef | undefined {
-    const bucket = this._defsByZone.get(zoneType);
-    if (!bucket || bucket.length === 0) return undefined;
-    return bucket[Math.floor(Math.random() * bucket.length)];
-  }
 }

@@ -3,6 +3,7 @@
 import type { CityMap } from './CityMap';
 import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
+import { UNPOWERED_FACTOR } from './zoneGrowthHints';
 
 /** Radius (tiles) that one resident cluster influences. */
 const DENSITY_RADIUS = 4;
@@ -32,9 +33,11 @@ export class PopulationDensitySystem {
       const pop = def?.population ?? 0;
       if (pop <= 0) continue;
 
+      const home = map.getTile(instance.x, instance.y);
+      const factor = home?.powered ? 1 : UNPOWERED_FACTOR;
       const r = DENSITY_RADIUS;
       const r2 = r * r;
-      const strength = pop * DENSITY_PER_RESIDENT;
+      const strength = pop * factor * DENSITY_PER_RESIDENT;
 
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {

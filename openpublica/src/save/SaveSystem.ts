@@ -5,6 +5,9 @@ import type { CitySim } from '../sim/CitySim';
 import { SaveCodec } from './SaveCodec';
 import type { SaveGame } from './SaveGame';
 
+/** Outcome of trying to load a save into a live CitySim. */
+export type SaveLoadStatus = 'loaded' | 'missing' | 'invalid' | 'size-mismatch';
+
 /**
  * Persists and restores city state via localStorage.
  *
@@ -39,19 +42,40 @@ export class SaveSystem {
 
   /**
    * Load a previously saved city into an existing CitySim instance in-place.
-   * Returns `true` when a save was found and applied, `false` when there is
-   * no save or the data could not be parsed.
+   * Coverage, power, and overlays are recomputed after decode so load is not
+   * a month of darkness.
    */
-  static load(sim: CitySim): boolean {
-    const save = SaveSystem.loadRaw();
-    if (!save) {
+  static load(sim: CitySim): SaveLoadStatus {
+    const raw = localStorage.getItem(SaveSystem._STORAGE_KEY);
+    if (!raw) {
       console.info('[SaveSystem] No save found.');
-      return false;
+      return 'missing';
+    }
+    let save: SaveGame | null = null;
+    try {
+      save = SaveCodec.migrate(JSON.parse(raw) as unknown);
+    } catch (e) {
+      console.warn('[SaveSystem] Failed to parse save data:', e);
+      return 'invalid';
+    }
+    if (!save) {
+      console.warn('[SaveSystem] Save data is unrecognisable.');
+      return 'invalid';
+    }
+    if (save.mapWidth !== sim.map.width || save.mapHeight !== sim.map.height) {
+      console.warn(
+        `[SaveSystem] Save map is ${save.mapWidth}×${save.mapHeight}, city is ${sim.map.width}×${sim.map.height}.`,
+      );
+      return 'size-mismatch';
     }
     SaveCodec.decode(save, sim);
-    sim.evaluate();
+    sim.refreshDerivedState({
+      applyCrimeHappiness: true,
+      notify: false,
+      includeMonthlyOverlays: true,
+    });
     console.info('[SaveSystem] Game loaded.');
-    return true;
+    return 'loaded';
   }
 
   /** Returns `true` when a save entry exists in localStorage. */

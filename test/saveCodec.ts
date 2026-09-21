@@ -1,8 +1,10 @@
 import { SaveCodec } from '../openpublica/src/save/SaveCodec';
+import { SaveSystem } from '../openpublica/src/save/SaveSystem';
 import { CitySim } from '../openpublica/src/sim/CitySim';
 import { RoadType, ZoneType } from '../openpublica/src/sim/CityTile';
 import { SAVE_VERSION } from '../openpublica/src/save/SaveGame';
 import { MONTH_SECONDS } from '../openpublica/src/data/constants';
+import { BASE_LAND_VALUE } from '../openpublica/src/sim/LandValueSystem';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -293,5 +295,147 @@ describe('SaveCodec.migrate', () => {
     const migrated = SaveCodec.migrate(save as unknown);
     expect(migrated).not.toBeNull();
     expect(migrated?.stats.money).toBe(5_000);
+  });
+});
+
+describe('SaveCodec month progress', () => {
+  it('should finish the current month after load instead of restarting it', () => {
+    const sim = makeSim();
+    sim.placeRoad(4, 4, RoadType.Street);
+    sim.tick(MONTH_SECONDS - 0.5);
+
+    const restored = roundTrip(sim);
+    expect(restored.getTile(4, 3)!.landValue).toBe(BASE_LAND_VALUE);
+
+    restored.tick(0.5);
+    expect(restored.getTile(4, 3)!.landValue).toBeGreaterThan(BASE_LAND_VALUE);
+  });
+
+  it('should persist pending month catch-up in the accumulator', () => {
+    const sim = makeSim();
+    sim.placeRoad(0, 0, RoadType.Street);
+    sim.tick(MONTH_SECONDS * 10);
+    expect(sim.growth.monthAccumulator).toBeCloseTo(MONTH_SECONDS * 4);
+    const save = SaveCodec.encode(sim);
+    expect(save.monthAccumulator).toBeCloseTo(MONTH_SECONDS * 4);
+    expect(save.clockTotalSeconds).toBeCloseTo(MONTH_SECONDS * 6);
+
+    const restored = CitySim.createCity(save.mapWidth, save.mapHeight);
+    SaveCodec.decode(save, restored);
+    expect(restored.clock.totalSeconds).toBeCloseTo(MONTH_SECONDS * 6);
+    expect(restored.growth.monthAccumulator).toBeCloseTo(MONTH_SECONDS * 4);
+    restored.tick(0);
+    expect(restored.clock.totalSeconds).toBeCloseTo(MONTH_SECONDS * 10);
+  });
+
+  it('should persist the terrain seed', () => {
+    const sim = CitySim.createCity(8, 8, 4242);
+    const restored = roundTrip(sim);
+    expect(restored.terrainSeed).toBe(4242);
+  });
+
+  it('should default a missing terrain seed', () => {
+    const sim = makeSim();
+    const save = SaveCodec.encode(sim);
+    delete save.terrainSeed;
+    const restored = CitySim.createCity(save.mapWidth, save.mapHeight, 1);
+    SaveCodec.decode(save, restored);
+    expect(restored.terrainSeed).toBe(2026);
+  });
+
+  it('should drop leftover roads when a save omits that tile', () => {
+    const live = makeSim();
+    live.placeRoad(1, 1, RoadType.Street);
+    const save = SaveCodec.encode(makeSim());
+    save.tiles = save.tiles.filter((t) => !(t.x === 1 && t.y === 1));
+    SaveCodec.decode(save, live);
+    expect(live.getTile(1, 1)?.roadType).toBe(RoadType.None);
+  });
+
+  it('should put a tile-only building back into the registry', () => {
+    const sim = makeSim();
+    sim.placeServiceBuilding(3, 3, 'small_park', 0);
+    const save = SaveCodec.encode(sim);
+    save.buildings = [];
+    const restored = CitySim.createCity(save.mapWidth, save.mapHeight);
+    SaveCodec.decode(save, restored);
+    expect(restored.growth.buildings.get('3,3')?.defId).toBe('small_park');
+    expect(restored.getTile(3, 3)?.buildingId).toBe('small_park');
+  });
+
+  it('should write registry defIds onto tiles', () => {
+    const sim = makeSim();
+    sim.placeServiceBuilding(2, 2, 'small_park', 0);
+    const save = SaveCodec.encode(sim);
+    const tile = save.tiles.find((t) => t.x === 2 && t.y === 2);
+    if (tile) tile.buildingId = null;
+    const restored = CitySim.createCity(save.mapWidth, save.mapHeight);
+    SaveCodec.decode(save, restored);
+    expect(restored.getTile(2, 2)?.buildingId).toBe('small_park');
+  });
+});
+
+describe('SaveSystem.load', () => {
+  const memory = new Map<string, string>();
+
+  beforeEach(() => {
+    memory.clear();
+    const store = {
+      getItem: (key: string) => memory.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        memory.set(key, value);
+      },
+      removeItem: (key: string) => {
+        memory.delete(key);
+      },
+    };
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: store,
+    });
+  });
+
+  it('should restore power coverage without waiting a month', () => {
+    const sim = makeSim();
+    sim.placeServiceBuilding(5, 5, 'small_power_plant', 0);
+    expect(sim.getTile(5, 5)?.powered).toBe(true);
+    SaveSystem.save(sim);
+
+    const loaded = makeSim();
+    expect(loaded.getTile(5, 5)?.powered).toBe(false);
+    expect(SaveSystem.load(loaded)).toBe('loaded');
+    expect(loaded.getTile(5, 5)?.powered).toBe(true);
+    expect(loaded.getTile(5, 0)?.powered).toBe(true);
+  });
+
+  it('should restore watered land value without waiting a month', () => {
+    const sim = makeSim();
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(5, 5, 'small_power_plant', 0);
+    sim.placeServiceBuilding(5, 6, 'small_water_tower', 0);
+    sim.setZone(5, 7, ZoneType.Residential);
+    sim.tick(MONTH_SECONDS);
+    expect(sim.getTile(5, 7)?.watered).toBe(true);
+    const wetValue = sim.getTile(5, 7)!.landValue;
+    SaveSystem.save(sim);
+
+    const loaded = makeSim();
+    expect(SaveSystem.load(loaded)).toBe('loaded');
+    expect(loaded.getTile(5, 7)?.watered).toBe(true);
+    expect(loaded.getTile(5, 7)!.landValue).toBe(wetValue);
+  });
+
+  it('should reject a save whose map size does not match', () => {
+    const small = CitySim.createCity(8, 8);
+    SaveSystem.save(small);
+    const large = CitySim.createCity(16, 16);
+    large.stats.money = 42;
+    expect(SaveSystem.load(large)).toBe('size-mismatch');
+    expect(large.stats.money).toBe(42);
+  });
+
+  it('should report missing when nothing is stored', () => {
+    const sim = makeSim();
+    expect(SaveSystem.load(sim)).toBe('missing');
   });
 });

@@ -131,8 +131,14 @@ describe('TransitSystem', () => {
         }
       }
 
-      // Tick — happiness should be boosted above 100 due to transit.
-      tickOneMonth(sim);
+      // Keep lots empty so this assertion is about transit, not random growth.
+      const random = Math.random;
+      Math.random = () => 1;
+      try {
+        tickOneMonth(sim);
+      } finally {
+        Math.random = random;
+      }
 
       const preCrime = sim.stats.happiness + Math.round(sim.stats.crimeAverage * 0.25);
       expect(preCrime).toBeGreaterThanOrEqual(100);

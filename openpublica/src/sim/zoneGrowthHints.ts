@@ -11,6 +11,20 @@ import type { CityTile } from './CityTile';
  */
 export const STARTER_RESIDENTIAL_DEMAND = 40;
 
+/**
+ * Share of population and jobs counted while a building has no power.
+ * Census and the density overlay both use this so Pop and Crowd match.
+ */
+export const UNPOWERED_FACTOR = 0.75;
+
+/** Land value and demand required before a zone steps up from its smallest building. */
+export const DENSE_LAND_VALUE = 45;
+export const DENSE_DEMAND = 35;
+
+/** Land value and demand required for the largest building in a three-step zone. */
+export const TALL_LAND_VALUE = 70;
+export const TALL_DEMAND = 60;
+
 /** Consecutive stressed months before a zone building downgrades or leaves. */
 export const STRESS_MONTHS_TO_CHANGE = 4;
 
@@ -31,6 +45,71 @@ export function tileHasAdjacentRoad(map: CityMap, x: number, y: number): boolean
     map.getTile(x + 1, y),
   ];
   return neighbours.some((t) => t !== undefined && t.roadType !== RoadType.None);
+}
+
+export interface GrowthDef {
+  readonly id: string;
+  readonly population: number;
+  readonly jobs: number;
+  readonly isService?: boolean;
+}
+
+export function buildingSize(def: GrowthDef): number {
+  return def.population + def.jobs;
+}
+
+/** 0 = smallest building, 1 = mid, 2 = largest. Both value and demand must clear the bar. */
+export function developmentTier(landValue: number, demand: number): number {
+  if (landValue >= TALL_LAND_VALUE && demand >= TALL_DEMAND) return 2;
+  if (landValue >= DENSE_LAND_VALUE && demand >= DENSE_DEMAND) return 1;
+  return 0;
+}
+
+export function rankedZoneDefs<T extends GrowthDef>(defs: readonly T[]): T[] {
+  return defs
+    .filter((def) => !def.isService)
+    .slice()
+    .sort((a, b) => buildingSize(a) - buildingSize(b) || a.id.localeCompare(b.id));
+}
+
+/** Largest def this lot can support. Low value or weak demand stays on the smallest building. */
+export function targetBuildingDef<T extends GrowthDef>(
+  defs: readonly T[],
+  landValue: number,
+  demand: number,
+): T | undefined {
+  const ranked = rankedZoneDefs(defs);
+  if (ranked.length === 0) return undefined;
+  const tier = Math.min(developmentTier(landValue, demand), ranked.length - 1);
+  return ranked[tier];
+}
+
+/**
+ * One step toward the target size. Empty lots use {@link targetBuildingDef} directly;
+ * an existing building densifies one step per successful month.
+ */
+export function nextDevelopmentDef<T extends GrowthDef>(
+  defs: readonly T[],
+  current: T,
+  landValue: number,
+  demand: number,
+): T | undefined {
+  const target = targetBuildingDef(defs, landValue, demand);
+  if (!target || buildingSize(target) <= buildingSize(current)) return undefined;
+  const ranked = rankedZoneDefs(defs);
+  const index = ranked.findIndex((def) => def.id === current.id);
+  if (index < 0) return undefined;
+  return ranked[index + 1];
+}
+
+/**
+ * Monthly chance an eligible lot develops. Demand scales the roll so a full
+ * bar fills faster than a trickle, without making low demand impossible.
+ */
+export function growthChance(landValue: number, demand: number, mixedBoost = 1): number {
+  const lvFactor = 0.5 + Math.max(0, landValue) / 100;
+  const demandFactor = 0.45 + 0.55 * (Math.max(0, Math.min(100, demand)) / 100);
+  return Math.min(0.9, 0.32 * lvFactor * demandFactor * mixedBoost);
 }
 
 export function demandForZone(zoneType: ZoneType, stats: CityStats): number {

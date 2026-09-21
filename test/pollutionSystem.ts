@@ -55,6 +55,34 @@ describe('PollutionSystem', () => {
   });
 
   describe('traffic pollution', () => {
+    it('should smog a new street beside a house before the next month', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.growth.buildings.set('4,4', { defId: 'small_house', x: 4, y: 4 });
+      sim.getTile(4, 4)!.buildingId = 'small_house';
+      sim.getTile(4, 4)!.zoneType = ZoneType.Residential;
+
+      sim.placeRoad(4, 5, RoadType.Street);
+
+      expect(sim.getTile(4, 5)!.trafficPressure).toBeGreaterThan(0);
+      expect(sim.getTile(4, 5)!.pollution).toBeGreaterThan(0);
+      expect(sim.stats.pollutionAverage).toBeGreaterThan(0);
+    });
+
+    it('should publish traffic smog in the same month a house appears', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.placeRoad(4, 5, RoadType.Street);
+      expect(sim.getTile(4, 5)!.pollution).toBe(0);
+
+      sim.growth.buildings.set('4,4', { defId: 'small_house', x: 4, y: 4 });
+      sim.getTile(4, 4)!.buildingId = 'small_house';
+      sim.getTile(4, 4)!.zoneType = ZoneType.Residential;
+
+      tickOneMonth(sim);
+
+      expect(sim.getTile(4, 5)!.trafficPressure).toBeGreaterThan(0);
+      expect(sim.getTile(4, 5)!.pollution).toBeGreaterThan(0);
+    });
+
     it('should convert traffic pressure into local road pollution', () => {
       const map = new CityMap(8, 8);
       const system = new PollutionSystem();
@@ -65,7 +93,8 @@ describe('PollutionSystem', () => {
       const stats = {
         population: 0, jobs: 0, money: 0, residentialDemand: 0, commercialDemand: 0,
         industrialDemand: 0, resTaxRate: 9, comTaxRate: 9, indTaxRate: 9,
-        monthlyIncome: 0, monthlyExpenses: 0, serviceExpenses: 0, bankruptcyWarning: false,
+        monthlyIncome: 0, monthlyExpenses: 0, serviceExpenses: 0,
+        projectedIncome: 0, projectedExpenses: 0, bankruptcyWarning: false,
         happiness: 100, walkability: 0, transitAccess: 0, pollutionAverage: 0, crimeAverage: 0, fireAverage: 0, waterAverage: 0, approval: 100, advisory: '',
       };
 
@@ -75,6 +104,21 @@ describe('PollutionSystem', () => {
       expect(map.getTile(4, 5)!.pollution).toBeGreaterThan(0);
       expect(map.getTile(4, 7)!.pollution).toBe(0);
       expect(stats.pollutionAverage).toBeGreaterThan(0);
+    });
+
+    it('should average developed tiles including clean lots at pollution 0', () => {
+      const sim = CitySim.createCity(8, 8);
+      sim.growth.buildings.set('1,1', { defId: 'light_workshop', x: 1, y: 1 });
+      sim.getTile(1, 1)!.buildingId = 'light_workshop';
+      sim.getTile(1, 1)!.zoneType = ZoneType.Industrial;
+      for (let x = 2; x < 8; x++) {
+        sim.setZone(x, 1, ZoneType.Residential);
+      }
+      tickOneMonth(sim);
+      const hot = sim.getTile(1, 1)!.pollution;
+      expect(hot).toBeGreaterThan(0);
+      expect(sim.stats.pollutionAverage).toBeLessThan(hot);
+      expect(sim.stats.pollutionAverage).toBeGreaterThan(0);
     });
   });
 });

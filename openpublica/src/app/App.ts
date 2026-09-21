@@ -70,9 +70,10 @@ export class App {
       );
     }
 
-    const sim = CitySim.createCity(MAP_SIZE, MAP_SIZE);
-    generateTerrain(sim.map);
-    const heights = HeightField.fromMap(sim.map);
+    const terrainSeed = (Math.random() * 0x7fffffff) | 0;
+    const sim = CitySim.createCity(MAP_SIZE, MAP_SIZE, terrainSeed);
+    generateTerrain(sim.map, terrainSeed);
+    const heights = HeightField.fromMap(sim.map, terrainSeed);
 
     const audio = new AudioBus();
     const unlockAudio = (): void => {
@@ -130,7 +131,7 @@ export class App {
     sim.onLandValueChanged = () => view.overlay.refresh(sim.map);
     sim.onTrafficChanged = () => {
       view.overlay.refresh(sim.map);
-      view.traffic.syncDensity(sim.map);
+      view.traffic.rebuildGraph(sim.map, view.heights);
       view.vegetation.refreshStreets(sim.map);
     };
     sim.onWalkabilityChanged = () => view.overlay.refresh(sim.map);
@@ -244,7 +245,7 @@ export class App {
       const dt = engine.getDeltaTime() / 1000;
       if (simSpeed > 0) {
         sim.tick(dt * simSpeed);
-        view.traffic.update(dt);
+        view.traffic.update(dt * simSpeed);
         if (sim.stats.bankruptcyWarning && !wasBankrupt) {
           audio.play(BANKRUPT_VOICE, 'warn');
         }
@@ -254,12 +255,19 @@ export class App {
 
     const budgetPanel = new BudgetPanel(budgetEl);
     budgetPanel.update(sim.stats);
+    sim.onMonth = () => {
+      hud.update(sim.stats, sim.clock);
+      budgetPanel.update(sim.stats);
+      syncAmbient();
+    };
     budgetPanel.onTaxChange((res, com, ind) => {
       sim.stats.resTaxRate = res;
       sim.stats.comTaxRate = com;
       sim.stats.indTaxRate = ind;
+      sim.previewEconomy();
       sim.evaluate();
       hud.update(sim.stats, sim.clock);
+      budgetPanel.update(sim.stats);
     });
 
     view.picker.onPick((coord, via) => {
@@ -311,8 +319,6 @@ export class App {
     });
 
     setInterval(() => {
-      hud.update(sim.stats, sim.clock);
-      budgetPanel.update(sim.stats);
       syncAmbient();
       redrawLook();
     }, 1000);

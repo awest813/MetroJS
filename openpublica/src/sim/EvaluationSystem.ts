@@ -6,15 +6,13 @@ import type { BuildingInstance } from './BuildingInstance';
 import type { CityStats } from './CitySim';
 import { RoadType, ZoneType } from './CityTile';
 import { tileHasAdjacentRoad } from './zoneGrowthHints';
+import { EXTREME_TRAFFIC_PRESSURE } from './happiness';
 
 /** Pollution average subtracted from approval at this weight. */
 const POLLUTION_WEIGHT = 0.30;
 
 /** Crime average subtracted from approval at this weight. */
 const CRIME_WEIGHT = 0.25;
-
-/** Happiness-style extreme traffic threshold (same as TrafficPressureSystem). */
-const EXTREME_PRESSURE = 8;
 
 /** Approval lost per extreme-traffic road, capped. */
 const TRAFFIC_PER_EXTREME = 2;
@@ -117,7 +115,7 @@ function survey(
     if (tile.zoneType === ZoneType.Industrial) industrialLots += 1;
     if (tile.zoneType === ZoneType.MixedUse) mixedLots += 1;
     if (tile.neglectMonths >= 2 && tile.buildingId !== null) strugglingCount += 1;
-    if (tile.roadType !== RoadType.None && tile.trafficPressure >= EXTREME_PRESSURE) {
+    if (tile.roadType !== RoadType.None && tile.trafficPressure >= EXTREME_TRAFFIC_PRESSURE) {
       extremeRoads += 1;
     }
     if (

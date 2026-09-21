@@ -25,13 +25,17 @@ export function mountCityMenu(
       opts.statusEl.textContent = 'City saved in this browser.';
     },
     onLoad: () => {
-      const ok = SaveSystem.load(opts.sim);
-      if (ok) {
+      const status = SaveSystem.load(opts.sim);
+      if (status === 'loaded') {
         opts.view.rebuildAll(opts.sim);
         opts.hud.update(opts.sim.stats, opts.sim.clock);
         opts.budget.update(opts.sim.stats);
         opts.budget.syncTaxSliders(opts.sim.stats);
         opts.statusEl.textContent = 'City loaded.';
+      } else if (status === 'size-mismatch') {
+        opts.statusEl.textContent = 'That save is a different map size.';
+      } else if (status === 'invalid') {
+        opts.statusEl.textContent = 'Could not read that save.';
       } else {
         opts.statusEl.textContent = 'No save found.';
       }

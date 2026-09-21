@@ -2,7 +2,7 @@
 //     All simulation logic must remain renderer-agnostic.
 
 import { CityMap } from './CityMap';
-import { CityTile, RoadType, ZoneType, TerrainType } from './CityTile';
+import { RoadType, ZoneType, TerrainType, type CityTile } from './CityTile';
 import { SimulationClock } from './SimulationClock';
 import { ZoneGrowthSystem } from './ZoneGrowthSystem';
 import { PowerSystem } from './PowerSystem';
@@ -19,7 +19,9 @@ import { CrimeSystem } from './CrimeSystem';
 import { EvaluationSystem } from './EvaluationSystem';
 import { tileKey } from './ZoneGrowthSystem';
 import { STARTER_RESIDENTIAL_DEMAND } from './zoneGrowthHints';
-import { serviceUpkeep } from './EconomySystem';
+import { tallyBudget } from './EconomySystem';
+import { DEFAULT_TERRAIN_SEED } from './TerrainGenerator';
+import { composeHappiness } from './happiness';
 
 /** Aggregate statistics for the city, updated each tick. */
 export interface CityStats {
@@ -39,14 +41,17 @@ export interface CityStats {
   monthlyIncome:     number;
   /** Expenses paid last simulated month. */
   monthlyExpenses:   number;
-  /** Operating cost of service buildings last month. */
+  /** Operating cost of service buildings at the current layout (not last billed). */
   serviceExpenses:   number;
+  /** Tax take the next billed month would collect at current pop/jobs/rates. */
+  projectedIncome:   number;
+  /** Upkeep the next billed month would charge at current roads and civic. */
+  projectedExpenses: number;
   /** True whenever the city treasury is negative. */
   bankruptcyWarning: boolean;
   /**
-   * City-wide happiness [0–100].  Starts at 100 and is reduced by
-   * TrafficPressureSystem when many road tiles carry extreme traffic pressure.
-   * Boosted by WalkabilitySystem when the city has good pedestrian access.
+   * City-wide happiness [0–100]. Composed from extreme traffic, walkability,
+   * transit access, and (on monthly ticks) crime — never stacked by placement.
    */
   happiness: number;
   /**
@@ -62,8 +67,8 @@ export interface CityStats {
    */
   transitAccess: number;
   /**
-   * City-wide pollution score [0–100]. Average pollution across polluted
-   * tiles, computed by PollutionSystem each month.
+   * City-wide pollution [0–100]. Mean pollution on developed tiles (zone,
+   * building, or road), including clean lots at 0.
    */
   pollutionAverage: number;
   /**
@@ -118,6 +123,10 @@ export class CitySim {
   readonly traffic:      TrafficPressureSystem;
   readonly walkability:  WalkabilitySystem;
   readonly transit:      TransitSystem;
+  /**
+   * Seed used to paint lakes/hills. Persisted so load rebuilds the same heightfield.
+   */
+  terrainSeed: number;
 
   /**
    * Called after each monthly growth tick with the list of tiles that received a
@@ -162,8 +171,14 @@ export class CitySim {
    */
   onCrimeChanged: (() => void) | null = null;
 
-  private constructor(map: CityMap) {
+  /**
+   * Called after a monthly pass so HUD/budget can refresh without polling.
+   */
+  onMonth: (() => void) | null = null;
+
+  private constructor(map: CityMap, terrainSeed: number) {
     this.map          = map;
+    this.terrainSeed  = terrainSeed;
     this.clock        = new SimulationClock();
     this.power        = new PowerSystem();
     this.pollution    = new PollutionSystem();
@@ -191,6 +206,8 @@ export class CitySim {
       monthlyIncome:     0,
       monthlyExpenses:   0,
       serviceExpenses:   0,
+      projectedIncome:   0,
+      projectedExpenses: 0,
       bankruptcyWarning: false,
       happiness:         100,
       walkability:       0,
@@ -208,8 +225,8 @@ export class CitySim {
   // ── Factory ──────────────────────────────────────────────────────────────
 
   /** Create a new city of the given tile dimensions. */
-  static createCity(width: number, height: number): CitySim {
-    return new CitySim(new CityMap(width, height));
+  static createCity(width: number, height: number, terrainSeed: number = DEFAULT_TERRAIN_SEED): CitySim {
+    return new CitySim(new CityMap(width, height), terrainSeed);
   }
 
   // ── Query ─────────────────────────────────────────────────────────────────
@@ -227,34 +244,40 @@ export class CitySim {
     return !!tile && tile.terrain !== TerrainType.Water;
   }
 
-  /** Assign a zone type to the tile at (x, y). No-op if out of bounds or water. */
+  /**
+   * Assign a zone type to the tile at (x, y).
+   * No-op if out of bounds, water, occupied by a building, or (when zoning) a road.
+   */
   setZone(x: number, y: number, zoneType: ZoneType): void {
     const tile = this.map.getTile(x, y);
     if (!tile || tile.terrain === TerrainType.Water) return;
+    if (tile.buildingId !== null) return;
+    if (zoneType !== ZoneType.None && tile.roadType !== RoadType.None) return;
     tile.zoneType = zoneType;
-    this._refreshWater();
+    this._refreshNetwork();
   }
 
-  /** Place a road on the tile at (x, y). No-op if out of bounds or water. */
+  /**
+   * Place a road on the tile at (x, y).
+   * No-op if out of bounds, water, or a building is on the tile.
+   * Paving an empty lot clears the zone — a street is not a housing plat.
+   */
   placeRoad(x: number, y: number, roadType: RoadType): void {
     const tile = this.map.getTile(x, y);
     if (!tile || tile.terrain === TerrainType.Water) return;
+    if (tile.buildingId !== null) return;
     tile.roadType = roadType;
-    this._refreshWater();
+    tile.zoneType = ZoneType.None;
+    this._refreshNetwork();
   }
 
   /** Clear the road, zone, and building from the tile at (x, y). No-op if out of bounds. */
   bulldoze(x: number, y: number): void {
     const tile = this.map.getTile(x, y);
-    if (tile) {
-      tile.roadType   = RoadType.None;
-      tile.zoneType   = ZoneType.None;
-      tile.buildingId = null;
-      this.growth.removeAt(x, y);
-      tile.neglectMonths = 0;
-      this._refreshWater();
-      this.stats.serviceExpenses = serviceUpkeep(this.growth.buildings, this.growth.defs);
-    }
+    if (!tile) return;
+    this.growth.removeAt(x, y);
+    tile.clearOccupancy();
+    this.refreshDerivedState({ applyCrimeHappiness: true, notify: true });
   }
 
   /**
@@ -271,6 +294,7 @@ export class CitySim {
     if (!tile || tile.terrain === TerrainType.Water) return false;
     if (tile.buildingId !== null) return false;
     if (tile.roadType !== RoadType.None) return false;
+    if (!this.growth.defs.has(defId)) return false;
 
     if (!this.deductMoney(cost)) {
       console.warn(
@@ -279,37 +303,93 @@ export class CitySim {
       return false;
     }
 
+    // Civic buildings occupy the lot; they are not a zoned plat underneath.
+    tile.zoneType = ZoneType.None;
     tile.buildingId = defId;
     this.growth.buildings.set(tileKey(x, y), { defId, x, y });
 
-    // Immediately recalculate power so nearby buildings become powered at once.
-    this.power.tick(this.map, this.growth.buildings, this.growth.defs);
-    if (this.onPowerChanged) this.onPowerChanged();
-
-    this.pollution.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
-    this._refreshCityHealth(false);
-    // Land value after water/police so watered lots and parks apply this click.
-    this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
-    if (this.onLandValueChanged) this.onLandValueChanged();
-    this.stats.serviceExpenses = serviceUpkeep(this.growth.buildings, this.growth.defs);
-    this.evaluate();
+    this.refreshDerivedState({ applyCrimeHappiness: true, notify: true });
     return true;
   }
 
-  /** Recalculate watered tiles and HUD waterAverage after zone/road/bulldoze. */
-  private _refreshWater(): void {
+  /**
+   * Recompute power, traffic, pollution, coverage, crime, land value, and
+   * civic upkeep from the current buildings. Does not advance the clock or
+   * run economy/growth.
+   *
+   * Call after load so restored tiles are not left unpowered. Placement and
+   * bulldoze use the same path so coverage discs and HUD averages stay honest.
+   *
+   * Pollution and happiness run after traffic, and land value runs after water,
+   * so a paved street is not a silent, clean road until the next month.
+   */
+  refreshDerivedState(opts?: {
+    applyCrimeHappiness?: boolean;
+    notify?: boolean;
+    includeMonthlyOverlays?: boolean;
+  }): void {
+    const applyCrimeHappiness = opts?.applyCrimeHappiness ?? false;
+    const notify = opts?.notify ?? true;
+    const includeMonthlyOverlays = opts?.includeMonthlyOverlays ?? false;
+
+    this.power.tick(this.map, this.growth.buildings, this.growth.defs);
+
+    if (includeMonthlyOverlays) {
+      this.growth.recomputeCensus(this.stats, this.map);
+    }
+
+    this._syncPublishedState(applyCrimeHappiness, notify);
+
+    if (!notify) return;
+    if (this.onPowerChanged) this.onPowerChanged();
+    if (this.onLandValueChanged) this.onLandValueChanged();
+    this._notifyTrafficOverlays();
+  }
+
+  /** Traffic, smog, happiness, and land value after zone/road edits. */
+  private _refreshNetwork(): void {
+    this._syncPublishedState(true, true);
+    if (this.onLandValueChanged) this.onLandValueChanged();
+    this._notifyTrafficOverlays();
+  }
+
+  /**
+   * One snapshot of derived map state.
+   * Traffic first, then the smog and happiness that read it, then land value
+   * (after water) so crime sees the values the player is about to see.
+   */
+  private _syncPublishedState(applyCrimeHappiness: boolean, notify: boolean): void {
+    this._refreshTrafficLayers();
+    this.pollution.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
     this.water.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+    this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
+    this._refreshCityHealth(applyCrimeHappiness, notify);
+    this.previewEconomy();
     this.evaluate();
   }
 
-  private _refreshCityHealth(applyCrimeHappiness: boolean): void {
+  /** Pressure, walk, and transit from the current buildings and road network. */
+  private _refreshTrafficLayers(): void {
+    this.traffic.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+    this.walkability.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+    this.transit.tick(this.map, this.stats);
+  }
+
+  private _notifyTrafficOverlays(): void {
+    if (this.onTrafficChanged) this.onTrafficChanged();
+    if (this.onWalkabilityChanged) this.onWalkabilityChanged();
+    if (this.onTransitChanged) this.onTransitChanged();
+  }
+
+  private _refreshCityHealth(applyCrimeHappiness: boolean, notify = true): void {
     this.density.tick(this.map, this.growth.buildings, this.growth.defs);
     this.police.tick(this.map, this.growth.buildings, this.growth.defs);
     this.fire.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
     this.water.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
-    this.crime.tick(this.map, this.stats, applyCrimeHappiness);
+    this.crime.tick(this.map, this.stats);
+    if (applyCrimeHappiness) composeHappiness(this.map, this.stats, true);
     this.evaluate();
-    if (this.onCrimeChanged) this.onCrimeChanged();
+    if (notify && this.onCrimeChanged) this.onCrimeChanged();
   }
 
   /**
@@ -318,6 +398,17 @@ export class CitySim {
    */
   evaluate(): void {
     this.evaluation.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+  }
+
+  /**
+   * Refresh civic upkeep and next-month projection from the current layout.
+   * Does not overwrite last-billed income/expenses or charge the treasury.
+   */
+  previewEconomy(): void {
+    const tally = tallyBudget(this.map, this.growth.buildings, this.growth.defs, this.stats);
+    this.stats.serviceExpenses = tally.serviceExpenses;
+    this.stats.projectedIncome = tally.income;
+    this.stats.projectedExpenses = tally.expenses;
   }
 
   // ── Economy ───────────────────────────────────────────────────────────────
@@ -341,49 +432,36 @@ export class CitySim {
 
   /** Advance the simulation by deltaSeconds, running growth once per simulated month. */
   tick(deltaSeconds: number): void {
-    this.clock.tick(deltaSeconds);
-
     const changedTiles: Array<{ x: number; y: number }> = [];
-    const monthTicked = this.growth.tick(deltaSeconds, this.map, this.stats, changedTiles);
+    const month = this.growth.tick(
+      deltaSeconds,
+      this.map,
+      this.stats,
+      changedTiles,
+      () => this._refreshCityHealth(true),
+    );
+    this.clock.tick(month.clockAdvance);
 
     if (changedTiles.length > 0 && this.onGrowth) {
       this.onGrowth(changedTiles);
     }
 
-    // Power is recalculated inside growth.tick() each month; notify listeners.
-    if (monthTicked && this.onPowerChanged) {
-      this.onPowerChanged();
-    }
+    if (month.monthsRun === 0) return;
 
-    // Land value is also recalculated monthly; notify listeners.
-    if (monthTicked && this.onLandValueChanged) {
-      this.onLandValueChanged();
-    }
-
-    // Traffic pressure is recalculated monthly; notify listeners.
-    if (monthTicked && this.onTrafficChanged) {
-      this.onTrafficChanged();
-    }
-
-    // Walkability is recalculated monthly (after traffic); notify listeners.
-    if (monthTicked && this.onWalkabilityChanged) {
-      this.onWalkabilityChanged();
-    }
-
-    // Transit access is recalculated monthly (after walkability); notify listeners.
-    if (monthTicked && this.onTransitChanged) {
-      this.onTransitChanged();
-    }
-
-    if (monthTicked) {
-      this._refreshCityHealth(true);
-    }
+    // Growth used last month's smog. Publish this month's traffic before the HUD.
+    this._syncPublishedState(true, true);
+    if (this.onMonth) this.onMonth();
+    if (this.onPowerChanged) this.onPowerChanged();
+    if (this.onLandValueChanged) this.onLandValueChanged();
+    if (this.onTrafficChanged) this.onTrafficChanged();
+    if (this.onWalkabilityChanged) this.onWalkabilityChanged();
+    if (this.onTransitChanged) this.onTransitChanged();
   }
 }
 
 /** Convenience wrapper around {@link CitySim.createCity}. */
-export function createCity(width: number, height: number): CitySim {
-  return CitySim.createCity(width, height);
+export function createCity(width: number, height: number, terrainSeed?: number): CitySim {
+  return CitySim.createCity(width, height, terrainSeed);
 }
 
 export { RoadType, ZoneType, TerrainType } from './CityTile';

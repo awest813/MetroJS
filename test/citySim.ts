@@ -2,6 +2,8 @@ import { CitySim, createCity, RoadType, ZoneType } from '../openpublica/src/sim/
 import { TerrainType } from '../openpublica/src/sim/CityTile';
 import { SimulationClock } from '../openpublica/src/sim/SimulationClock';
 import { CityMap } from '../openpublica/src/sim/CityMap';
+import { BASE_LAND_VALUE } from '../openpublica/src/sim/LandValueSystem';
+import { MONTH_SECONDS } from '../openpublica/src/data/constants';
 
 // ── CitySim ───────────────────────────────────────────────────────────────────
 
@@ -45,6 +47,11 @@ describe('CitySim', () => {
       expect(sim.stats.comTaxRate).toBe(9);
       expect(sim.stats.indTaxRate).toBe(9);
       expect(sim.stats.bankruptcyWarning).toBe(false);
+    });
+
+    it('should start land value at the LandValueSystem baseline', () => {
+      const sim = CitySim.createCity(8, 8);
+      expect(sim.getTile(0, 0)?.landValue).toBe(BASE_LAND_VALUE);
     });
   });
 
@@ -90,6 +97,13 @@ describe('CitySim', () => {
       expect(sim.getTile(4, 4)?.zoneType).toBe(ZoneType.Commercial);
     });
 
+    it('should not zone a road tile at the sim layer', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.placeRoad(4, 4, RoadType.Street);
+      sim.setZone(4, 4, ZoneType.Residential);
+      expect(sim.getTile(4, 4)?.zoneType).toBe(ZoneType.None);
+    });
+
     it('should be a no-op for out-of-bounds coordinates', () => {
       const sim = CitySim.createCity(16, 16);
       expect(() => sim.setZone(99, 99, ZoneType.Industrial)).not.toThrow();
@@ -103,6 +117,14 @@ describe('CitySim', () => {
       expect(sim.getTile(2, 2)?.roadType).toBe(RoadType.Street);
     });
 
+    it('should clear zoning when a road is paved over an empty lot', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.setZone(2, 2, ZoneType.Residential);
+      sim.placeRoad(2, 2, RoadType.Street);
+      expect(sim.getTile(2, 2)?.roadType).toBe(RoadType.Street);
+      expect(sim.getTile(2, 2)?.zoneType).toBe(ZoneType.None);
+    });
+
     it('should update the road type on subsequent calls', () => {
       const sim = CitySim.createCity(16, 16);
       sim.placeRoad(2, 2, RoadType.Street);
@@ -110,9 +132,64 @@ describe('CitySim', () => {
       expect(sim.getTile(2, 2)?.roadType).toBe(RoadType.Highway);
     });
 
+    it('should not pave over a building', () => {
+      const sim = CitySim.createCity(16, 16);
+      expect(sim.placeServiceBuilding(2, 2, 'small_park', 0)).toBe(true);
+      sim.placeRoad(2, 2, RoadType.Street);
+      expect(sim.getTile(2, 2)?.roadType).toBe(RoadType.None);
+      expect(sim.getTile(2, 2)?.buildingId).toBe('small_park');
+    });
+
     it('should be a no-op for out-of-bounds coordinates', () => {
       const sim = CitySim.createCity(16, 16);
       expect(() => sim.placeRoad(99, 99, RoadType.Street)).not.toThrow();
+    });
+
+    it('should put traffic pressure on a new street beside a house immediately', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.growth.buildings.set('4,4', { defId: 'small_house', x: 4, y: 4 });
+      sim.getTile(4, 4)!.buildingId = 'small_house';
+      sim.getTile(4, 4)!.zoneType = ZoneType.Residential;
+      sim.placeRoad(4, 5, RoadType.Street);
+      expect(sim.getTile(4, 5)?.roadType).toBe(RoadType.Street);
+      expect(sim.getTile(4, 5)!.trafficPressure).toBeGreaterThan(0);
+      expect(sim.getTile(4, 5)!.noise).toBeGreaterThan(0);
+    });
+
+    it('should fire onTrafficChanged when a road is paved', () => {
+      const sim = CitySim.createCity(8, 8);
+      let fires = 0;
+      sim.onTrafficChanged = () => { fires += 1; };
+      sim.placeRoad(2, 2, RoadType.Street);
+      expect(fires).toBe(1);
+    });
+
+    it('should drop traffic pressure after the nearby house is bulldozed', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.growth.buildings.set('4,4', { defId: 'small_house', x: 4, y: 4 });
+      sim.getTile(4, 4)!.buildingId = 'small_house';
+      sim.getTile(4, 4)!.zoneType = ZoneType.Residential;
+      sim.placeRoad(4, 5, RoadType.Street);
+      expect(sim.getTile(4, 5)!.trafficPressure).toBeGreaterThan(0);
+      sim.bulldoze(4, 4);
+      expect(sim.getTile(4, 5)?.roadType).toBe(RoadType.Street);
+      expect(sim.getTile(4, 5)!.trafficPressure).toBe(0);
+    });
+  });
+
+  describe('placeServiceBuilding', () => {
+    it('should clear zoning so civic buildings are not hybrid lots', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.setZone(3, 3, ZoneType.Residential);
+      expect(sim.placeServiceBuilding(3, 3, 'small_park', 0)).toBe(true);
+      expect(sim.getTile(3, 3)?.buildingId).toBe('small_park');
+      expect(sim.getTile(3, 3)?.zoneType).toBe(ZoneType.None);
+    });
+
+    it('should reject an unknown building def', () => {
+      const sim = CitySim.createCity(16, 16);
+      expect(sim.placeServiceBuilding(1, 1, 'not_a_building', 0)).toBe(false);
+      expect(sim.getTile(1, 1)?.buildingId).toBeNull();
     });
   });
 
@@ -165,6 +242,53 @@ describe('CitySim', () => {
       sim.tick(0.5);
       sim.tick(1.0);
       expect(sim.clock.totalSeconds).toBeCloseTo(2.0);
+    });
+
+    it('should not treat civic staffing as private jobs', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.stats.money = 100_000;
+      sim.placeServiceBuilding(4, 4, 'small_power_plant', 0);
+      sim.placeServiceBuilding(6, 4, 'small_police_station', 0);
+      sim.tick(MONTH_SECONDS);
+      expect(sim.stats.jobs).toBe(0);
+    });
+
+    it('should catch up multiple due months in one tick', () => {
+      const sim = CitySim.createCity(8, 8);
+      sim.placeRoad(0, 0, RoadType.Street);
+      sim.placeRoad(1, 0, RoadType.Street);
+      sim.placeRoad(2, 0, RoadType.Street);
+      sim.placeRoad(3, 0, RoadType.Street);
+      const start = sim.stats.money;
+      sim.tick(MONTH_SECONDS * 2);
+      // 4 streets × $2 × 2 months
+      expect(sim.stats.money).toBe(start - 16);
+      expect(sim.stats.monthlyExpenses).toBe(8);
+      expect(sim.clock.totalSeconds).toBeCloseTo(MONTH_SECONDS * 2);
+    });
+
+    it('should not advance the calendar past months that have not run yet', () => {
+      const sim = CitySim.createCity(8, 8);
+      sim.placeRoad(0, 0, RoadType.Street);
+      const start = sim.stats.money;
+      sim.tick(MONTH_SECONDS * 10);
+      // 1 street × $2 × 6 catch-up months
+      expect(sim.stats.money).toBe(start - 12);
+      expect(sim.clock.totalSeconds).toBeCloseTo(MONTH_SECONDS * 6);
+      expect(sim.growth.monthAccumulator).toBeCloseTo(MONTH_SECONDS * 4);
+
+      sim.tick(0);
+      expect(sim.stats.money).toBe(start - 20);
+      expect(sim.clock.totalSeconds).toBeCloseTo(MONTH_SECONDS * 10);
+      expect(sim.growth.monthAccumulator).toBeCloseTo(0);
+    });
+
+    it('should fire onMonth after a monthly pass', () => {
+      const sim = CitySim.createCity(8, 8);
+      let months = 0;
+      sim.onMonth = () => { months += 1; };
+      sim.tick(MONTH_SECONDS);
+      expect(months).toBe(1);
     });
   });
 });

@@ -12,23 +12,19 @@ const LAND_VALUE_CRIME = 0.20;
 /** Police coverage subtracted from crime (100 coverage can wipe a dense block). */
 const POLICE_CRIME_RELIEF = 0.80;
 
-/** Happiness lost per point of city-wide crime average. */
-const CRIME_HAPPINESS_MULTIPLIER = 0.25;
-
 /**
  * Writes `tile.crime` [0–100] and `stats.crimeAverage`.
  *
  * crime = clamp(density × 0.65 + (100 − landValue) × 0.20 − policeCoverage × 0.80)
  * Empty (density 0) tiles stay 0. No Micropolis crime RNG.
  *
- * Then, when `applyHappiness` is true (monthly tick only), reduces
- * `stats.happiness` by round(crimeAverage × 0.25) after traffic, walk, and
- * transit have already written happiness. Placement refreshes skip that so
- * parks and stations do not stack the penalty.
+ * `stats.crimeAverage` is the mean crime on occupied (density > 0) tiles,
+ * including fully policed lots at crime 0 — same occupied-tile rule as fire.
+ * Happiness is composed separately so a park placement cannot restack the penalty.
  */
 export class CrimeSystem {
-  tick(map: CityMap, stats: CityStats, applyHappiness = false): void {
-    let hot = 0;
+  tick(map: CityMap, stats: CityStats): void {
+    let occupied = 0;
     let total = 0;
 
     map.forEach((tile) => {
@@ -41,16 +37,10 @@ export class CrimeSystem {
         (100 - tile.landValue) * LAND_VALUE_CRIME -
         tile.policeCoverage * POLICE_CRIME_RELIEF;
       tile.crime = Math.max(0, Math.min(100, Math.round(raw)));
-      if (tile.crime <= 0) return;
-      hot += 1;
+      occupied += 1;
       total += tile.crime;
     });
 
-    stats.crimeAverage = hot > 0 ? Math.round(total / hot) : 0;
-    if (!applyHappiness) return;
-    stats.happiness = Math.max(
-      0,
-      stats.happiness - Math.round(stats.crimeAverage * CRIME_HAPPINESS_MULTIPLIER),
-    );
+    stats.crimeAverage = occupied > 0 ? Math.round(total / occupied) : 0;
   }
 }

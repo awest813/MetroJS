@@ -63,7 +63,18 @@ describe('formatInspectStatus', () => {
     tile.roadType = RoadType.TrolleyAvenue;
     const line = formatInspectStatus('Trolley Ave', tile, null);
     expect(line).toContain('Trolley');
+    expect(line).toContain('traffic 0');
     expect(line).not.toContain('$');
+  });
+
+  it('should mention traffic pressure on road tiles', () => {
+    const map = new CityMap(4, 4);
+    const tile = map.getTile(1, 1)!;
+    tile.roadType = RoadType.Street;
+    tile.trafficPressure = 7;
+    const line = formatInspectStatus('Inspect', tile, null);
+    expect(line).toContain('Street');
+    expect(line).toContain('traffic 7');
   });
 
   it('should pretty-print building def ids', () => {

@@ -53,11 +53,11 @@ describe('PowerSystem', () => {
       // Power was set immediately on placement.
       expect(sim.getTile(8, 8)?.powered).toBe(true);
 
-      // After bulldozing the plant and running a monthly tick, power should clear.
+      // After bulldozing the plant, coverage must drop immediately — not next month.
       sim.bulldoze(8, 8);
-      tickOneMonth(sim);
 
       expect(sim.getTile(8, 8)?.powered).toBe(false);
+      expect(sim.getTile(8, 0)?.powered).toBe(false);
     });
   });
 
@@ -70,6 +70,16 @@ describe('PowerSystem', () => {
       sim.placeServiceBuilding(5, 5, 'small_power_plant', 0);
 
       expect(fired).toBe(true);
+    });
+
+    it('should fire onPowerChanged when a plant is bulldozed', () => {
+      const sim = makeSim();
+      sim.placeServiceBuilding(5, 5, 'small_power_plant', 0);
+      let count = 0;
+      sim.onPowerChanged = () => { count++; };
+      sim.bulldoze(5, 5);
+      expect(count).toBe(1);
+      expect(sim.getTile(5, 5)?.powered).toBe(false);
     });
 
     it('should fire onPowerChanged on a monthly tick', () => {

@@ -15,6 +15,7 @@ export const ROAD_COST: Record<RoadType, number> = {
 export class RoadTool implements Tool {
   readonly name: string;
   readonly label: string;
+  readonly stroke = true;
 
   private readonly _roadType: RoadType;
 

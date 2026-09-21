@@ -8,6 +8,12 @@ export interface Tool {
   /** Human-readable label shown in the toolbar. */
   readonly label: string;
   /**
+   * When true, a drag that jumps tiles still paints the 4-connected path
+   * between pointer samples. Roads need that or the graph stays disconnected
+   * and cars never spawn. Inspect and civic buildings stay click-only.
+   */
+  readonly stroke?: boolean;
+  /**
    * Apply the tool to the tile at `coord`.
    * Returns `true` if the tile was mutated (so the renderer can refresh it).
    */

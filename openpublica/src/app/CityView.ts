@@ -78,7 +78,7 @@ export class CityView {
 
   /** Full mesh rebuild after SaveSystem.load. */
   rebuildAll(sim: CitySim): void {
-    this.heights = HeightField.fromMap(sim.map);
+    this.heights = HeightField.fromMap(sim.map, sim.terrainSeed);
     this.buildings.setHeightField(this.heights);
     this.terrain.buildCityGrid(sim.map, this.heights);
     this.overlay.rebuild(sim.map, this.heights);
@@ -115,8 +115,8 @@ export class CityView {
       if (instance) {
         this.buildings.addBuilding(instance, tile.zoneType);
       }
-      this.refreshPowerVisuals(sim);
     }
+    this.refreshPowerVisuals(sim);
     this.onRedraw();
   }
 

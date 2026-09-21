@@ -109,7 +109,7 @@ export class CityTile implements ICityTile {
     this.buildingId      = null;
     this.powered         = false;
     this.watered         = false;
-    this.landValue       = 50; // neutral baseline until LandValueSystem first runs
+    this.landValue       = 20; // matches LandValueSystem BASE_LAND_VALUE until the first pass
     this.pollution       = 0;
     this.populationDensity = 0;
     this.policeCoverage  = 0;
@@ -120,5 +120,33 @@ export class CityTile implements ICityTile {
     this.walkability     = 0;
     this.transitAccess   = 0;
     this.neglectMonths   = 0;
+  }
+
+  /**
+   * Drop roads, zones, buildings, and derived scores.
+   * Terrain stays so a load can rewrite occupancy without flattening lakes.
+   */
+  clearOccupancy(): void {
+    this.roadType        = RoadType.None;
+    this.zoneType        = ZoneType.None;
+    this.buildingId      = null;
+    this.neglectMonths   = 0;
+    this.resetDerived();
+  }
+
+  /** Coverage, value, and overlay fields — recomputed from buildings after load. */
+  resetDerived(): void {
+    this.powered           = false;
+    this.watered           = false;
+    this.landValue         = 20;
+    this.pollution         = 0;
+    this.populationDensity = 0;
+    this.policeCoverage    = 0;
+    this.fireCoverage      = 0;
+    this.crime             = 0;
+    this.trafficPressure   = 0;
+    this.noise             = 0;
+    this.walkability       = 0;
+    this.transitAccess     = 0;
   }
 }

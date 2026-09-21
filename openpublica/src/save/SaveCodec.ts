@@ -3,6 +3,7 @@
 
 import type { CitySim } from '../sim/CitySim';
 import { tileKey } from '../sim/ZoneGrowthSystem';
+import { DEFAULT_TERRAIN_SEED } from '../sim/TerrainGenerator';
 import { SAVE_VERSION } from './SaveGame';
 import type { SaveGame } from './SaveGame';
 
@@ -42,6 +43,8 @@ export class SaveCodec {
       mapWidth:          sim.map.width,
       mapHeight:         sim.map.height,
       clockTotalSeconds: sim.clock.totalSeconds,
+      terrainSeed:       sim.terrainSeed,
+      monthAccumulator:  sim.growth.monthAccumulator,
       stats: {
         population:        sim.stats.population,
         jobs:              sim.stats.jobs,
@@ -55,6 +58,8 @@ export class SaveCodec {
         monthlyIncome:     sim.stats.monthlyIncome,
         monthlyExpenses:   sim.stats.monthlyExpenses,
         serviceExpenses:   sim.stats.serviceExpenses,
+        projectedIncome:   sim.stats.projectedIncome,
+        projectedExpenses: sim.stats.projectedExpenses,
         bankruptcyWarning: sim.stats.bankruptcyWarning,
         happiness:         sim.stats.happiness,
         walkability:       sim.stats.walkability,
@@ -80,18 +85,19 @@ export class SaveCodec {
    * throws.
    */
   static decode(save: SaveGame, sim: CitySim): void {
-    // ── Tiles ────────────────────────────────────────────────────────────────
+    // Drop live occupancy so a partial tile list cannot keep leftover roads.
+    sim.map.forEach((tile) => tile.clearOccupancy());
+
     for (const saved of save.tiles) {
       const tile = sim.map.getTile(saved.x, saved.y);
       if (!tile) continue;
-      tile.terrain    = saved.terrain    ?? tile.terrain;
-      tile.roadType   = saved.roadType   ?? 0;
-      tile.zoneType   = saved.zoneType   ?? 0;
+      tile.terrain       = saved.terrain    ?? tile.terrain;
+      tile.roadType      = saved.roadType   ?? 0;
+      tile.zoneType      = saved.zoneType   ?? 0;
       tile.buildingId    = saved.buildingId ?? null;
       tile.neglectMonths = saved.neglectMonths ?? 0;
     }
 
-    // ── Buildings registry ───────────────────────────────────────────────────
     sim.growth.buildings.clear();
     for (const saved of save.buildings) {
       sim.growth.buildings.set(
@@ -99,6 +105,7 @@ export class SaveCodec {
         { defId: saved.defId, x: saved.x, y: saved.y },
       );
     }
+    SaveCodec._reconcileBuildings(sim);
 
     // ── Stats ────────────────────────────────────────────────────────────────
     const s = save.stats;
@@ -114,6 +121,8 @@ export class SaveCodec {
     sim.stats.monthlyIncome     = s.monthlyIncome     ?? 0;
     sim.stats.monthlyExpenses   = s.monthlyExpenses   ?? 0;
     sim.stats.serviceExpenses   = s.serviceExpenses   ?? 0;
+    sim.stats.projectedIncome   = s.projectedIncome   ?? sim.stats.monthlyIncome;
+    sim.stats.projectedExpenses = s.projectedExpenses ?? sim.stats.monthlyExpenses;
     sim.stats.bankruptcyWarning = s.bankruptcyWarning ?? false;
     sim.stats.happiness         = s.happiness         ?? 100;
     sim.stats.walkability       = s.walkability       ?? 0;
@@ -127,6 +136,26 @@ export class SaveCodec {
 
     // ── Clock ────────────────────────────────────────────────────────────────
     sim.clock.restore(save.clockTotalSeconds ?? 0);
+    sim.growth.restoreMonthProgress(save.clockTotalSeconds ?? 0, save.monthAccumulator);
+    sim.terrainSeed = typeof save.terrainSeed === 'number' ? save.terrainSeed : DEFAULT_TERRAIN_SEED;
+  }
+
+  /**
+   * Buildings registry is authoritative for defId at a coordinate.
+   * Tiles that still name a building missing from the registry are added back.
+   */
+  private static _reconcileBuildings(sim: CitySim): void {
+    for (const instance of sim.growth.buildings.values()) {
+      const tile = sim.map.getTile(instance.x, instance.y);
+      if (tile) tile.buildingId = instance.defId;
+    }
+    sim.map.forEach((tile) => {
+      if (tile.buildingId === null) return;
+      const key = tileKey(tile.x, tile.y);
+      if (!sim.growth.buildings.has(key)) {
+        sim.growth.buildings.set(key, { defId: tile.buildingId, x: tile.x, y: tile.y });
+      }
+    });
   }
 
   // ── Migration ──────────────────────────────────────────────────────────────

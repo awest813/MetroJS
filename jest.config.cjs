@@ -20,5 +20,6 @@ module.exports = {
   },
   moduleNameMapper: {
     "^simplex-noise$": "<rootDir>/openpublica/node_modules/simplex-noise/dist/cjs/simplex-noise.js",
+    "^alea$": "<rootDir>/openpublica/node_modules/alea/alea.js",
   },
 };

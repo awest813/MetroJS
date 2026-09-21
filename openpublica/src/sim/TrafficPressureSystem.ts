@@ -35,15 +35,6 @@ const NOISE_PER_PRESSURE = 3;
 /** Maximum value allowed for `tile.trafficPressure`. */
 const MAX_TRAFFIC_PRESSURE = 20;
 
-/**
- * trafficPressure level considered "extreme".  Each road tile above this
- * threshold reduces city-wide happiness by HAPPINESS_PENALTY_PER_EXTREME.
- */
-const EXTREME_PRESSURE_THRESHOLD = 8;
-
-/** Happiness lost per extreme-traffic road tile (capped at [0, 100]). */
-const HAPPINESS_PENALTY_PER_EXTREME = 2;
-
 // ──────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -58,8 +49,7 @@ const HAPPINESS_PENALTY_PER_EXTREME = 2;
  *   surrounding buildings.  Non-road tiles are always 0.
  * - `tile.noise` [0–100] — derived from trafficPressure on road tiles; used
  *   by UI overlays and future noise-pollution systems.
- * - `stats.happiness` [0–100] — reduced by the number of extreme-pressure
- *   road tiles.
+ * Happiness is composed later from extreme-pressure roads plus walk/transit/crime.
  *
  * Design goals (per spec):
  * - No per-citizen simulation.
@@ -71,18 +61,17 @@ export class TrafficPressureSystem {
    * Recompute traffic pressure for every road tile.
    *
    * Mutates `tile.trafficPressure` and `tile.noise` in-place.
-   * Updates `stats.happiness`.
    *
    * @param map       - city tile grid
    * @param buildings - registry of all placed building instances
    * @param defs      - lookup map from BuildingDef.id → BuildingDef
-   * @param stats     - city statistics (happiness is written here)
+   * @param stats     - city statistics (unused; kept so call sites stay uniform)
    */
   tick(
     map: CityMap,
     buildings: ReadonlyMap<string, BuildingInstance>,
     defs: ReadonlyMap<string, BuildingDef>,
-    stats: CityStats,
+    _stats: CityStats,
   ): void {
     // 1. Reset pressure and noise on all tiles.
     map.forEach((tile) => {
@@ -131,23 +120,12 @@ export class TrafficPressureSystem {
       }
     }
 
-    // 3. Clamp pressures, set noise, and count extreme tiles for happiness.
-    let extremeTileCount = 0;
-
+    // 3. Clamp pressures and set noise. Happiness is composed after walk/transit.
     map.forEach((tile) => {
       if (tile.roadType === RoadType.None) return;
 
       tile.trafficPressure = Math.max(0, Math.min(MAX_TRAFFIC_PRESSURE, tile.trafficPressure));
       tile.noise           = Math.min(100, tile.trafficPressure * NOISE_PER_PRESSURE);
-
-      if (tile.trafficPressure >= EXTREME_PRESSURE_THRESHOLD) {
-        extremeTileCount++;
-      }
     });
-
-    // 4. Happiness decreases with extreme traffic, but recovers toward 100 each
-    //    month so a city that has cleaned up its traffic improves over time.
-    const rawHappiness = 100 - extremeTileCount * HAPPINESS_PENALTY_PER_EXTREME;
-    stats.happiness    = Math.max(0, Math.min(100, rawHappiness));
   }
 }

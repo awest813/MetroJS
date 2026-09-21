@@ -9,7 +9,7 @@ import type { BuildingInstance } from './BuildingInstance';
 // ── Named constants ────────────────────────────────────────────────────────
 
 /** Baseline land value assigned to every tile before modifiers are applied. */
-const BASE_LAND_VALUE = 20;
+export const BASE_LAND_VALUE = 20;
 
 /** Maximum per-tile land value bonus a single park can grant at its centre. */
 const PARK_BONUS = 40;

@@ -10,6 +10,7 @@ export const BULLDOZE_COST = 1;
 export class BulldozeTool implements Tool {
   readonly name = 'bulldoze';
   readonly label = '🚧 Bulldoze';
+  readonly stroke = true;
 
   apply(coord: TileCoord, sim: CitySim): boolean {
     const tile = sim.getTile(coord.x, coord.y);

@@ -44,7 +44,10 @@ export function formatInspectStatus(
   parts.push(`${tile.x}, ${tile.y}`);
   parts.push(TERRAIN[tile.terrain] ?? 'Terrain');
   if (tile.zoneType !== ZoneType.None) parts.push(ZONE[tile.zoneType]);
-  if (tile.roadType !== RoadType.None) parts.push(ROAD[tile.roadType]);
+  if (tile.roadType !== RoadType.None) {
+    parts.push(ROAD[tile.roadType]);
+    parts.push(`traffic ${tile.trafficPressure}`);
+  }
   if (buildingId) {
     parts.push(prettyDefId(buildingId));
   } else if (tile.buildingId === 'small_park') {

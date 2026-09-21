@@ -70,6 +70,19 @@ describe('EconomySystem income', () => {
     expect(sim.stats.monthlyExpenses).toBe(8);
   });
 
+  it('should project next-month upkeep when streets are paved before the first bill', () => {
+    const sim = CitySim.createCity(8, 8);
+    sim.placeRoad(0, 0, RoadType.Street);
+    sim.placeRoad(1, 0, RoadType.Street);
+    sim.placeRoad(2, 0, RoadType.Street);
+    sim.placeRoad(3, 0, RoadType.Street);
+    expect(sim.stats.monthlyExpenses).toBe(0);
+    expect(sim.stats.projectedExpenses).toBe(8);
+    tickOneMonth(sim);
+    expect(sim.stats.monthlyExpenses).toBe(8);
+    expect(sim.stats.projectedExpenses).toBe(8);
+  });
+
   it('should charge higher maintenance for trolley avenue tiles', () => {
     const sim = CitySim.createCity(8, 8);
     // 2 trolley tiles + 1 street
@@ -104,6 +117,17 @@ describe('EconomySystem income', () => {
     // plant $80 + park $20
     expect(sim.stats.serviceExpenses).toBe(100);
     expect(sim.stats.monthlyExpenses).toBe(100);
+  });
+
+  it('should raise projected civic cost when a station is placed mid-month', () => {
+    const sim = CitySim.createCity(8, 8);
+    sim.stats.money = 100_000;
+    tickOneMonth(sim);
+    expect(sim.stats.monthlyExpenses).toBe(0);
+    sim.placeServiceBuilding(2, 2, 'small_power_plant', 0);
+    expect(sim.stats.monthlyExpenses).toBe(0);
+    expect(sim.stats.serviceExpenses).toBe(80);
+    expect(sim.stats.projectedExpenses).toBe(80);
   });
 
   it('should set bankruptcyWarning when treasury goes negative', () => {

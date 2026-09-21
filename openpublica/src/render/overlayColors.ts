@@ -80,9 +80,13 @@ export function colorForLandValue(landValue: number): OverlayRgba {
 export function colorForTraffic(roadType: RoadType, pressure: number): OverlayRgba {
   if (roadType === RoadType.None) return OVERLAY_CLEAR;
   const t = clamp01(pressure / MAX_DISPLAY_PRESSURE);
+  if (t <= 0) {
+    // Idle streets stay visible so the Traffic overlay is the road network, not a blank map.
+    return { r: 0.22, g: 0.38, b: 0.55, a: 0.28 };
+  }
   if (t < 0.5) {
     const s = t * 2;
-    return { r: 0.9 * s, g: 0.85 * s, b: 0, a: TRAFFIC_ALPHA * s };
+    return { r: 0.9 * s, g: 0.85 * s, b: 0, a: TRAFFIC_ALPHA * (0.35 + 0.65 * s) };
   }
   const s = (t - 0.5) * 2;
   return { r: 0.9, g: 0.85 * (1 - s), b: 0, a: TRAFFIC_ALPHA };

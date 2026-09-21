@@ -13,6 +13,7 @@ export type ToolApplyResult = 'applied' | 'unchanged' | 'repeat';
  * Responsibilities:
  * - Track which tool is active.
  * - Deduplicate drag events (do not re-apply to the same tile within one drag).
+ * - Fill skipped tiles on stroke tools so a fast road drag stays connected.
  * - Fire the `onTileChanged` callback when a tile is mutated, so the render
  *   layer can refresh without tools touching the renderer directly.
  */
@@ -57,6 +58,7 @@ export class ToolController {
    * Apply the active tool to the tile at `coord`.
    * Deduplicates drag events — the same tile is only processed once per
    * continuous drag stroke (pointer-down → pointer-up).
+   * Stroke tools also pave every 4-connected tile the pointer skipped.
    */
   applyToTile(coord: TileCoord, sim: CitySim): ToolApplyResult {
     if (
@@ -66,14 +68,21 @@ export class ToolController {
     ) {
       return 'repeat';
     }
+
+    const tiles =
+      this._activeTool.stroke && this._lastDragCoord
+        ? strokeTiles(this._lastDragCoord, coord)
+        : [coord];
     this._lastDragCoord = coord;
 
-    const changed = this._activeTool.apply(coord, sim);
-    if (changed) {
-      this._onTileChangedCb?.(coord);
-      return 'applied';
+    let applied = false;
+    for (const tile of tiles) {
+      if (this._activeTool.apply(tile, sim)) {
+        this._onTileChangedCb?.(tile);
+        applied = true;
+      }
     }
-    return 'unchanged';
+    return applied ? 'applied' : 'unchanged';
   }
 
   /**
@@ -84,4 +93,26 @@ export class ToolController {
   resetDrag(): void {
     this._lastDragCoord = null;
   }
+}
+
+/**
+ * 4-connected tiles from `from` to `to`, excluding `from`.
+ * Cardinal steps only — road graphs have no diagonal edges, so a diagonal
+ * Bresenham line would still leave cars with nowhere to drive.
+ */
+export function strokeTiles(from: TileCoord, to: TileCoord): TileCoord[] {
+  const tiles: TileCoord[] = [];
+  let x = from.x;
+  let y = from.y;
+  while (x !== to.x || y !== to.y) {
+    const dx = to.x - x;
+    const dy = to.y - y;
+    if (Math.abs(dx) >= Math.abs(dy) && dx !== 0) {
+      x += Math.sign(dx);
+    } else {
+      y += Math.sign(dy);
+    }
+    tiles.push({ x, y });
+  }
+  return tiles;
 }
