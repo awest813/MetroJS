@@ -277,7 +277,7 @@ export class CitySim {
     if (!tile) return;
     this.growth.removeAt(x, y);
     tile.clearOccupancy();
-    this.refreshDerivedState({ applyCrimeHappiness: false, notify: true });
+    this.refreshDerivedState({ applyCrimeHappiness: true, notify: true });
   }
 
   /**
@@ -308,18 +308,20 @@ export class CitySim {
     tile.buildingId = defId;
     this.growth.buildings.set(tileKey(x, y), { defId, x, y });
 
-    this.refreshDerivedState({ applyCrimeHappiness: false, notify: true });
+    this.refreshDerivedState({ applyCrimeHappiness: true, notify: true });
     return true;
   }
 
   /**
-   * Recompute power, pollution, coverage, crime, land value, and civic upkeep
-   * from the current buildings. Does not advance the clock or run economy/growth.
+   * Recompute power, traffic, pollution, coverage, crime, land value, and
+   * civic upkeep from the current buildings. Does not advance the clock or
+   * run economy/growth.
    *
    * Call after load so restored tiles are not left unpowered. Placement and
    * bulldoze use the same path so coverage discs and HUD averages stay honest.
    *
-   * Land value always runs after water/traffic so load is not a dry, silent city.
+   * Pollution and happiness run after traffic, and land value runs after water,
+   * so a paved street is not a silent, clean road until the next month.
    */
   refreshDerivedState(opts?: {
     applyCrimeHappiness?: boolean;
@@ -331,17 +333,12 @@ export class CitySim {
     const includeMonthlyOverlays = opts?.includeMonthlyOverlays ?? false;
 
     this.power.tick(this.map, this.growth.buildings, this.growth.defs);
-    this.pollution.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
 
     if (includeMonthlyOverlays) {
       this.growth.recomputeCensus(this.stats, this.map);
     }
 
-    this._refreshTrafficLayers();
-    this._refreshCityHealth(applyCrimeHappiness, notify);
-    this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
-    this.previewEconomy();
-    this.evaluate();
+    this._syncPublishedState(applyCrimeHappiness, notify);
 
     if (!notify) return;
     if (this.onPowerChanged) this.onPowerChanged();
@@ -349,15 +346,26 @@ export class CitySim {
     this._notifyTrafficOverlays();
   }
 
-  /** Water, traffic, and land value after zone/road edits. */
+  /** Traffic, smog, happiness, and land value after zone/road edits. */
   private _refreshNetwork(): void {
-    this.water.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
-    this._refreshTrafficLayers();
-    this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
-    this.previewEconomy();
-    this.evaluate();
+    this._syncPublishedState(true, true);
     if (this.onLandValueChanged) this.onLandValueChanged();
     this._notifyTrafficOverlays();
+  }
+
+  /**
+   * One snapshot of derived map state.
+   * Traffic first, then the smog and happiness that read it, then land value
+   * (after water) so crime sees the values the player is about to see.
+   */
+  private _syncPublishedState(applyCrimeHappiness: boolean, notify: boolean): void {
+    this._refreshTrafficLayers();
+    this.pollution.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+    this.water.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+    this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
+    this._refreshCityHealth(applyCrimeHappiness, notify);
+    this.previewEconomy();
+    this.evaluate();
   }
 
   /** Pressure, walk, and transit from the current buildings and road network. */
@@ -440,7 +448,8 @@ export class CitySim {
 
     if (month.monthsRun === 0) return;
 
-    this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
+    // Growth used last month's smog. Publish this month's traffic before the HUD.
+    this._syncPublishedState(true, true);
     if (this.onMonth) this.onMonth();
     if (this.onPowerChanged) this.onPowerChanged();
     if (this.onLandValueChanged) this.onLandValueChanged();

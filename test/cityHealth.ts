@@ -251,6 +251,20 @@ describe('city health wiring', () => {
     expect(fires).toBe(1);
   });
 
+  it('should drop happiness as soon as a street is jammed', () => {
+    const sim = CitySim.createCity(16, 16);
+    for (let i = 0; i < 4; i++) {
+      const x = 4 + i;
+      sim.growth.buildings.set(`${x},4`, { defId: 'small_shop', x, y: 4 });
+      sim.getTile(x, 4)!.buildingId = 'small_shop';
+      sim.getTile(x, 4)!.zoneType = ZoneType.Commercial;
+    }
+    expect(sim.stats.happiness).toBe(100);
+    sim.placeRoad(5, 5, RoadType.Street);
+    expect(sim.getTile(5, 5)!.trafficPressure).toBeGreaterThanOrEqual(8);
+    expect(sim.stats.happiness).toBeLessThan(100);
+  });
+
   it('should not stack a crime happiness penalty when placing a park', () => {
     const sim = CitySim.createCity(16, 16);
     sim.stats.money = 100_000;

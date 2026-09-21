@@ -19,10 +19,9 @@ const POLLUTION_PER_TRAFFIC_PRESSURE = 2;
 /**
  * PollutionSystem — writes `tile.pollution` and `stats.pollutionAverage`.
  *
- * Run once per simulated month. Building-based pollution is data-driven via
- * BuildingDef.pollutionOutput / pollutionRadius. Road traffic contributes an
- * additional local pollution cloud based on the previous month's
- * `tile.trafficPressure`.
+ * Building pollution is data-driven via BuildingDef.pollutionOutput /
+ * pollutionRadius. Road traffic adds a local cloud from the current
+ * `tile.trafficPressure`, so callers must tick traffic first.
  *
  * `stats.pollutionAverage` is the mean on developed tiles (zone, building, or
  * road), including clean lots at 0 — same include-zeros rule as crime/fire.

@@ -55,6 +55,34 @@ describe('PollutionSystem', () => {
   });
 
   describe('traffic pollution', () => {
+    it('should smog a new street beside a house before the next month', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.growth.buildings.set('4,4', { defId: 'small_house', x: 4, y: 4 });
+      sim.getTile(4, 4)!.buildingId = 'small_house';
+      sim.getTile(4, 4)!.zoneType = ZoneType.Residential;
+
+      sim.placeRoad(4, 5, RoadType.Street);
+
+      expect(sim.getTile(4, 5)!.trafficPressure).toBeGreaterThan(0);
+      expect(sim.getTile(4, 5)!.pollution).toBeGreaterThan(0);
+      expect(sim.stats.pollutionAverage).toBeGreaterThan(0);
+    });
+
+    it('should publish traffic smog in the same month a house appears', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.placeRoad(4, 5, RoadType.Street);
+      expect(sim.getTile(4, 5)!.pollution).toBe(0);
+
+      sim.growth.buildings.set('4,4', { defId: 'small_house', x: 4, y: 4 });
+      sim.getTile(4, 4)!.buildingId = 'small_house';
+      sim.getTile(4, 4)!.zoneType = ZoneType.Residential;
+
+      tickOneMonth(sim);
+
+      expect(sim.getTile(4, 5)!.trafficPressure).toBeGreaterThan(0);
+      expect(sim.getTile(4, 5)!.pollution).toBeGreaterThan(0);
+    });
+
     it('should convert traffic pressure into local road pollution', () => {
       const map = new CityMap(8, 8);
       const system = new PollutionSystem();
