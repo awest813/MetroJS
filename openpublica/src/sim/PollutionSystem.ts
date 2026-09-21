@@ -2,7 +2,7 @@
 //     All simulation logic must remain renderer-agnostic.
 
 import type { CityMap } from './CityMap';
-import { RoadType } from './CityTile';
+import { RoadType, ZoneType } from './CityTile';
 import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 import type { CityStats } from './CitySim';
@@ -23,6 +23,9 @@ const POLLUTION_PER_TRAFFIC_PRESSURE = 2;
  * BuildingDef.pollutionOutput / pollutionRadius. Road traffic contributes an
  * additional local pollution cloud based on the previous month's
  * `tile.trafficPressure`.
+ *
+ * `stats.pollutionAverage` is the mean on developed tiles (zone, building, or
+ * road), including clean lots at 0 — same include-zeros rule as crime/fire.
  */
 export class PollutionSystem {
   tick(
@@ -58,18 +61,24 @@ export class PollutionSystem {
       );
     });
 
-    let pollutedTileCount = 0;
-    let pollutionTotal    = 0;
+    let developedCount = 0;
+    let pollutionTotal = 0;
 
     map.forEach((tile) => {
       tile.pollution = Math.max(0, Math.min(MAX_POLLUTION, tile.pollution));
-      if (tile.pollution <= 0) return;
-      pollutedTileCount++;
+      if (
+        tile.zoneType === ZoneType.None &&
+        tile.buildingId === null &&
+        tile.roadType === RoadType.None
+      ) {
+        return;
+      }
+      developedCount++;
       pollutionTotal += tile.pollution;
     });
 
-    stats.pollutionAverage = pollutedTileCount > 0
-      ? Math.round(pollutionTotal / pollutedTileCount)
+    stats.pollutionAverage = developedCount > 0
+      ? Math.round(pollutionTotal / developedCount)
       : 0;
   }
 

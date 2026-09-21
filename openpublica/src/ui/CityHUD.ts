@@ -35,7 +35,7 @@ export class CityHUD {
         <span class="hud-item hud-muted" id="hud-happiness" title="Happiness">Happy 100</span>
         <span class="hud-item hud-muted" id="hud-walkability" title="Walkability">Walk 0</span>
         <span class="hud-item hud-muted" id="hud-transit" title="Transit access">Transit 0</span>
-        <span class="hud-item hud-muted" id="hud-pollution" title="Average pollution">Poll 0</span>
+        <span class="hud-item hud-muted" id="hud-pollution" title="Average pollution on roads, zones, and buildings">Poll 0</span>
         <span class="hud-item hud-muted" id="hud-crime" title="Average crime">Crime 0</span>
         <span class="hud-item hud-muted" id="hud-fire" title="Average fire coverage on occupied lots">Fire 0</span>
         <span class="hud-item hud-muted" id="hud-water" title="Percent of zoned lots that are watered">Water 0</span>

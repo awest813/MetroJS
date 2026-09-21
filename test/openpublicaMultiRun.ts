@@ -30,7 +30,8 @@ function finiteStats(sim: CitySim): void {
   const numeric: Array<keyof typeof s> = [
     'population', 'jobs', 'money', 'residentialDemand', 'commercialDemand',
     'industrialDemand', 'resTaxRate', 'comTaxRate', 'indTaxRate',
-    'monthlyIncome', 'monthlyExpenses', 'happiness', 'walkability',
+    'monthlyIncome', 'monthlyExpenses', 'serviceExpenses', 'projectedIncome',
+    'projectedExpenses', 'happiness', 'walkability',
     'transitAccess', 'pollutionAverage', 'crimeAverage', 'fireAverage', 'waterAverage', 'approval',
   ];
   for (const key of numeric) {

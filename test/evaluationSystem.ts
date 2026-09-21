@@ -52,6 +52,8 @@ describe('EvaluationSystem', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
     sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    sim.stats.pollutionAverage = 0;
+    sim.evaluate();
     const baseline = sim.stats.approval;
     sim.stats.resTaxRate = 18;
     sim.evaluate();

@@ -44,6 +44,7 @@ export class SaveCodec {
       mapHeight:         sim.map.height,
       clockTotalSeconds: sim.clock.totalSeconds,
       terrainSeed:       sim.terrainSeed,
+      monthAccumulator:  sim.growth.monthAccumulator,
       stats: {
         population:        sim.stats.population,
         jobs:              sim.stats.jobs,
@@ -57,6 +58,8 @@ export class SaveCodec {
         monthlyIncome:     sim.stats.monthlyIncome,
         monthlyExpenses:   sim.stats.monthlyExpenses,
         serviceExpenses:   sim.stats.serviceExpenses,
+        projectedIncome:   sim.stats.projectedIncome,
+        projectedExpenses: sim.stats.projectedExpenses,
         bankruptcyWarning: sim.stats.bankruptcyWarning,
         happiness:         sim.stats.happiness,
         walkability:       sim.stats.walkability,
@@ -118,6 +121,8 @@ export class SaveCodec {
     sim.stats.monthlyIncome     = s.monthlyIncome     ?? 0;
     sim.stats.monthlyExpenses   = s.monthlyExpenses   ?? 0;
     sim.stats.serviceExpenses   = s.serviceExpenses   ?? 0;
+    sim.stats.projectedIncome   = s.projectedIncome   ?? sim.stats.monthlyIncome;
+    sim.stats.projectedExpenses = s.projectedExpenses ?? sim.stats.monthlyExpenses;
     sim.stats.bankruptcyWarning = s.bankruptcyWarning ?? false;
     sim.stats.happiness         = s.happiness         ?? 100;
     sim.stats.walkability       = s.walkability       ?? 0;
@@ -131,7 +136,7 @@ export class SaveCodec {
 
     // ── Clock ────────────────────────────────────────────────────────────────
     sim.clock.restore(save.clockTotalSeconds ?? 0);
-    sim.growth.restoreMonthProgress(save.clockTotalSeconds ?? 0);
+    sim.growth.restoreMonthProgress(save.clockTotalSeconds ?? 0, save.monthAccumulator);
     sim.terrainSeed = typeof save.terrainSeed === 'number' ? save.terrainSeed : DEFAULT_TERRAIN_SEED;
   }
 

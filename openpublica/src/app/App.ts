@@ -255,12 +255,19 @@ export class App {
 
     const budgetPanel = new BudgetPanel(budgetEl);
     budgetPanel.update(sim.stats);
+    sim.onMonth = () => {
+      hud.update(sim.stats, sim.clock);
+      budgetPanel.update(sim.stats);
+      syncAmbient();
+    };
     budgetPanel.onTaxChange((res, com, ind) => {
       sim.stats.resTaxRate = res;
       sim.stats.comTaxRate = com;
       sim.stats.indTaxRate = ind;
+      sim.previewEconomy();
       sim.evaluate();
       hud.update(sim.stats, sim.clock);
+      budgetPanel.update(sim.stats);
     });
 
     view.picker.onPick((coord, via) => {
@@ -312,8 +319,6 @@ export class App {
     });
 
     setInterval(() => {
-      hud.update(sim.stats, sim.clock);
-      budgetPanel.update(sim.stats);
       syncAmbient();
       redrawLook();
     }, 1000);

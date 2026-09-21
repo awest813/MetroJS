@@ -40,11 +40,11 @@ export class BudgetPanel {
             <span class="budget-val expense" id="budget-expense">$0/mo</span>
           </div>
           <div class="budget-row budget-row-sub">
-            <span class="budget-key">Civic next</span>
+            <span class="budget-key">Civic now</span>
             <span class="budget-val expense" id="budget-services">$0/mo</span>
           </div>
           <div class="budget-row">
-            <span class="budget-key">Net</span>
+            <span class="budget-key">Next</span>
             <span class="budget-val income" id="budget-net">$0/mo</span>
           </div>
           <div class="budget-divider"></div>
@@ -105,10 +105,10 @@ export class BudgetPanel {
     this._incomeEl.textContent  = `${formatSignedMoney(stats.monthlyIncome)}/mo`;
     this._expenseEl.textContent = `${formatSignedMoney(stats.monthlyExpenses)}/mo`;
     this._serviceEl.textContent = `${formatSignedMoney(stats.serviceExpenses)}/mo`;
-    const net = stats.monthlyIncome - stats.monthlyExpenses;
-    this._netEl.textContent = formatBudgetNet(stats.monthlyIncome, stats.monthlyExpenses);
-    this._netEl.classList.toggle('income', net >= 0);
-    this._netEl.classList.toggle('expense', net < 0);
+    const next = stats.projectedIncome - stats.projectedExpenses;
+    this._netEl.textContent = formatBudgetNet(stats.projectedIncome, stats.projectedExpenses);
+    this._netEl.classList.toggle('income', next >= 0);
+    this._netEl.classList.toggle('expense', next < 0);
     this._root.classList.toggle('budget-bankrupt', stats.bankruptcyWarning);
   }
 

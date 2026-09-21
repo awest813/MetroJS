@@ -311,6 +311,23 @@ describe('SaveCodec month progress', () => {
     expect(restored.getTile(4, 3)!.landValue).toBeGreaterThan(BASE_LAND_VALUE);
   });
 
+  it('should persist pending month catch-up in the accumulator', () => {
+    const sim = makeSim();
+    sim.placeRoad(0, 0, RoadType.Street);
+    sim.tick(MONTH_SECONDS * 10);
+    expect(sim.growth.monthAccumulator).toBeCloseTo(MONTH_SECONDS * 4);
+    const save = SaveCodec.encode(sim);
+    expect(save.monthAccumulator).toBeCloseTo(MONTH_SECONDS * 4);
+    expect(save.clockTotalSeconds).toBeCloseTo(MONTH_SECONDS * 6);
+
+    const restored = CitySim.createCity(save.mapWidth, save.mapHeight);
+    SaveCodec.decode(save, restored);
+    expect(restored.clock.totalSeconds).toBeCloseTo(MONTH_SECONDS * 6);
+    expect(restored.growth.monthAccumulator).toBeCloseTo(MONTH_SECONDS * 4);
+    restored.tick(0);
+    expect(restored.clock.totalSeconds).toBeCloseTo(MONTH_SECONDS * 10);
+  });
+
   it('should persist the terrain seed', () => {
     const sim = CitySim.createCity(8, 8, 4242);
     const restored = roundTrip(sim);
@@ -389,6 +406,23 @@ describe('SaveSystem.load', () => {
     expect(SaveSystem.load(loaded)).toBe('loaded');
     expect(loaded.getTile(5, 5)?.powered).toBe(true);
     expect(loaded.getTile(5, 0)?.powered).toBe(true);
+  });
+
+  it('should restore watered land value without waiting a month', () => {
+    const sim = makeSim();
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(5, 5, 'small_power_plant', 0);
+    sim.placeServiceBuilding(5, 6, 'small_water_tower', 0);
+    sim.setZone(5, 7, ZoneType.Residential);
+    sim.tick(MONTH_SECONDS);
+    expect(sim.getTile(5, 7)?.watered).toBe(true);
+    const wetValue = sim.getTile(5, 7)!.landValue;
+    SaveSystem.save(sim);
+
+    const loaded = makeSim();
+    expect(SaveSystem.load(loaded)).toBe('loaded');
+    expect(loaded.getTile(5, 7)?.watered).toBe(true);
+    expect(loaded.getTile(5, 7)!.landValue).toBe(wetValue);
   });
 
   it('should reject a save whose map size does not match', () => {

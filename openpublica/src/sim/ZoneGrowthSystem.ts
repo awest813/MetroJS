@@ -40,7 +40,11 @@ const UNPOWERED_FACTOR = 0.75;
 /** Cast the imported JSON to a typed array once at module load. */
 const BUILDING_DEFS: BuildingDef[] = rawDefs as BuildingDef[];
 
-/** Registry key for a tile position — exported for use by renderers. */
+/** Result of one `ZoneGrowthSystem.tick` — clock advances only for time actually committed. */
+export interface MonthTickResult {
+  monthsRun: number;
+  clockAdvance: number;
+}
 export function tileKey(x: number, y: number): string {
   return `${x},${y}`;
 }
@@ -113,12 +117,23 @@ export class ZoneGrowthSystem {
 
   /**
    * Align the intra-month growth accumulator with a restored clock.
-   * `totalSeconds % MONTH_SECONDS` is the time already elapsed in the current month.
+   * When `accumulator` is provided it is used as-is (may include pending catch-up
+   * months). Otherwise `totalSeconds % MONTH_SECONDS` is the time already elapsed
+   * in the current month.
    */
-  restoreMonthProgress(totalSeconds: number): void {
+  restoreMonthProgress(totalSeconds: number, accumulator?: number): void {
+    if (typeof accumulator === 'number' && Number.isFinite(accumulator) && accumulator >= 0) {
+      this._secondsAccumulator = accumulator;
+      return;
+    }
     const elapsed = Number.isFinite(totalSeconds) ? totalSeconds : 0;
     const remainder = elapsed % MONTH_SECONDS;
     this._secondsAccumulator = remainder < 0 ? remainder + MONTH_SECONDS : remainder;
+  }
+
+  /** Seconds waiting to be processed (intra-month remainder plus pending catch-up). */
+  get monthAccumulator(): number {
+    return this._secondsAccumulator;
   }
 
   /** Recompute population and private-sector jobs from the current buildings. */
@@ -137,10 +152,12 @@ export class ZoneGrowthSystem {
 
   /**
    * Called every simulation tick.
-   * Returns `true` if at least one monthly pass ran (so CitySim can fire overlays).
    * A large delta (tab resume) runs up to MONTH_CATCHUP_LIMIT months; leftover
    * time stays in the accumulator. `afterMonth` runs after each month so crime
    * and coverage exist before the next grow/degrade pass.
+   *
+   * `clockAdvance` is the simulated time that actually ran (processed months plus
+   * live intra-month remainder). Pending catch-up months stay off the calendar.
    */
   tick(
     deltaSeconds: number,
@@ -148,19 +165,28 @@ export class ZoneGrowthSystem {
     stats: CityStats,
     changedTiles: Array<{ x: number; y: number }>,
     afterMonth?: () => void,
-  ): boolean {
-    this._secondsAccumulator += deltaSeconds;
+  ): MonthTickResult {
+    const delta = Number.isFinite(deltaSeconds) && deltaSeconds > 0 ? deltaSeconds : 0;
+    const before = this._secondsAccumulator;
+    this._secondsAccumulator += delta;
 
-    let ran = false;
     let months = 0;
     while (this._secondsAccumulator >= MONTH_SECONDS && months < MONTH_CATCHUP_LIMIT) {
       this._secondsAccumulator -= MONTH_SECONDS;
       this._runMonth(map, stats, changedTiles);
       afterMonth?.();
-      ran = true;
       months += 1;
     }
-    return ran;
+
+    const after = this._secondsAccumulator;
+    const pendingBefore = Math.floor(before / MONTH_SECONDS);
+    const pendingAfter = Math.floor(after / MONTH_SECONDS);
+    const liveRemainder = (value: number, pending: number): number =>
+      pending > 0 ? 0 : value - pending * MONTH_SECONDS;
+    const clockAdvance =
+      months * MONTH_SECONDS + liveRemainder(after, pendingAfter) - liveRemainder(before, pendingBefore);
+
+    return { monthsRun: months, clockAdvance };
   }
 
   /** One simulated month: pollution → growth → power → census → economy → traffic. */

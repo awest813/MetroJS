@@ -97,6 +97,70 @@ export function serviceUpkeep(
   return total;
 }
 
+/** One month of tax take and upkeep, without charging the treasury. */
+export interface BudgetTally {
+  income: number;
+  roadExpenses: number;
+  serviceExpenses: number;
+  expenses: number;
+}
+
+/**
+ * What the next billed month would collect and spend at the current layout.
+ * Does not mutate `stats.money` or last-billed totals.
+ */
+export function tallyBudget(
+  map: CityMap,
+  buildings: ReadonlyMap<string, BuildingInstance>,
+  defs: ReadonlyMap<string, BuildingDef>,
+  stats: CityStats,
+): BudgetTally {
+  let comJobs = 0;
+  let indJobs = 0;
+
+  for (const instance of buildings.values()) {
+    const def = defs.get(instance.defId);
+    if (!def) continue;
+
+    if (def.zoneType === ZoneType.Commercial || def.zoneType === ZoneType.MixedUse) comJobs += def.jobs;
+    if (def.zoneType === ZoneType.Industrial) indJobs += def.jobs;
+  }
+
+  const serviceExpenses = serviceUpkeep(buildings, defs);
+
+  const income = Math.floor(
+    stats.population * stats.resTaxRate * RES_INCOME_PER_PERSON_PER_PCT +
+    comJobs          * stats.comTaxRate * COM_INCOME_PER_JOB_PER_PCT    +
+    indJobs          * stats.indTaxRate * IND_INCOME_PER_JOB_PER_PCT,
+  );
+
+  let streetTileCount  = 0;
+  let highwayTileCount = 0;
+  let trolleyTileCount = 0;
+  map.forEach((tile) => {
+    if (tile.roadType === RoadType.TrolleyAvenue) {
+      trolleyTileCount += 1;
+    } else if (tile.roadType === RoadType.Highway) {
+      highwayTileCount += 1;
+    } else if (tile.roadType === RoadType.Street) {
+      streetTileCount += 1;
+    }
+  });
+
+  const roadExpenses = Math.floor(
+    streetTileCount  * ROAD_MAINTENANCE_PER_TILE    +
+    highwayTileCount * HIGHWAY_MAINTENANCE_PER_TILE +
+    trolleyTileCount * TROLLEY_MAINTENANCE_PER_TILE,
+  );
+
+  return {
+    income,
+    roadExpenses,
+    serviceExpenses,
+    expenses: roadExpenses + serviceExpenses,
+  };
+}
+
 export class EconomySystem {
   /**
    * Run one monthly budget cycle.
@@ -115,57 +179,18 @@ export class EconomySystem {
     defs: ReadonlyMap<string, BuildingDef>,
     stats: CityStats,
   ): void {
-    // ── Income ─────────────────────────────────────────────────────────────
-    let comJobs             = 0;
-    let indJobs             = 0;
+    const tally = tallyBudget(map, buildings, defs, stats);
 
-    for (const instance of buildings.values()) {
-      const def = defs.get(instance.defId);
-      if (!def) continue;
-
-      if (def.zoneType === ZoneType.Commercial || def.zoneType === ZoneType.MixedUse) comJobs += def.jobs;
-      if (def.zoneType === ZoneType.Industrial) indJobs += def.jobs;
-    }
-
-    const serviceExpenses = serviceUpkeep(buildings, defs);
-
-    // Income = population × resTaxRate × factor
-    //        + commercial jobs × comTaxRate × factor
-    //        + industrial jobs × indTaxRate × factor
-    stats.monthlyIncome = Math.floor(
-      stats.population * stats.resTaxRate * RES_INCOME_PER_PERSON_PER_PCT +
-      comJobs          * stats.comTaxRate * COM_INCOME_PER_JOB_PER_PCT    +
-      indJobs          * stats.indTaxRate * IND_INCOME_PER_JOB_PER_PCT,
-    );
-
-    // ── Expenses ───────────────────────────────────────────────────────────
-    // Count road tiles by type so trolley avenues can carry a higher rate.
-    let streetTileCount  = 0;
-    let highwayTileCount = 0;
-    let trolleyTileCount = 0;
-    map.forEach((tile) => {
-      if (tile.roadType === RoadType.TrolleyAvenue) {
-        trolleyTileCount += 1;
-      } else if (tile.roadType === RoadType.Highway) {
-        highwayTileCount += 1;
-      } else if (tile.roadType === RoadType.Street) {
-        streetTileCount += 1;
-      }
-    });
-
-    stats.serviceExpenses = serviceExpenses;
-    stats.monthlyExpenses = Math.floor(
-      streetTileCount  * ROAD_MAINTENANCE_PER_TILE    +
-      highwayTileCount * HIGHWAY_MAINTENANCE_PER_TILE +
-      trolleyTileCount * TROLLEY_MAINTENANCE_PER_TILE +
-      serviceExpenses,
-    );
+    stats.monthlyIncome     = tally.income;
+    stats.serviceExpenses   = tally.serviceExpenses;
+    stats.monthlyExpenses   = tally.expenses;
+    stats.projectedIncome   = tally.income;
+    stats.projectedExpenses = tally.expenses;
 
     // ── Apply to treasury ──────────────────────────────────────────────────
-    stats.money += stats.monthlyIncome - stats.monthlyExpenses;
+    stats.money += tally.income - tally.expenses;
 
     // ── Bankruptcy warning ─────────────────────────────────────────────────
-    // Set the flag whenever the treasury is in the red.
     stats.bankruptcyWarning = stats.money < 0;
   }
 }

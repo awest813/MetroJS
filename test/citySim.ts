@@ -235,6 +235,30 @@ describe('CitySim', () => {
       expect(sim.stats.monthlyExpenses).toBe(8);
       expect(sim.clock.totalSeconds).toBeCloseTo(MONTH_SECONDS * 2);
     });
+
+    it('should not advance the calendar past months that have not run yet', () => {
+      const sim = CitySim.createCity(8, 8);
+      sim.placeRoad(0, 0, RoadType.Street);
+      const start = sim.stats.money;
+      sim.tick(MONTH_SECONDS * 10);
+      // 1 street × $2 × 6 catch-up months
+      expect(sim.stats.money).toBe(start - 12);
+      expect(sim.clock.totalSeconds).toBeCloseTo(MONTH_SECONDS * 6);
+      expect(sim.growth.monthAccumulator).toBeCloseTo(MONTH_SECONDS * 4);
+
+      sim.tick(0);
+      expect(sim.stats.money).toBe(start - 20);
+      expect(sim.clock.totalSeconds).toBeCloseTo(MONTH_SECONDS * 10);
+      expect(sim.growth.monthAccumulator).toBeCloseTo(0);
+    });
+
+    it('should fire onMonth after a monthly pass', () => {
+      const sim = CitySim.createCity(8, 8);
+      let months = 0;
+      sim.onMonth = () => { months += 1; };
+      sim.tick(MONTH_SECONDS);
+      expect(months).toBe(1);
+    });
   });
 });
 

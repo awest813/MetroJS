@@ -1,8 +1,9 @@
 import { CitySim } from '../openpublica/src/sim/CitySim';
 import { CityMap } from '../openpublica/src/sim/CityMap';
 import { CrimeSystem } from '../openpublica/src/sim/CrimeSystem';
+import { composeHappiness } from '../openpublica/src/sim/happiness';
 import { PopulationDensitySystem } from '../openpublica/src/sim/PopulationDensitySystem';
-import { ZoneType } from '../openpublica/src/sim/CityTile';
+import { RoadType, ZoneType } from '../openpublica/src/sim/CityTile';
 import { MONTH_SECONDS } from '../openpublica/src/data/constants';
 import { PlacePoliceStationTool, POLICE_STATION_COST } from '../openpublica/src/tools/PlacePoliceStationTool';
 import { PlaceFireStationTool, FIRE_STATION_COST } from '../openpublica/src/tools/PlaceFireStationTool';
@@ -16,7 +17,8 @@ function emptyStats() {
   return {
     population: 0, jobs: 0, money: 0, residentialDemand: 0, commercialDemand: 0,
     industrialDemand: 0, resTaxRate: 9, comTaxRate: 9, indTaxRate: 9,
-    monthlyIncome: 0, monthlyExpenses: 0, serviceExpenses: 0, bankruptcyWarning: false,
+    monthlyIncome: 0, monthlyExpenses: 0, serviceExpenses: 0,
+    projectedIncome: 0, projectedExpenses: 0, bankruptcyWarning: false,
     happiness: 100, walkability: 0, transitAccess: 0, pollutionAverage: 0,
     crimeAverage: 0, fireAverage: 0, waterAverage: 0, approval: 100, advisory: '',
   };
@@ -170,7 +172,7 @@ describe('CrimeSystem', () => {
   it('should keep empty tiles at crime 0', () => {
     const map = new CityMap(4, 4);
     const stats = emptyStats();
-    new CrimeSystem().tick(map, stats, true);
+    new CrimeSystem().tick(map, stats);
     map.forEach((tile) => expect(tile.crime).toBe(0));
     expect(stats.crimeAverage).toBe(0);
     expect(stats.happiness).toBe(100);
@@ -184,7 +186,7 @@ describe('CrimeSystem', () => {
     tile.policeCoverage = 0;
 
     const stats = emptyStats();
-    new CrimeSystem().tick(map, stats, false);
+    new CrimeSystem().tick(map, stats);
 
     // 100*0.65 + 100*0.20 - 0 = 85
     expect(tile.crime).toBe(85);
@@ -200,26 +202,20 @@ describe('CrimeSystem', () => {
     tile.policeCoverage = 100;
 
     const stats = emptyStats();
-    new CrimeSystem().tick(map, stats, true);
+    new CrimeSystem().tick(map, stats);
     expect(tile.crime).toBe(0);
     expect(stats.crimeAverage).toBe(0);
   });
 
-  it('should apply the happiness penalty only when asked', () => {
+  it('should not write happiness — CitySim composes that separately', () => {
     const map = new CityMap(2, 2);
     map.getTile(0, 0)!.populationDensity = 40;
     map.getTile(0, 0)!.landValue = 50;
 
     const stats = emptyStats();
-    const system = new CrimeSystem();
-    system.tick(map, stats, false);
-    const happyBefore = stats.happiness;
-    const average = stats.crimeAverage;
-    expect(average).toBeGreaterThan(0);
-    expect(happyBefore).toBe(100);
-
-    system.tick(map, stats, true);
-    expect(stats.happiness).toBe(100 - Math.round(average * 0.25));
+    new CrimeSystem().tick(map, stats);
+    expect(stats.crimeAverage).toBeGreaterThan(0);
+    expect(stats.happiness).toBe(100);
   });
 
   it('should average occupied tiles including fully policed lots at crime 0', () => {
@@ -234,7 +230,7 @@ describe('CrimeSystem', () => {
     safe.policeCoverage = 100;
 
     const stats = emptyStats();
-    new CrimeSystem().tick(map, stats, false);
+    new CrimeSystem().tick(map, stats);
     expect(hot.crime).toBe(85);
     expect(safe.crime).toBe(0);
     expect(stats.crimeAverage).toBe(Math.round(85 / 2));
@@ -267,6 +263,25 @@ describe('city health wiring', () => {
 
     sim.placeServiceBuilding(2, 2, 'small_park', 0);
     expect(sim.stats.happiness).toBe(happyAfterMonth);
+  });
+
+  it('should compose happiness once from traffic, walk, transit, and crime', () => {
+    const map = new CityMap(4, 4);
+    for (let x = 0; x < 4; x++) {
+      const tile = map.getTile(x, 0)!;
+      tile.roadType = RoadType.Street;
+      tile.trafficPressure = 8;
+    }
+    const stats = emptyStats();
+    stats.walkability = 25;
+    stats.transitAccess = 15;
+    stats.crimeAverage = 20;
+    composeHappiness(map, stats, true);
+    const first = stats.happiness;
+    composeHappiness(map, stats, true);
+    expect(stats.happiness).toBe(first);
+    // 4 extreme roads (−8) + walk +5 + transit +3 − crime 5 = 95
+    expect(first).toBe(100 - 8 + 5 + 3 - 5);
   });
 
   it('should deduct POLICE_STATION_COST via the police tool', () => {

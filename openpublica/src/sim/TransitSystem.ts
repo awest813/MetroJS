@@ -28,20 +28,6 @@ const TRANSIT_PEAK_SCORE = 40;
  */
 const TRANSIT_TRAFFIC_DIVISOR = 25;
 
-/**
- * Maximum happiness bonus transit access can contribute per month.
- * Good transit coverage makes a city more liveable, even for non-transit users.
- */
-const TRANSIT_MAX_HAPPINESS = 15;
-
-/**
- * Divisor used to convert stats.transitAccess → a monthly happiness bonus.
- * transitAccess=50 → +10; transitAccess=75 → +15 (capped at TRANSIT_MAX_HAPPINESS).
- * Uses the same scaling factor as WalkabilitySystem (WALK_HAPPINESS_DIVISOR=5)
- * so transit and walkability together can contribute up to +35 happiness.
- */
-const TRANSIT_HAPPINESS_DIVISOR = 5;
-
 // ──────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -60,7 +46,7 @@ const TRANSIT_HAPPINESS_DIVISOR = 5;
  * - `tile.trafficPressure` — reduced on road tiles near trolley corridors
  *   (transit captures commute trips, easing congestion).
  * - `stats.transitAccess` [0–100] — citywide average across all zoned tiles.
- * - `stats.happiness` [0–100] — boosted by up to TRANSIT_MAX_HAPPINESS.
+ * Happiness is composed later from this average plus traffic, walk, and crime.
  *
  * ## Design goals
  * - No route editor.
@@ -73,7 +59,7 @@ export class TransitSystem {
    * Recompute transit access for every tile.
    *
    * @param map   - city tile grid
-   * @param stats - city statistics (transitAccess and happiness are written)
+   * @param stats - city statistics (transitAccess is written)
    */
   tick(map: CityMap, stats: CityStats): void {
     // 1. Reset transit access on every tile.
@@ -122,10 +108,5 @@ export class TransitSystem {
     stats.transitAccess = zonedCount > 0
       ? Math.round(accessSum / zonedCount)
       : 0;
-
-    // 5. Happiness boost — good transit coverage improves quality of life.
-    //    Added on top of the traffic and walkability happiness contributions.
-    const transitBonus = Math.min(TRANSIT_MAX_HAPPINESS, Math.round(stats.transitAccess / TRANSIT_HAPPINESS_DIVISOR));
-    stats.happiness    = Math.max(0, Math.min(100, stats.happiness + transitBonus));
   }
 }

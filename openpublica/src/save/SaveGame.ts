@@ -36,6 +36,8 @@ export interface SavedStats {
   monthlyIncome:     number;
   monthlyExpenses:   number;
   serviceExpenses?:  number;
+  projectedIncome?:  number;
+  projectedExpenses?: number;
   bankruptcyWarning: boolean;
   happiness:         number;
   walkability:       number;
@@ -60,6 +62,11 @@ export interface SaveGame {
    * Seed for lakes and hills. Older saves omit this; load uses the default map seed.
    */
   terrainSeed?:      number;
+  /**
+   * ZoneGrowthSystem accumulator (intra-month remainder plus pending catch-up).
+   * Older saves omit this; load uses clockTotalSeconds % month length.
+   */
+  monthAccumulator?: number;
   stats:             SavedStats;
   tiles:             SavedTile[];
   buildings:         SavedBuilding[];

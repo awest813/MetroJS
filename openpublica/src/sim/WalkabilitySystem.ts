@@ -49,19 +49,6 @@ const NOISE_WALK_PENALTY = 0.30;
  */
 const WALK_TRAFFIC_DIVISOR = 30;
 
-/**
- * Maximum happiness bonus walkability can contribute per month.
- * At stats.walkability = 100 the bonus is WALK_MAX_HAPPINESS.
- * Added on top of the traffic-derived happiness from TrafficPressureSystem.
- */
-const WALK_MAX_HAPPINESS = 20;
-
-/**
- * Divisor used to convert stats.walkability → a monthly happiness bonus.
- * walkability=50 → +10; walkability=100 → +20 (capped at WALK_MAX_HAPPINESS).
- */
-const WALK_HAPPINESS_DIVISOR = 5;
-
 // ──────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -87,8 +74,7 @@ const WALK_HAPPINESS_DIVISOR = 5;
  * - `tile.trafficPressure` — slightly reduced on road tiles in walkable areas
  *   (pedestrians absorb some trips that would otherwise be made by car).
  * - `stats.walkability` [0–100] — citywide average across all zoned tiles.
- * - `stats.happiness` [0–100] — boosted proportionally to `stats.walkability`
- *   (added on top of the traffic-derived happiness value).
+ * Happiness is composed later from this average plus traffic, transit, and crime.
  */
 export class WalkabilitySystem {
   /**
@@ -97,7 +83,7 @@ export class WalkabilitySystem {
    * @param map       - city tile grid
    * @param buildings - registry of all placed building instances
    * @param defs      - lookup map from BuildingDef.id → BuildingDef
-   * @param stats     - city statistics (walkability and happiness are written)
+   * @param stats     - city statistics (walkability is written)
    */
   tick(
     map: CityMap,
@@ -197,10 +183,5 @@ export class WalkabilitySystem {
     stats.walkability = zonedCount > 0
       ? Math.round(walkSum / zonedCount)
       : 0;
-
-    // 7. Happiness boost — walkable cities are more pleasant to live in.
-    //    Added on top of the traffic-derived happiness from TrafficPressureSystem.
-    const walkBonus = Math.min(WALK_MAX_HAPPINESS, Math.round(stats.walkability / WALK_HAPPINESS_DIVISOR));
-    stats.happiness  = Math.max(0, Math.min(100, stats.happiness + walkBonus));
   }
 }
