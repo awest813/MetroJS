@@ -35,6 +35,7 @@ const ZONE_LABELS: Record<ZoneType, string> = {
 export class ZoneBrushTool implements Tool {
   readonly name: string;
   readonly label: string;
+  readonly stroke = true;
   private readonly _zoneType: ZoneType;
 
   constructor(zoneType: ZoneType) {

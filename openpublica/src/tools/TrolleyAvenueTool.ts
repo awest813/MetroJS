@@ -24,6 +24,7 @@ export const TROLLEY_AVENUE_COST = 30;
 export class TrolleyAvenueTool implements Tool {
   readonly name  = 'trolleyAvenue';
   readonly label = '🚃 Trolley Ave';
+  readonly stroke = true;
 
   apply(coord: TileCoord, sim: CitySim): boolean {
     if (!sim.isBuildable(coord.x, coord.y)) return false;

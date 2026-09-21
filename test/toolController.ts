@@ -1,6 +1,6 @@
 import { CitySim } from '../openpublica/src/sim/CitySim';
 import { RoadType, ZoneType } from '../openpublica/src/sim/CityTile';
-import { ToolController } from '../openpublica/src/tools/ToolController';
+import { ToolController, strokeTiles } from '../openpublica/src/tools/ToolController';
 import { InspectTool } from '../openpublica/src/tools/InspectTool';
 import { RoadTool, ROAD_COST } from '../openpublica/src/tools/RoadTool';
 import { BulldozeTool, BULLDOZE_COST } from '../openpublica/src/tools/BulldozeTool';
@@ -117,9 +117,63 @@ describe('ToolController', () => {
       ctrl.onTileChanged((coord) => changed.push(coord));
 
       ctrl.applyToTile(TILE_A, sim);
-      ctrl.applyToTile(TILE_B, sim); // different tile — should go through
+      ctrl.applyToTile(TILE_B, sim);
 
-      expect(changed).toHaveLength(2);
+      expect(changed[0]).toEqual(TILE_A);
+      expect(changed[changed.length - 1]).toEqual(TILE_B);
+      expect(changed.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should pave skipped tiles so a fast road stroke stays connected', () => {
+      const road = new RoadTool();
+      const ctrl = new ToolController(road);
+      const sim  = makeSim();
+
+      const changed: typeof ORIGIN[] = [];
+      ctrl.onTileChanged((coord) => changed.push(coord));
+
+      expect(ctrl.applyToTile({ x: 1, y: 2 }, sim)).toBe('applied');
+      expect(ctrl.applyToTile({ x: 1, y: 5 }, sim)).toBe('applied');
+
+      expect(changed).toEqual([
+        { x: 1, y: 2 },
+        { x: 1, y: 3 },
+        { x: 1, y: 4 },
+        { x: 1, y: 5 },
+      ]);
+      expect(sim.getTile(1, 2)?.roadType).toBe(RoadType.Street);
+      expect(sim.getTile(1, 3)?.roadType).toBe(RoadType.Street);
+      expect(sim.getTile(1, 4)?.roadType).toBe(RoadType.Street);
+      expect(sim.getTile(1, 5)?.roadType).toBe(RoadType.Street);
+    });
+
+    it('should not fill skipped tiles for click-only tools', () => {
+      const inspect = new InspectTool();
+      const ctrl = new ToolController(inspect);
+      const sim  = makeSim();
+      const road = new RoadTool();
+      road.apply({ x: 2, y: 2 }, sim);
+      road.apply({ x: 2, y: 5 }, sim);
+
+      expect(ctrl.applyToTile({ x: 2, y: 2 }, sim)).toBe('unchanged');
+      expect(ctrl.applyToTile({ x: 2, y: 5 }, sim)).toBe('unchanged');
+      expect(sim.getTile(2, 3)?.roadType).toBe(RoadType.None);
+      expect(sim.getTile(2, 4)?.roadType).toBe(RoadType.None);
+    });
+  });
+
+  describe('strokeTiles', () => {
+    it('should walk a 4-connected path so diagonal drags still meet at edges', () => {
+      expect(strokeTiles({ x: 0, y: 0 }, { x: 2, y: 2 })).toEqual([
+        { x: 1, y: 0 },
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 2, y: 2 },
+      ]);
+    });
+
+    it('should be empty when the pointer has not moved', () => {
+      expect(strokeTiles({ x: 4, y: 4 }, { x: 4, y: 4 })).toEqual([]);
     });
   });
 
