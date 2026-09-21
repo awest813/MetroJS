@@ -127,6 +127,7 @@ export class SaveCodec {
 
     // ── Clock ────────────────────────────────────────────────────────────────
     sim.clock.restore(save.clockTotalSeconds ?? 0);
+    sim.growth.restoreMonthProgress(save.clockTotalSeconds ?? 0);
   }
 
   // ── Migration ──────────────────────────────────────────────────────────────

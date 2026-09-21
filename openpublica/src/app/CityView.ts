@@ -115,8 +115,8 @@ export class CityView {
       if (instance) {
         this.buildings.addBuilding(instance, tile.zoneType);
       }
-      this.refreshPowerVisuals(sim);
     }
+    this.refreshPowerVisuals(sim);
     this.onRedraw();
   }
 

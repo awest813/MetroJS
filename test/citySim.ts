@@ -2,6 +2,8 @@ import { CitySim, createCity, RoadType, ZoneType } from '../openpublica/src/sim/
 import { TerrainType } from '../openpublica/src/sim/CityTile';
 import { SimulationClock } from '../openpublica/src/sim/SimulationClock';
 import { CityMap } from '../openpublica/src/sim/CityMap';
+import { BASE_LAND_VALUE } from '../openpublica/src/sim/LandValueSystem';
+import { MONTH_SECONDS } from '../openpublica/src/data/constants';
 
 // ── CitySim ───────────────────────────────────────────────────────────────────
 
@@ -45,6 +47,11 @@ describe('CitySim', () => {
       expect(sim.stats.comTaxRate).toBe(9);
       expect(sim.stats.indTaxRate).toBe(9);
       expect(sim.stats.bankruptcyWarning).toBe(false);
+    });
+
+    it('should start land value at the LandValueSystem baseline', () => {
+      const sim = CitySim.createCity(8, 8);
+      expect(sim.getTile(0, 0)?.landValue).toBe(BASE_LAND_VALUE);
     });
   });
 
@@ -103,6 +110,14 @@ describe('CitySim', () => {
       expect(sim.getTile(2, 2)?.roadType).toBe(RoadType.Street);
     });
 
+    it('should clear zoning when a road is paved over an empty lot', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.setZone(2, 2, ZoneType.Residential);
+      sim.placeRoad(2, 2, RoadType.Street);
+      expect(sim.getTile(2, 2)?.roadType).toBe(RoadType.Street);
+      expect(sim.getTile(2, 2)?.zoneType).toBe(ZoneType.None);
+    });
+
     it('should update the road type on subsequent calls', () => {
       const sim = CitySim.createCity(16, 16);
       sim.placeRoad(2, 2, RoadType.Street);
@@ -113,6 +128,16 @@ describe('CitySim', () => {
     it('should be a no-op for out-of-bounds coordinates', () => {
       const sim = CitySim.createCity(16, 16);
       expect(() => sim.placeRoad(99, 99, RoadType.Street)).not.toThrow();
+    });
+  });
+
+  describe('placeServiceBuilding', () => {
+    it('should clear zoning so civic buildings are not hybrid lots', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.setZone(3, 3, ZoneType.Residential);
+      expect(sim.placeServiceBuilding(3, 3, 'small_park', 0)).toBe(true);
+      expect(sim.getTile(3, 3)?.buildingId).toBe('small_park');
+      expect(sim.getTile(3, 3)?.zoneType).toBe(ZoneType.None);
     });
   });
 
@@ -165,6 +190,15 @@ describe('CitySim', () => {
       sim.tick(0.5);
       sim.tick(1.0);
       expect(sim.clock.totalSeconds).toBeCloseTo(2.0);
+    });
+
+    it('should not treat civic staffing as private jobs', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.stats.money = 100_000;
+      sim.placeServiceBuilding(4, 4, 'small_power_plant', 0);
+      sim.placeServiceBuilding(6, 4, 'small_police_station', 0);
+      sim.tick(MONTH_SECONDS);
+      expect(sim.stats.jobs).toBe(0);
     });
   });
 });

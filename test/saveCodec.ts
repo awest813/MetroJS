@@ -1,8 +1,10 @@
 import { SaveCodec } from '../openpublica/src/save/SaveCodec';
+import { SaveSystem } from '../openpublica/src/save/SaveSystem';
 import { CitySim } from '../openpublica/src/sim/CitySim';
 import { RoadType, ZoneType } from '../openpublica/src/sim/CityTile';
 import { SAVE_VERSION } from '../openpublica/src/save/SaveGame';
 import { MONTH_SECONDS } from '../openpublica/src/data/constants';
+import { BASE_LAND_VALUE } from '../openpublica/src/sim/LandValueSystem';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -293,5 +295,62 @@ describe('SaveCodec.migrate', () => {
     const migrated = SaveCodec.migrate(save as unknown);
     expect(migrated).not.toBeNull();
     expect(migrated?.stats.money).toBe(5_000);
+  });
+});
+
+describe('SaveCodec month progress', () => {
+  it('should finish the current month after load instead of restarting it', () => {
+    const sim = makeSim();
+    sim.placeRoad(4, 4, RoadType.Street);
+    sim.tick(MONTH_SECONDS - 0.5);
+
+    const restored = roundTrip(sim);
+    expect(restored.getTile(4, 3)!.landValue).toBe(BASE_LAND_VALUE);
+
+    restored.tick(0.5);
+    expect(restored.getTile(4, 3)!.landValue).toBeGreaterThan(BASE_LAND_VALUE);
+  });
+});
+
+describe('SaveSystem.load', () => {
+  const memory = new Map<string, string>();
+
+  beforeEach(() => {
+    memory.clear();
+    const store = {
+      getItem: (key: string) => memory.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        memory.set(key, value);
+      },
+      removeItem: (key: string) => {
+        memory.delete(key);
+      },
+    };
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: store,
+    });
+  });
+
+  it('should restore power coverage without waiting a month', () => {
+    const sim = makeSim();
+    sim.placeServiceBuilding(5, 5, 'small_power_plant', 0);
+    expect(sim.getTile(5, 5)?.powered).toBe(true);
+    SaveSystem.save(sim);
+
+    const loaded = makeSim();
+    expect(loaded.getTile(5, 5)?.powered).toBe(false);
+    expect(SaveSystem.load(loaded)).toBe(true);
+    expect(loaded.getTile(5, 5)?.powered).toBe(true);
+    expect(loaded.getTile(5, 0)?.powered).toBe(true);
+  });
+
+  it('should reject a save whose map size does not match', () => {
+    const small = CitySim.createCity(8, 8);
+    SaveSystem.save(small);
+    const large = CitySim.createCity(16, 16);
+    large.stats.money = 42;
+    expect(SaveSystem.load(large)).toBe(false);
+    expect(large.stats.money).toBe(42);
   });
 });

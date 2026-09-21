@@ -112,6 +112,21 @@ export class ZoneGrowthSystem {
   }
 
   /**
+   * Align the intra-month growth accumulator with a restored clock.
+   * `totalSeconds % MONTH_SECONDS` is the time already elapsed in the current month.
+   */
+  restoreMonthProgress(totalSeconds: number): void {
+    const elapsed = Number.isFinite(totalSeconds) ? totalSeconds : 0;
+    const remainder = elapsed % MONTH_SECONDS;
+    this._secondsAccumulator = remainder < 0 ? remainder + MONTH_SECONDS : remainder;
+  }
+
+  /** Recompute population and private-sector jobs from the current buildings. */
+  recomputeCensus(stats: CityStats, map: CityMap): void {
+    this._recalcStats(stats, map);
+  }
+
+  /**
    * Remove the building instance at (x, y) from the registry.
    * Call this from CitySim.bulldoze() to keep the registry consistent.
    * Returns true if a building was found and removed.
@@ -348,8 +363,12 @@ export class ZoneGrowthSystem {
     return smaller[0];
   }
 
-  /** Recompute population and jobs from all placed buildings.
-   *  Unpowered buildings contribute only UNPOWERED_FACTOR of their potential. */
+  /**
+   * Recompute population and jobs from placed buildings.
+   * Civic/service staffing is not counted as `stats.jobs` — those posts do not
+   * tax as C/I employment or create housing demand. Unpowered buildings
+   * contribute only UNPOWERED_FACTOR of their potential.
+   */
   private _recalcStats(stats: CityStats, map: CityMap): void {
     let population = 0;
     let jobs       = 0;
@@ -360,7 +379,7 @@ export class ZoneGrowthSystem {
       const tile   = map.getTile(instance.x, instance.y);
       const factor = (tile?.powered ?? false) ? 1.0 : UNPOWERED_FACTOR;
       population += def.population * factor;
-      jobs       += def.jobs       * factor;
+      if (!def.isService) jobs += def.jobs * factor;
     }
 
     stats.population = Math.floor(population);

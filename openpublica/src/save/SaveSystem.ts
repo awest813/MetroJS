@@ -40,7 +40,9 @@ export class SaveSystem {
   /**
    * Load a previously saved city into an existing CitySim instance in-place.
    * Returns `true` when a save was found and applied, `false` when there is
-   * no save or the data could not be parsed.
+   * no save, the data could not be parsed, or the map size does not match.
+   * Coverage, power, and overlays are recomputed after decode so load is not
+   * a month of darkness.
    */
   static load(sim: CitySim): boolean {
     const save = SaveSystem.loadRaw();
@@ -48,8 +50,18 @@ export class SaveSystem {
       console.info('[SaveSystem] No save found.');
       return false;
     }
+    if (save.mapWidth !== sim.map.width || save.mapHeight !== sim.map.height) {
+      console.warn(
+        `[SaveSystem] Save map is ${save.mapWidth}×${save.mapHeight}, city is ${sim.map.width}×${sim.map.height}.`,
+      );
+      return false;
+    }
     SaveCodec.decode(save, sim);
-    sim.evaluate();
+    sim.refreshDerivedState({
+      applyCrimeHappiness: true,
+      notify: false,
+      includeMonthlyOverlays: true,
+    });
     console.info('[SaveSystem] Game loaded.');
     return true;
   }

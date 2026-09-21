@@ -109,7 +109,7 @@ export class CityTile implements ICityTile {
     this.buildingId      = null;
     this.powered         = false;
     this.watered         = false;
-    this.landValue       = 50; // neutral baseline until LandValueSystem first runs
+    this.landValue       = 20; // matches LandValueSystem BASE_LAND_VALUE until the first pass
     this.pollution       = 0;
     this.populationDensity = 0;
     this.policeCoverage  = 0;

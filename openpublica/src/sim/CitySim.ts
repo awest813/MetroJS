@@ -240,6 +240,8 @@ export class CitySim {
     const tile = this.map.getTile(x, y);
     if (!tile || tile.terrain === TerrainType.Water) return;
     tile.roadType = roadType;
+    // A street is not a housing plat — paving an empty lot clears the zone.
+    tile.zoneType = ZoneType.None;
     this._refreshWater();
   }
 
@@ -252,8 +254,7 @@ export class CitySim {
       tile.buildingId = null;
       this.growth.removeAt(x, y);
       tile.neglectMonths = 0;
-      this._refreshWater();
-      this.stats.serviceExpenses = serviceUpkeep(this.growth.buildings, this.growth.defs);
+      this.refreshDerivedState({ applyCrimeHappiness: false, notify: true });
     }
   }
 
@@ -279,37 +280,75 @@ export class CitySim {
       return false;
     }
 
+    // Civic buildings occupy the lot; they are not a zoned plat underneath.
+    tile.zoneType = ZoneType.None;
     tile.buildingId = defId;
     this.growth.buildings.set(tileKey(x, y), { defId, x, y });
 
-    // Immediately recalculate power so nearby buildings become powered at once.
-    this.power.tick(this.map, this.growth.buildings, this.growth.defs);
-    if (this.onPowerChanged) this.onPowerChanged();
-
-    this.pollution.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
-    this._refreshCityHealth(false);
-    // Land value after water/police so watered lots and parks apply this click.
-    this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
-    if (this.onLandValueChanged) this.onLandValueChanged();
-    this.stats.serviceExpenses = serviceUpkeep(this.growth.buildings, this.growth.defs);
-    this.evaluate();
+    this.refreshDerivedState({ applyCrimeHappiness: false, notify: true });
     return true;
   }
 
-  /** Recalculate watered tiles and HUD waterAverage after zone/road/bulldoze. */
+  /**
+   * Recompute power, pollution, coverage, crime, land value, and civic upkeep
+   * from the current buildings. Does not advance the clock or run economy/growth.
+   *
+   * Call after load so restored tiles are not left unpowered. Placement and
+   * bulldoze use the same path so coverage discs and HUD averages stay honest.
+   */
+  refreshDerivedState(opts?: {
+    applyCrimeHappiness?: boolean;
+    notify?: boolean;
+    includeMonthlyOverlays?: boolean;
+  }): void {
+    const applyCrimeHappiness = opts?.applyCrimeHappiness ?? false;
+    const notify = opts?.notify ?? true;
+    const includeMonthlyOverlays = opts?.includeMonthlyOverlays ?? false;
+
+    this.power.tick(this.map, this.growth.buildings, this.growth.defs);
+    this.pollution.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+
+    if (includeMonthlyOverlays) {
+      this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
+      this.growth.recomputeCensus(this.stats, this.map);
+      this.traffic.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+      this.walkability.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+      this.transit.tick(this.map, this.stats);
+    }
+
+    this._refreshCityHealth(applyCrimeHappiness, notify);
+
+    if (!includeMonthlyOverlays) {
+      this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
+    }
+
+    this.stats.serviceExpenses = serviceUpkeep(this.growth.buildings, this.growth.defs);
+    this.evaluate();
+
+    if (!notify) return;
+    if (this.onPowerChanged) this.onPowerChanged();
+    if (this.onLandValueChanged) this.onLandValueChanged();
+    if (includeMonthlyOverlays) {
+      if (this.onTrafficChanged) this.onTrafficChanged();
+      if (this.onWalkabilityChanged) this.onWalkabilityChanged();
+      if (this.onTransitChanged) this.onTransitChanged();
+    }
+  }
+
+  /** Recalculate watered tiles and HUD waterAverage after zone/road edits. */
   private _refreshWater(): void {
     this.water.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
     this.evaluate();
   }
 
-  private _refreshCityHealth(applyCrimeHappiness: boolean): void {
+  private _refreshCityHealth(applyCrimeHappiness: boolean, notify = true): void {
     this.density.tick(this.map, this.growth.buildings, this.growth.defs);
     this.police.tick(this.map, this.growth.buildings, this.growth.defs);
     this.fire.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
     this.water.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
     this.crime.tick(this.map, this.stats, applyCrimeHappiness);
     this.evaluate();
-    if (this.onCrimeChanged) this.onCrimeChanged();
+    if (notify && this.onCrimeChanged) this.onCrimeChanged();
   }
 
   /**

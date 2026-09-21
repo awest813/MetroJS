@@ -221,6 +221,24 @@ describe('CrimeSystem', () => {
     system.tick(map, stats, true);
     expect(stats.happiness).toBe(100 - Math.round(average * 0.25));
   });
+
+  it('should average occupied tiles including fully policed lots at crime 0', () => {
+    const map = new CityMap(2, 2);
+    const hot = map.getTile(0, 0)!;
+    hot.populationDensity = 100;
+    hot.landValue = 0;
+    hot.policeCoverage = 0;
+    const safe = map.getTile(1, 0)!;
+    safe.populationDensity = 100;
+    safe.landValue = 100;
+    safe.policeCoverage = 100;
+
+    const stats = emptyStats();
+    new CrimeSystem().tick(map, stats, false);
+    expect(hot.crime).toBe(85);
+    expect(safe.crime).toBe(0);
+    expect(stats.crimeAverage).toBe(Math.round(85 / 2));
+  });
 });
 
 describe('city health wiring', () => {

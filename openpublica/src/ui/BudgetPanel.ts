@@ -36,11 +36,11 @@ export class BudgetPanel {
             <span class="budget-val income" id="budget-income">$0/mo</span>
           </div>
           <div class="budget-row">
-            <span class="budget-key">Expenses</span>
+            <span class="budget-key">Last billed</span>
             <span class="budget-val expense" id="budget-expense">$0/mo</span>
           </div>
-          <div class="budget-row">
-            <span class="budget-key">Services</span>
+          <div class="budget-row budget-row-sub">
+            <span class="budget-key">Civic next</span>
             <span class="budget-val expense" id="budget-services">$0/mo</span>
           </div>
           <div class="budget-row">

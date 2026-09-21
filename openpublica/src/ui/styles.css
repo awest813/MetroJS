@@ -451,6 +451,11 @@ input:focus-visible {
   color: var(--muted);
 }
 
+.budget-row-sub .budget-key {
+  padding-left: 8px;
+  font-size: 11px;
+}
+
 .budget-val.income {
   color: var(--ok);
 }
