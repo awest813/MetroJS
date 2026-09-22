@@ -2,6 +2,7 @@ import {
   SETTINGS_SHORTCUTS,
   cityFileNote,
   formatBudgetNet,
+  formatPopulation,
   formatSignedMoney,
 } from '../openpublica/src/ui/chromeCopy';
 import {
@@ -22,6 +23,17 @@ describe('chromeCopy', () => {
     expect(SETTINGS_SHORTCUTS).toMatch(/G plant/);
     expect(SETTINGS_SHORTCUTS).toMatch(/O police/);
     expect(SETTINGS_SHORTCUTS).toMatch(/F fire/);
+    expect(SETTINGS_SHORTCUTS).toMatch(/C shops/);
+    expect(SETTINGS_SHORTCUTS).toMatch(/N industry/);
+    expect(SETTINGS_SHORTCUTS).toMatch(/U mixed/);
+    expect(SETTINGS_SHORTCUTS).toMatch(/M mute/);
+  });
+
+  it('should mark dark residents in the population readout', () => {
+    expect(formatPopulation(0, 0)).toBe('Pop 0');
+    expect(formatPopulation(27, 0)).toBe('Pop 27');
+    expect(formatPopulation(15, 15)).toBe('Pop 15 dark');
+    expect(formatPopulation(27, 12)).toBe('Pop 27 · 12 dark');
   });
 
   it('should describe city file state', () => {

@@ -4,8 +4,18 @@
 import type { Tool } from './Tool';
 import type { TileCoord } from '../data/types';
 import type { CitySim } from '../sim/CitySim';
+import { TerrainType } from '../sim/CityTile';
 
 export type ToolApplyResult = 'applied' | 'unchanged' | 'repeat';
+
+/** Dollars and gaps from the pointer stroke that just ended. */
+export interface StrokeSummary {
+  spent: number;
+  applied: number;
+  blockedByWater: number;
+}
+
+const ROAD_TOOL_NAMES = new Set(['road', 'highway', 'trolleyAvenue']);
 
 /**
  * Manages the active player tool and routes tile interactions to it.
@@ -22,6 +32,9 @@ export class ToolController {
   private readonly _tools = new Map<string, Tool>();
   private _lastDragCoord: TileCoord | null = null;
   private _onTileChangedCb: ((coord: TileCoord) => void) | undefined;
+  private _strokeSpent = 0;
+  private _strokeApplied = 0;
+  private _strokeWater = 0;
 
   constructor(defaultTool: Tool) {
     this._activeTool = defaultTool;
@@ -38,7 +51,7 @@ export class ToolController {
     const t = this._tools.get(name);
     if (t) {
       this._activeTool = t;
-      this._lastDragCoord = null; // reset drag state on tool switch
+      this._clearStroke();
     }
   }
 
@@ -75,13 +88,21 @@ export class ToolController {
         : [coord];
     this._lastDragCoord = coord;
 
+    const before = sim.stats.money;
     let applied = false;
+    const roadStroke = ROAD_TOOL_NAMES.has(this._activeTool.name);
     for (const tile of tiles) {
+      const mapTile = sim.getTile(tile.x, tile.y);
+      const water = mapTile?.terrain === TerrainType.Water;
       if (this._activeTool.apply(tile, sim)) {
         this._onTileChangedCb?.(tile);
         applied = true;
+        this._strokeApplied += 1;
+      } else if (roadStroke && water) {
+        this._strokeWater += 1;
       }
     }
+    this._strokeSpent += Math.max(0, before - sim.stats.money);
     return applied ? 'applied' : 'unchanged';
   }
 
@@ -90,8 +111,21 @@ export class ToolController {
    * Call this when the player releases the pointer (pointer-up) so that
    * clicking the same tile again starts a new stroke.
    */
-  resetDrag(): void {
+  resetDrag(): StrokeSummary {
+    const summary: StrokeSummary = {
+      spent: this._strokeSpent,
+      applied: this._strokeApplied,
+      blockedByWater: this._strokeWater,
+    };
+    this._clearStroke();
+    return summary;
+  }
+
+  private _clearStroke(): void {
     this._lastDragCoord = null;
+    this._strokeSpent = 0;
+    this._strokeApplied = 0;
+    this._strokeWater = 0;
   }
 }
 

@@ -17,6 +17,7 @@ import { TrafficPressureSystem } from './TrafficPressureSystem';
 import { WalkabilitySystem } from './WalkabilitySystem';
 import { TransitSystem } from './TransitSystem';
 import {
+  POWERED_ROAD_GROWTH_BOOST,
   STARTER_RESIDENTIAL_DEMAND,
   UNPOWERED_FACTOR,
   demandForZone,
@@ -303,7 +304,8 @@ export class ZoneGrowthSystem {
 
       const mixedBoost = (tile.zoneType === ZoneType.MixedUse &&
         this._hasAdjacentActiveZone(map, tile.x, tile.y)) ? 1.3 : 1.0;
-      if (Math.random() > growthChance(tile.landValue, demand, mixedBoost)) return;
+      const poweredBoost = tile.powered ? POWERED_ROAD_GROWTH_BOOST : 1;
+      if (Math.random() > growthChance(tile.landValue, demand, mixedBoost, poweredBoost)) return;
 
       const bucket = this._defsByZone.get(tile.zoneType);
       const def = bucket ? targetBuildingDef(bucket, tile.landValue, demand) : undefined;
@@ -332,7 +334,7 @@ export class ZoneGrowthSystem {
       const bucket = this._defsByZone.get(tile.zoneType);
       const next = bucket ? nextDevelopmentDef(bucket, current, tile.landValue, demand) : undefined;
       if (!next) return;
-      if (Math.random() > growthChance(tile.landValue, demand)) return;
+      if (Math.random() > growthChance(tile.landValue, demand, 1, POWERED_ROAD_GROWTH_BOOST)) return;
 
       this.buildings.set(tileKey(tile.x, tile.y), { defId: next.id, x: tile.x, y: tile.y });
       tile.buildingId = next.id;
@@ -419,18 +421,23 @@ export class ZoneGrowthSystem {
    */
   private _recalcStats(stats: CityStats, map: CityMap): void {
     let population = 0;
+    let darkPopulation = 0;
     let jobs       = 0;
 
     for (const instance of this.buildings.values()) {
       const def = this._defs.get(instance.defId);
       if (!def) continue;
       const tile   = map.getTile(instance.x, instance.y);
-      const factor = (tile?.powered ?? false) ? 1.0 : UNPOWERED_FACTOR;
-      population += def.population * factor;
+      const powered = tile?.powered ?? false;
+      const factor = powered ? 1.0 : UNPOWERED_FACTOR;
+      const people = def.population * factor;
+      population += people;
+      if (!powered) darkPopulation += people;
       if (!def.isService) jobs += def.jobs * factor;
     }
 
     stats.population = Math.floor(population);
+    stats.darkPopulation = Math.floor(darkPopulation);
     stats.jobs       = Math.floor(jobs);
   }
 

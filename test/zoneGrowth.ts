@@ -2,6 +2,7 @@ import { CitySim } from '../openpublica/src/sim/CitySim';
 import { RoadType, ZoneType } from '../openpublica/src/sim/CityTile';
 import { MONTH_SECONDS } from '../openpublica/src/data/constants';
 import {
+  POWERED_ROAD_GROWTH_BOOST,
   growthChance,
   nextDevelopmentDef,
   targetBuildingDef,
@@ -39,6 +40,14 @@ describe('development size', () => {
 
   it('should grow faster when the demand bar is full', () => {
     expect(growthChance(50, 100)).toBeGreaterThan(growthChance(50, 10));
+  });
+
+  it('should raise the chance for a powered lot and keep the cap', () => {
+    const base = growthChance(28, 40);
+    const powered = growthChance(28, 40, 1, POWERED_ROAD_GROWTH_BOOST);
+    expect(powered).toBeGreaterThan(base * 2);
+    expect(powered).toBeLessThanOrEqual(0.9);
+    expect(growthChance(100, 100, 1.3, POWERED_ROAD_GROWTH_BOOST)).toBe(0.9);
   });
 });
 
@@ -103,5 +112,29 @@ describe('monthly zoning', () => {
     expect(sim.getTile(8, 7)!.landValue).toBeGreaterThanOrEqual(45);
     expect(sim.getTile(8, 7)!.buildingId).toBe('rowhouse');
     expect(sim.stats.population).toBe(8);
+    expect(sim.stats.darkPopulation).toBe(0);
+  });
+
+  it('should fill a powered lot on a roll that still misses a dark lot', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(4, 4, 'small_power_plant', 0);
+    sim.placeRoad(4, 10, RoadType.Street);
+    sim.setZone(5, 10, ZoneType.Residential);
+    sim.placeRoad(20, 20, RoadType.Street);
+    sim.setZone(21, 20, ZoneType.Residential);
+    expect(sim.getTile(5, 10)!.powered).toBe(true);
+    expect(sim.getTile(21, 20)!.powered).toBe(false);
+
+    const original = Math.random;
+    Math.random = () => 0.2;
+    try {
+      tickOneMonth(sim);
+    } finally {
+      Math.random = original;
+    }
+
+    expect(sim.getTile(5, 10)!.buildingId).not.toBeNull();
+    expect(sim.getTile(21, 20)!.buildingId).toBeNull();
   });
 });

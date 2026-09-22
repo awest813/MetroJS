@@ -13,6 +13,19 @@ import { POLICE_STATION_COST } from './PlacePoliceStationTool';
 import { FIRE_STATION_COST } from './PlaceFireStationTool';
 import { WATER_TOWER_COST } from './PlaceWaterTowerTool';
 
+import type { StrokeSummary } from './ToolController';
+
+/** Status line for the stroke that just ended. Null when nothing was spent or cut. */
+export function formatStrokeStatus(toolLabel: string, stroke: StrokeSummary): string | null {
+  const cut = stroke.blockedByWater > 0 && stroke.applied > 0;
+  if (stroke.spent <= 0 && !cut) return null;
+  const name = toolLabel.replace(/^[^\w]+/, '').trim() || toolLabel;
+  const spent = `$${Math.round(stroke.spent).toLocaleString()}`;
+  if (stroke.spent > 0 && cut) return `${name} spent ${spent}. The street was cut by water.`;
+  if (cut) return 'The street was cut by water.';
+  return `${name} spent ${spent}.`;
+}
+
 function fundsLine(need: number, have: number): string {
   return `Need $${need.toLocaleString()} (have $${have.toLocaleString()})`;
 }

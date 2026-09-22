@@ -26,6 +26,11 @@ import { composeHappiness } from './happiness';
 /** Aggregate statistics for the city, updated each tick. */
 export interface CityStats {
   population:        number;
+  /**
+   * Residents counted while their building has no power.
+   * Equal to `population` when the whole city is dark, and 0 when every home is powered.
+   */
+  darkPopulation:    number;
   jobs:              number;
   money:             number;
   residentialDemand: number;
@@ -195,6 +200,7 @@ export class CitySim {
     this.growth       = new ZoneGrowthSystem(this.power, this.pollution, this.landValue, this.traffic, this.walkability, this.transit);
     this.stats  = {
       population:        0,
+      darkPopulation:    0,
       jobs:              0,
       money:             10_000,
       residentialDemand: STARTER_RESIDENTIAL_DEMAND,

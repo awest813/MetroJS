@@ -33,6 +33,12 @@ const NO_PLANT_PENALTY = 12;
 /** Fire/water nags wait until someone actually lives here. */
 export const SERVICE_ADVISORY_POPULATION = 40;
 
+/**
+ * Once this many people live here, a jobs total under half the population
+ * is the mayor's next lesson (zone shops), ahead of fire and water.
+ */
+export const JOBS_GAP_POPULATION = 4;
+
 export interface Advisory {
   readonly id: string;
   readonly message: string;
@@ -74,6 +80,10 @@ interface Census {
   industrialLots: number;
   mixedLots: number;
   strugglingCount: number;
+  /** Zone buildings sitting in the dark (houses, shops, factories). */
+  unpoweredHouses: number;
+  /** Empty zoned lots that already touch a road. */
+  growableLots: number;
 }
 
 function survey(
@@ -106,6 +116,8 @@ function survey(
   let industrialLots = 0;
   let mixedLots = 0;
   let strugglingCount = 0;
+  let unpoweredHouses = 0;
+  let growableLots = 0;
   let hasRoad = false;
   map.forEach((tile) => {
     if (tile.roadType !== RoadType.None) hasRoad = true;
@@ -115,6 +127,14 @@ function survey(
     if (tile.zoneType === ZoneType.Industrial) industrialLots += 1;
     if (tile.zoneType === ZoneType.MixedUse) mixedLots += 1;
     if (tile.neglectMonths >= 2 && tile.buildingId !== null) strugglingCount += 1;
+    if (
+      tile.zoneType !== ZoneType.None &&
+      tile.buildingId !== null &&
+      tile.buildingId !== 'small_park' &&
+      !tile.powered
+    ) {
+      unpoweredHouses += 1;
+    }
     if (tile.roadType !== RoadType.None && tile.trafficPressure >= EXTREME_TRAFFIC_PRESSURE) {
       extremeRoads += 1;
     }
@@ -125,6 +145,13 @@ function survey(
       !tileHasAdjacentRoad(map, tile.x, tile.y)
     ) {
       lotsNeedRoad += 1;
+    } else if (
+      tile.zoneType !== ZoneType.None &&
+      tile.roadType === RoadType.None &&
+      tile.buildingId === null &&
+      tileHasAdjacentRoad(map, tile.x, tile.y)
+    ) {
+      growableLots += 1;
     }
   });
 
@@ -142,6 +169,8 @@ function survey(
     industrialLots,
     mixedLots,
     strugglingCount,
+    unpoweredHouses,
+    growableLots,
   };
 }
 
@@ -177,6 +206,12 @@ function listAdvisories(stats: CityStats, census: Census): Advisory[] {
   if (stats.bankruptcyWarning) {
     out.push({ id: 'bankrupt', message: 'Treasury is bankrupt — cut spending or raise taxes.' });
   }
+  if (census.lotsNeedRoad > 0) {
+    out.push({
+      id: 'roads',
+      message: `${census.lotsNeedRoad} zoned lot${census.lotsNeedRoad === 1 ? '' : 's'} need a road next door.`,
+    });
+  }
   if (!census.hasPlant) {
     if (!census.hasRoad && census.zonedCount === 0 && census.buildingCount === 0) {
       out.push({
@@ -194,6 +229,12 @@ function listAdvisories(stats: CityStats, census: Census): Advisory[] {
         message: 'Place a power plant on grass — lots stay dark without one.',
       });
     }
+  }
+  if (stats.population > 0 && census.unpoweredHouses > 0) {
+    out.push({
+      id: 'dark-houses',
+      message: 'These houses are dark and will leave — expand the plant radius.',
+    });
   }
   if (census.unpoweredStations > 0) {
     out.push({
@@ -225,32 +266,38 @@ function listAdvisories(stats: CityStats, census: Census): Advisory[] {
   if (stats.resTaxRate >= 15 || stats.comTaxRate >= 15 || stats.indTaxRate >= 15) {
     out.push({ id: 'tax', message: 'Taxes are high — demand and approval will sag.' });
   }
-  if (census.lotsNeedRoad > 0) {
+  const jobsFarBelow = stats.population >= JOBS_GAP_POPULATION && stats.jobs * 2 < stats.population;
+  if (jobsFarBelow) {
+    const jobLots = census.commercialLots + census.industrialLots + census.mixedLots;
     out.push({
-      id: 'roads',
-      message: `${census.lotsNeedRoad} zoned lot${census.lotsNeedRoad === 1 ? '' : 's'} need a road next door.`,
+      id: 'need-jobs',
+      message: jobLots === 0
+        ? 'Zone shops beside the street — jobs are far below the population.'
+        : 'Jobs are far below the population — zone more shops or factories beside the street.',
     });
   }
-  if (census.hasPlant && stats.population === 0) {
-    if (
-      census.residentialLots === 0 &&
-      (census.commercialLots > 0 || census.mixedLots > 0) &&
-      census.industrialLots === 0
-    ) {
-      out.push({
-        id: 'need-housing',
-        message: 'Shops wait for residents — zone housing beside a road.',
-      });
-    } else if (census.zonedCount === 0) {
-      out.push({
-        id: 'need-zone',
-        message: 'Zone lots beside the street so houses can grow.',
-      });
-    } else if (census.lotsNeedRoad === 0) {
-      out.push({
-        id: 'waiting',
-        message: 'Waiting for growth — houses appear each month on powered lots by the road.',
-      });
+  if (census.hasPlant && census.lotsNeedRoad === 0) {
+    if (stats.population === 0) {
+      if (
+        census.residentialLots === 0 &&
+        (census.commercialLots > 0 || census.mixedLots > 0) &&
+        census.industrialLots === 0
+      ) {
+        out.push({
+          id: 'need-housing',
+          message: 'Shops wait for residents — zone housing beside a road.',
+        });
+      } else if (census.zonedCount === 0) {
+        out.push({
+          id: 'need-zone',
+          message: 'Zone lots beside the street so houses can grow.',
+        });
+      } else {
+        out.push({
+          id: 'waiting',
+          message: 'Waiting for growth — houses appear each month on powered lots by the road.',
+        });
+      }
     }
   }
   if (stats.population >= SERVICE_ADVISORY_POPULATION && stats.fireAverage < 20) {
@@ -262,6 +309,18 @@ function listAdvisories(stats: CityStats, census: Census): Advisory[] {
     stats.waterAverage < 25
   ) {
     out.push({ id: 'water', message: 'Lots are dry — place a powered water tower.' });
+  }
+  if (
+    census.hasPlant &&
+    stats.population > 0 &&
+    census.lotsNeedRoad === 0 &&
+    census.growableLots > 0 &&
+    !jobsFarBelow
+  ) {
+    out.push({
+      id: 'waiting',
+      message: 'Waiting for growth — houses appear each month on powered lots by the road.',
+    });
   }
   return out;
 }

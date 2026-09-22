@@ -16,6 +16,7 @@ export function mountCityMenu(
     hud: CityHUD;
     budget: BudgetPanel;
     statusEl: HTMLElement;
+    onLoaded?: () => void;
   },
 ): CityMenu {
   return new CityMenu(container, {
@@ -31,6 +32,7 @@ export function mountCityMenu(
         opts.hud.update(opts.sim.stats, opts.sim.clock);
         opts.budget.update(opts.sim.stats);
         opts.budget.syncTaxSliders(opts.sim.stats);
+        opts.onLoaded?.();
         opts.statusEl.textContent = 'City loaded.';
       } else if (status === 'size-mismatch') {
         opts.statusEl.textContent = 'That save is a different map size.';
