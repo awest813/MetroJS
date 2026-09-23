@@ -175,9 +175,9 @@ corners.
 ### Gap I — Large zones **shipped**
 
 A fifth audit zoned big areas. Every zoned lot re-ran the whole-city refresh
-(traffic, smog, land value, crime, water: about 22 ms a lot), and the view
-rebuilt the overlay, power tint, smoke, and traffic graph per lot too, so
-zoning 1,300 lots took over 29 seconds of sim time alone. Zoning was a one-tile
+(traffic, smog, land value, crime, water: about 1.6 ms a lot in the ES2020
+build), and the view rebuilt the overlay, power tint, smoke, and traffic graph
+per lot too, so zoning 1,300 lots took over 2 seconds of sim time alone. Zoning was a one-tile
 brush. In a 48×48 area, about half the lots had no street beside them and
 could never grow, with no warning. Growth rolled every lot every month, so a
 big zone sprouted 200–580 buildings in its first month regardless of demand,
@@ -185,10 +185,27 @@ then emptied as crime caught up, and what grew was scattered across the area.
 
 | Slice | What shipped |
 |---|---|
-| I1 Batching | `CitySim.batch` defers derived-state refresh to one pass (every refresh recomputes from the map, so results match). `ToolController.applyTiles` applies a list in one batch and reports the changed tiles together; `CityView.syncPaintedTiles` keeps per-tile work local and runs map-wide refreshes once. 1,296 lots: 29.3 s → 26 ms in the sim; a 107-tile area releases in about one SwiftShader frame. |
+| I1 Batching | `CitySim.batch` defers derived-state refresh to one pass (every refresh recomputes from the map, so results match). `ToolController.applyTiles` applies a list in one batch and reports the changed tiles together; `CityView.syncPaintedTiles` keeps per-tile work local and runs map-wide refreshes once. 1,296 lots: 2.1 s → 3 ms in the sim (ES2020; Jest's ES5 build runs these loops about 10× slower); a 107-tile area releases in about one SwiftShader frame. |
 | I2 Areas | Zone brushes and Dezone drag a rectangle (`planZoneArea`): each tile is tinted zone, no street (amber), street, clear, already zoned, or skipped (building, funds); the status line gives lots, streets, cost, and lots that will wait. Release applies it through the tools. Esc cancels, Shift paints freehand. Road lines and zone areas share `PlannedDragInput`. |
 | I3 Streets | `autoStreetLayout`: where lots would have no street, the area lays one every third line along its long side (two-lot blocks), plus a spine down a short side when needed to reach the existing roads. Pieces cut off by water are dropped, and it never bridges or paves through buildings. It only paves when each new street tile gives at least half a lot a new frontage, so an existing grid is left alone. S toggles it. |
 | I4 Pace | `monthlyGrowthBudget`: each zone type fills at most 4 + demand/4 lots a month, scaled up by city size (doubling per 1,000 residents plus jobs). When more lots pass their roll, lots beside buildings are 8× likelier to be kept, so zones fill outward. A 45×45 zone now grows about 15 a month instead of 264–580 in month 1, with about 1.6–1.9 neighbours within two tiles of each building instead of 1.1. The lot hint shows the pace. |
+
+### Gap J — Frame cost **shipped**
+
+A sixth audit loaded a 64×64 test city (about 570 buildings, 1,200 road tiles,
+52 civic buildings). The scene held 20,461 meshes: every road curb, dash, berm,
+arm, pad, and crosswalk, every tree trunk and canopy, and every foundation was
+its own instanced node. Babylon culled and updated each one every frame: 34 ms
+of active-mesh evaluation per frame (SwiftShader), before drawing anything.
+Month boundaries added a 50–140 ms frame. The sim itself was not the problem:
+a month costs about 18 ms in the ES2020 build.
+
+| Slice | What shipped |
+|---|---|
+| J1 Thin instances | `ThinInstanceGroups`: road pieces, trees, and building foundations are thin instances of their shared sources, grouped per tile; an edit rewrites only the sources it touched. Meshes 20,461 → 719; active-mesh evaluation 34.2 → 2.6 ms; SwiftShader frame 58.6 → 11.8 ms. Buildings stay instanced (selection draws their bounding box). |
+| J2 Month frame | The traffic renderer skips rebuilding its graphs when `roadNetworkKey` is unchanged (monthly traffic only changes the car count); street trees re-plant only when a street crosses the busy threshold. Month frames 47–103 → 32–68 ms. |
+| J3 Growth | Lots already past the smog or crime stress level no longer grow a building that would leave four months later; the lot hint says why (move plants and factories away, add parks, or police). Futile growth in the test city fell by about a third. |
+| J4 Cleanup | Removed the unused `ResidentialTool`, and the console warnings per unaffordable road tile or civic building (the status line already explains). |
 
 ---
 
@@ -234,3 +251,4 @@ GLB (C4) and SSAO (C5) stay optional. C3 skirt is optional.
 - Terrain: drag a street across a hillside (the ground levels under it, no grass through the deck); hills shade with the sun at Dawn/Dusk; tilt the camera low at the map edge to see the skirt.
 - Placement: with Road, drag an L across a lake so it turns on the water (blue bridge tiles, the turn tile red, status gives cost and bridges), press Esc before releasing (nothing is built), then release a line on land; Shift-drag paints freehand; hover water with a zone brush (red cursor); shops along a street face it; cars curve through corners.
 - Zoning: with Z, drag a 12×9 area beside a street (grey street rows, blue lots, status gives lots/streets/cost), press S (streets drop, lots turn amber), press S again and release (one quick build); run at 4× and watch houses fill along the new streets a few a month.
+- Frame cost: load a large city and check the scene holds a few hundred meshes, not tens of thousands; paint and bulldoze a road and reload the save (road pieces appear, vanish, and match after load).

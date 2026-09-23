@@ -1,7 +1,7 @@
 // Render-only road network. No Babylon — Jest can load this file.
 // Vehicles read trafficPressure; they never write simulation state.
 
-import { RoadType } from '../sim/CityTile';
+import { RoadType, TerrainType } from '../sim/CityTile';
 import type { CityMap } from '../sim/CityMap';
 import { MIN_TROLLEY_LINE_TILES, trolleyLines } from '../sim/TransitSystem';
 
@@ -102,6 +102,23 @@ function buildFilteredGraph(
   }
 
   return { nodes, adj, roadTileCount, trolleyTileCount };
+}
+
+/**
+ * Fingerprint of everything the road graphs read: which tiles are roads, of
+ * what type, over land or water. Equal keys mean the graphs would be equal.
+ */
+export function roadNetworkKey(map: CityMap): string {
+  let hash = 0x811c9dc5;
+  let roads = 0;
+  map.forEach((tile) => {
+    if (tile.roadType === RoadType.None) return;
+    roads += 1;
+    const water = tile.terrain === TerrainType.Water ? 1 : 0;
+    const value = ((tile.y * map.width + tile.x) * 8 + tile.roadType * 2 + water) >>> 0;
+    hash = Math.imul(hash ^ value, 0x01000193) >>> 0;
+  });
+  return `${roads}:${hash}`;
 }
 
 /** Nodes at every road tile centre; undirected edges to N/E/S/W roads. */

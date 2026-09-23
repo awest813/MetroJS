@@ -3,8 +3,11 @@ import { RoadType, TerrainType, ZoneType } from '../openpublica/src/sim/CityTile
 import { MONTH_SECONDS } from '../openpublica/src/data/constants';
 import { isLandRoad, ROAD_STEPS } from '../openpublica/src/sim/roadConnections';
 import {
+  CRIME_STRESS_THRESHOLD,
   GROWTH_BUDGET_BASE,
+  POLLUTION_STRESS_THRESHOLD,
   formatGrowthHint,
+  lotTooHostile,
   monthlyGrowthBudget,
 } from '../openpublica/src/sim/zoneGrowthHints';
 import { ToolController } from '../openpublica/src/tools/ToolController';
@@ -272,6 +275,32 @@ describe('growth pace', () => {
     expect(sim.getTile(19, 5)!.buildingId).not.toBeNull();
     expect(sim.getTile(21, 5)!.buildingId).not.toBeNull();
     expect(sim.growth.buildings.size - 1).toBeLessThanOrEqual(monthlyGrowthBudget(40, 0, 0));
+  });
+
+  it('should not build where smog or crime would drive the building out', () => {
+    const sim = makeSim();
+    streetRow(sim, 5);
+    sim.batch(() => {
+      for (let x = 2; x <= 4; x++) sim.setZone(x, 6, ZoneType.Residential);
+    });
+    const smoggy = sim.getTile(2, 6)!;
+    const risky = sim.getTile(3, 6)!;
+    // Hold the conditions through the month's own refreshes.
+    type Ticker = { tick: (...args: unknown[]) => void };
+    const pollution = (sim as unknown as { pollution: Ticker }).pollution;
+    const crime = (sim as unknown as { crime: Ticker }).crime;
+    const origPollution = pollution.tick.bind(pollution);
+    const origCrime = crime.tick.bind(crime);
+    pollution.tick = (...args) => { origPollution(...args); smoggy.pollution = POLLUTION_STRESS_THRESHOLD; };
+    crime.tick = (...args) => { origCrime(...args); risky.crime = CRIME_STRESS_THRESHOLD; };
+    risky.crime = CRIME_STRESS_THRESHOLD; // growth reads last month's crime
+    withRandom(0, () => sim.tick(MONTH_SECONDS));
+    expect(smoggy.buildingId).toBeNull();
+    expect(risky.buildingId).toBeNull();
+    expect(sim.getTile(4, 6)!.buildingId).not.toBeNull();
+    expect(lotTooHostile(smoggy)).toBe('smog');
+    expect(formatGrowthHint(smoggy, sim.map, sim.stats)).toMatch(/^too smoggy to settle/);
+    expect(formatGrowthHint(risky, sim.map, sim.stats)).toMatch(/^too much crime to settle/);
   });
 
   it('should tell a waiting lot how fast lots fill', () => {

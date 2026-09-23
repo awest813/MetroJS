@@ -90,14 +90,8 @@ export class RoadTool implements Tool {
   }
 
   apply(coord: TileCoord, sim: CitySim): boolean {
-    const block = this.blockAt(coord, sim);
-    if (block !== null) {
-      if (block === 'funds') {
-        const cost = this.costAt(coord, sim);
-        console.warn(`[${this.label}] Insufficient funds (need $${cost}, have $${sim.stats.money})`);
-      }
-      return false;
-    }
+    // The stroke summary and status line report why a tile was skipped.
+    if (this.blockAt(coord, sim) !== null) return false;
     const cost = this.costAt(coord, sim);
     if (!sim.deductMoney(cost)) return false;
     if (!sim.placeRoad(coord.x, coord.y, this.roadType)) {

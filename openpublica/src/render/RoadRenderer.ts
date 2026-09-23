@@ -5,7 +5,6 @@ import {
   Mesh,
   Vector3,
   ShadowGenerator,
-  TransformNode,
   PBRMaterial,
 } from '@babylonjs/core';
 import type { CityMap } from '../sim/CityMap';
@@ -26,6 +25,7 @@ import {
 } from './roadLayout';
 import { deckBaseHeight, deckDirtyTiles } from './roadDeck';
 import { coloredPbr } from './pbrSurfaces';
+import { ThinInstanceGroups } from './thinInstanceGroups';
 
 /** Extra Y so the deck sits on the heightfield without z-fighting. */
 export const ROAD_DECK_LIFT = 0.03;
@@ -44,17 +44,18 @@ const STRETCH: ReadonlySet<RoadPieceKind> = new Set(['arm', 'rail', 'curb', 'rai
 
 /**
  * Extruded, slope-aware streets, trolley avenues, and bridges. Shared 1×1
- * sources, instanced per kit piece. Not pickable — picking stays on the
- * heightfield and water plane.
+ * sources drawn as thin instances: each tile keeps its piece matrices, and a
+ * flush rewrites only the sources an edit touched, so a city's ~20k road
+ * pieces cost a dozen scene meshes instead of 20k nodes to cull every frame.
+ * Not pickable — picking stays on the heightfield and water plane.
  */
 export class RoadRenderer {
   private readonly _scene: Scene;
   private readonly _shadows: ShadowGenerator | null;
-  private readonly _roots = new Map<string, TransformNode>();
+  private readonly _pieces = new ThinInstanceGroups();
   private readonly _src: Record<Exclude<RoadPieceKind, 'pad' | 'arm'> | 'berm', Mesh>;
   private readonly _decks: Record<RoadType, Mesh>;
   private _heights: HeightField | null = null;
-  private _seq = 0;
 
   constructor(scene: Scene, shadowGenerator: ShadowGenerator | null = null) {
     this._scene = scene;
@@ -99,11 +100,11 @@ export class RoadRenderer {
 
   rebuild(map: CityMap, heights: HeightField): void {
     this._heights = heights;
-    for (const root of this._roots.values()) root.dispose();
-    this._roots.clear();
+    this._pieces.clearAll();
     map.forEach((tile) => {
       if (tile.roadType !== RoadType.None) this._rebuildTile(map, tile.x, tile.y);
     });
+    this._pieces.flush();
   }
 
   /** Rebuild the painted tile, its neighbours, and any bridge span they touch. */
@@ -114,6 +115,7 @@ export class RoadRenderer {
   /** Rebuild these tiles (roads only; other tiles are skipped). */
   rebuildTiles(map: CityMap, coords: ReadonlyArray<TileCoord>): void {
     for (const tile of coords) this._rebuildTile(map, tile.x, tile.y);
+    this._pieces.flush();
   }
 
   private _deck(map: CityMap, x: number, y: number): number {
@@ -124,11 +126,7 @@ export class RoadRenderer {
 
   private _rebuildTile(map: CityMap, x: number, y: number): void {
     const key = `${x},${y}`;
-    const prev = this._roots.get(key);
-    if (prev) {
-      prev.dispose();
-      this._roots.delete(key);
-    }
+    this._pieces.clear(key);
 
     const tile = map.getTile(x, y);
     if (!tile || tile.roadType === RoadType.None) return;
@@ -145,8 +143,6 @@ export class RoadRenderer {
 
     const cx = x * TILE_SIZE + TILE_SIZE / 2;
     const cz = y * TILE_SIZE + TILE_SIZE / 2;
-    const root = new TransformNode(`road-${key}`, this._scene);
-    this._roots.set(key, root);
 
     const widths: Partial<Record<Cardinal, number>> = {};
     for (const dir of ['n', 'e', 's', 'w'] as const) {
@@ -161,12 +157,12 @@ export class RoadRenderer {
     const deckSrc = this._decks[tile.roadType];
     for (const piece of roadPieces(tile.roadType, neighbors, bridge, widths)) {
       if (piece.kind === 'pier') {
-        this._spawnPier(root, piece, cx, cz, bed, h0 - GIRDER_DEPTH);
+        this._spawnPier(key, piece, cx, cz, bed, h0 - GIRDER_DEPTH);
       } else {
-        this._spawn(root, piece, cx, cz, h0, profile.thickness, seams, deckSrc);
+        this._spawn(key, piece, cx, cz, h0, profile.thickness, seams, deckSrc);
       }
     }
-    if (!bridge) this._spawnEmbankment(root, neighbors, profile.width, cx, cz, h0, seams);
+    if (!bridge) this._spawnEmbankment(key, neighbors, profile.width, cx, cz, h0, seams);
   }
 
   /**
@@ -175,7 +171,7 @@ export class RoadRenderer {
    * each arm, down past the lowest ground in the tile.
    */
   private _spawnEmbankment(
-    root: TransformNode,
+    key: string,
     neighbors: RoadNeighbors,
     deckWidth: number,
     cx: number,
@@ -194,9 +190,8 @@ export class RoadRenderer {
     const depth = drop + EMBANKMENT_SINK;
     const w = deckWidth + CURB_WIDTH * 2;
     this._instance(
-      root,
+      key,
       this._src.berm,
-      'berm',
       new Vector3(cx, h0 - depth / 2, cz),
       new Vector3(w, depth, w),
       Vector3.Zero(),
@@ -205,7 +200,7 @@ export class RoadRenderer {
       if (!neighbors[dir]) continue;
       const { dx, dz } = CARDINAL_VEC[dir];
       const eastWest = dir === 'e' || dir === 'w';
-      this._spawn(root, {
+      this._spawn(key, {
         kind: 'berm',
         ox: dx * (ARM_SPAN / 2),
         oz: dz * (ARM_SPAN / 2),
@@ -219,7 +214,7 @@ export class RoadRenderer {
   }
 
   private _spawn(
-    root: TransformNode,
+    key: string,
     piece: RoadPiece,
     cx: number,
     cz: number,
@@ -261,9 +256,8 @@ export class RoadRenderer {
 
     const src = piece.kind === 'pad' || piece.kind === 'arm' ? deckSrc : this._src[piece.kind];
     this._instance(
-      root,
+      key,
       src,
-      piece.kind,
       new Vector3(cx + piece.ox, y, cz + piece.oz),
       new Vector3(sx, piece.sy, sz),
       new Vector3(rotX, piece.rotY, rotZ),
@@ -272,7 +266,7 @@ export class RoadRenderer {
 
   /** A pier wall from the lake bed (or bank) up to the underside of the girder. */
   private _spawnPier(
-    root: TransformNode,
+    key: string,
     piece: RoadPiece,
     cx: number,
     cz: number,
@@ -282,37 +276,24 @@ export class RoadRenderer {
     const height = top - bottom;
     if (height <= 0.02) return;
     this._instance(
-      root,
+      key,
       this._src.pier,
-      'pier',
       new Vector3(cx + piece.ox, bottom + height / 2, cz + piece.oz),
       new Vector3(piece.sx, height, piece.sz),
       Vector3.Zero(),
     );
   }
 
-  private _instance(
-    root: TransformNode,
-    src: Mesh,
-    kind: RoadPieceKind,
-    position: Vector3,
-    scaling: Vector3,
-    rotation: Vector3,
-  ): void {
-    const inst = src.createInstance(`rd-${kind}-${this._seq++}`);
-    inst.parent = root;
-    inst.position = position;
-    inst.scaling = scaling;
-    inst.rotation = rotation;
-    inst.isPickable = false;
-    inst.receiveShadows = true;
+  private _instance(key: string, src: Mesh, position: Vector3, scaling: Vector3, rotation: Vector3): void {
+    this._pieces.add(key, src, position, scaling, rotation);
   }
 
   private _unit(name: string, mat: PBRMaterial): Mesh {
     const mesh = MeshBuilder.CreateBox(name, { width: 1, height: 1, depth: 1 }, this._scene);
     mesh.material = mat;
-    mesh.isVisible = false;
     mesh.isPickable = false;
+    mesh.receiveShadows = true;
+    ThinInstanceGroups.prepare(mesh);
     this._shadows?.addShadowCaster(mesh);
     return mesh;
   }

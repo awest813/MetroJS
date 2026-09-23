@@ -30,6 +30,7 @@ import {
 import { coloredPbr, vertexColorPbr } from './pbrSurfaces';
 import { foundationFor } from './foundation';
 import { rotateOffset } from './buildingFacing';
+import { ThinInstanceGroups } from './thinInstanceGroups';
 
 type KitVariant = 'zone' | 'service' | 'civic' | 'fire' | 'water' | 'warning';
 
@@ -42,8 +43,6 @@ export interface BuildingPickData {
 
 interface PlacedBuilding {
   instance: InstancedMesh;
-  /** Stone plinth on a sloped lot; null when the lot is flat. */
-  foundation: InstancedMesh | null;
   defId: string;
   zoneType: ZoneType;
   variant: KitVariant;
@@ -67,6 +66,8 @@ export class BuildingRenderer {
   private readonly _kitMat:   PBRMaterial;
   private readonly _warnMat:  PBRMaterial;
   private readonly _plinth:   Mesh;
+  /** Stone plinths under buildings on sloped lots, one group per lot. */
+  private readonly _plinths = new ThinInstanceGroups();
   private _selectedKey: string | null = null;
   private _heights: HeightField | null = null;
 
@@ -80,9 +81,12 @@ export class BuildingRenderer {
 
     this._plinth = MeshBuilder.CreateBox('bld-foundation-src', { size: 1 }, scene);
     this._plinth.material = coloredPbr('bld-foundation', scene, new Color3(0.52, 0.49, 0.44), 0.94);
-    this._plinth.isVisible = false;
     this._plinth.isPickable = false;
+    this._plinth.receiveShadows = true;
+    ThinInstanceGroups.prepare(this._plinth);
     this._shadows?.addShadowCaster(this._plinth);
+    // Growth and repaint place buildings one at a time; write the plinth buffer once per frame.
+    scene.onBeforeRenderObservable.add(() => this._plinths.flush());
 
     const bbr = scene.getBoundingBoxRenderer();
     bbr.frontColor = new Color3(1.0, 0.95, 0.1);
@@ -113,8 +117,7 @@ export class BuildingRenderer {
     if (!placed || Math.abs(placed.facing - facing) < 1e-6) return;
     placed.facing = facing;
     placed.instance.rotation.y = facing;
-    placed.foundation?.dispose();
-    placed.foundation = this._foundation(placed.defId, x, y, facing);
+    this._foundation(placed.defId, x, y, facing);
   }
 
   removeBuilding(x: number, y: number): void {
@@ -124,7 +127,7 @@ export class BuildingRenderer {
 
     if (this._selectedKey === key) this._selectedKey = null;
     placed.instance.dispose();
-    placed.foundation?.dispose();
+    this._plinths.clear(key);
     this._placed.delete(key);
   }
 
@@ -134,8 +137,7 @@ export class BuildingRenderer {
       const placed = this._placed.get(_tileKey(coord.x, coord.y));
       if (!placed) continue;
       placed.instance.position.y = this._floorY(coord.x, coord.y);
-      placed.foundation?.dispose();
-      placed.foundation = this._foundation(placed.defId, coord.x, coord.y, placed.facing);
+      this._foundation(placed.defId, coord.x, coord.y, placed.facing);
     }
   }
 
@@ -171,7 +173,6 @@ export class BuildingRenderer {
     const pick = placed.instance.metadata as BuildingPickData;
     const selected = this._selectedKey === key;
     placed.instance.dispose();
-    placed.foundation?.dispose();
     this._placed.delete(key);
     this._spawn({ defId: placed.defId, x: pick.x, y: pick.y }, placed.zoneType, next, placed.facing);
     if (selected) this.selectBuilding(pick.x, pick.y);
@@ -199,18 +200,20 @@ export class BuildingRenderer {
     mesh.useVertexColors = true;
     mesh.receiveShadows = true;
 
-    const foundation = this._foundation(instance.defId, instance.x, instance.y, facing);
-    this._placed.set(key, { instance: mesh, foundation, defId: instance.defId, zoneType, variant, facing });
+    this._foundation(instance.defId, instance.x, instance.y, facing);
+    this._placed.set(key, { instance: mesh, defId: instance.defId, zoneType, variant, facing });
   }
 
   private _floorY(x: number, y: number): number {
     return this._heights?.footing(x, y) ?? 0;
   }
 
-  /** Plinth from the floor down past the lowest ground in the (turned) footprint. */
-  private _foundation(defId: string, x: number, y: number, facing: number): InstancedMesh | null {
+  /** (Re)lay the plinth from the floor down past the lowest ground in the (turned) footprint. */
+  private _foundation(defId: string, x: number, y: number, facing: number): void {
+    const key = _tileKey(x, y);
+    this._plinths.clear(key);
     const heights = this._heights;
-    if (!heights) return null;
+    if (!heights) return;
     const cx = x * TILE_SIZE + TILE_SIZE / 2;
     const cz = y * TILE_SIZE + TILE_SIZE / 2;
     const shape = BUILDING_SHAPES[defId] ?? DEFAULT_SHAPE;
@@ -218,13 +221,14 @@ export class BuildingRenderer {
       const world = rotateOffset(dx, dz, facing);
       return heights.sample(cx + world.dx, cz + world.dz);
     });
-    if (!spec) return null;
-    const plinth = this._plinth.createInstance(`bld-foundation-${x},${y}`);
-    plinth.position = new Vector3(cx, (spec.top + spec.bottom) / 2, cz);
-    plinth.scaling = new Vector3(spec.width, spec.top - spec.bottom, spec.depth);
-    plinth.rotation = new Vector3(0, facing, 0);
-    plinth.isPickable = false;
-    return plinth;
+    if (!spec) return;
+    this._plinths.add(
+      key,
+      this._plinth,
+      new Vector3(cx, (spec.top + spec.bottom) / 2, cz),
+      new Vector3(spec.width, spec.top - spec.bottom, spec.depth),
+      new Vector3(0, facing, 0),
+    );
   }
 
   private _sourceFor(

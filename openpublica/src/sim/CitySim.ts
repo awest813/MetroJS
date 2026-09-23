@@ -325,12 +325,7 @@ export class CitySim {
     const tile = this._serviceLot(x, y, defId);
     if (!tile) return false;
 
-    if (!this.deductMoney(cost)) {
-      console.warn(
-        `[PlaceService] Insufficient funds (need $${cost}, have $${this.stats.money})`,
-      );
-      return false;
-    }
+    if (!this.deductMoney(cost)) return false;
 
     // Civic buildings occupy the lot; they are not a zoned plat underneath.
     tile.zoneType = ZoneType.None;

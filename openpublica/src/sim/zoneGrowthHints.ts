@@ -68,6 +68,16 @@ export const POLLUTION_STRESS_THRESHOLD = 60;
 /** Tile crime at or above this stresses a zone building. */
 export const CRIME_STRESS_THRESHOLD = 50;
 
+/**
+ * Smog or crime already past the level that drives a building out. Nobody
+ * builds there: a building would only stand four stressed months and leave.
+ */
+export function lotTooHostile(tile: CityTile): 'smog' | 'crime' | null {
+  if (tile.pollution >= POLLUTION_STRESS_THRESHOLD) return 'smog';
+  if (tile.crime >= CRIME_STRESS_THRESHOLD) return 'crime';
+  return null;
+}
+
 /** True when the lot fronts a land road. Bridge decks have no driveways. */
 export function tileHasAdjacentRoad(map: CityMap, x: number, y: number): boolean {
   return hasRoadFrontage(map, x, y);
@@ -196,6 +206,10 @@ export function formatGrowthHint(
     }
     return 'no industrial demand — cut industrial tax';
   }
+
+  const hostile = lotTooHostile(tile);
+  if (hostile === 'smog') return 'too smoggy to settle — move plants and factories away or add parks';
+  if (hostile === 'crime') return 'too much crime to settle — a police station nearby would help';
 
   const pace = monthlyGrowthBudget(demand, stats.population, stats.jobs);
   const fill = `up to ${pace} new ${pace === 1 ? 'building' : 'buildings'} a month at this demand`;

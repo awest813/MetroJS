@@ -5,7 +5,6 @@ import {
   Mesh,
   Vector3,
   ShadowGenerator,
-  InstancedMesh,
 } from '@babylonjs/core';
 import type { CityMap } from '../sim/CityMap';
 import { RoadType, TerrainType } from '../sim/CityTile';
@@ -14,26 +13,30 @@ import { TILE_SIZE } from '../data/constants';
 import { WATER_SURFACE_Y, type HeightField } from '../sim/HeightField';
 import { roadHeading, roadNeighbors } from '../sim/roadConnections';
 import { connectedCardinals } from './roadLayout';
-import { drySlots, parkTreeSlots, streetTreeSlot, type TreeSlot } from './vegetationLayout';
+import {
+  STREET_TREE_BUSY_PRESSURE,
+  drySlots,
+  parkTreeSlots,
+  streetTreeSlot,
+  type TreeSlot,
+} from './vegetationLayout';
 import { coloredPbr } from './pbrSurfaces';
-
-interface PlantedTile {
-  meshes: InstancedMesh[];
-  /** Slot signature; a refresh that yields the same one leaves the trees alone. */
-  sig: string;
-}
+import { ThinInstanceGroups } from './thinInstanceGroups';
 
 /**
- * Instanced trees for parks and quiet streets. Pickable false so tools
- * still hit the heightfield. Purely visual.
+ * Trees for parks and quiet streets, as thin instances of one trunk and one
+ * canopy. Pickable false so tools still hit the heightfield. Purely visual.
  */
 export class VegetationRenderer {
   private readonly _shadows: ShadowGenerator | null;
   private readonly _trunkSrc: Mesh;
   private readonly _canopySrc: Mesh;
-  private readonly _tiles = new Map<string, PlantedTile>();
+  private readonly _trees = new ThinInstanceGroups();
+  /** Slot signature per planted tile; a refresh that yields the same one leaves the trees alone. */
+  private readonly _sigs = new Map<string, string>();
+  /** Whether each street was busy when last planted; traffic only matters when this flips. */
+  private readonly _busy = new Map<string, boolean>();
   private _heights: HeightField | null = null;
-  private _seq = 0;
   private _streetTrees = true;
 
   constructor(scene: Scene, shadowGenerator: ShadowGenerator | null = null) {
@@ -48,8 +51,9 @@ export class VegetationRenderer {
       tessellation: 7,
     }, scene);
     this._trunkSrc.material = trunkMat;
-    this._trunkSrc.isVisible = false;
     this._trunkSrc.isPickable = false;
+    this._trunkSrc.receiveShadows = true;
+    ThinInstanceGroups.prepare(this._trunkSrc);
     this._shadows?.addShadowCaster(this._trunkSrc);
 
     this._canopySrc = MeshBuilder.CreateSphere('veg-canopy-src', {
@@ -57,8 +61,9 @@ export class VegetationRenderer {
       segments: 8,
     }, scene);
     this._canopySrc.material = canopyMat;
-    this._canopySrc.isVisible = false;
     this._canopySrc.isPickable = false;
+    this._canopySrc.receiveShadows = true;
+    ThinInstanceGroups.prepare(this._canopySrc);
     this._shadows?.addShadowCaster(this._canopySrc);
   }
 
@@ -74,25 +79,31 @@ export class VegetationRenderer {
 
   rebuild(map: CityMap, heights: HeightField): void {
     this._heights = heights;
-    for (const key of [...this._tiles.keys()]) this._clear(key);
+    this._trees.clearAll();
+    this._sigs.clear();
+    this._busy.clear();
     map.forEach((tile) => this._rebuildTile(map, tile.x, tile.y));
+    this._trees.flush();
   }
 
   updateTile(map: CityMap, coord: TileCoord): void {
-    this._rebuildTile(map, coord.x, coord.y);
+    this.updateTiles(map, [coord]);
   }
 
   /** Re-plant these tiles, e.g. after the ground under them was re-graded. */
   updateTiles(map: CityMap, coords: ReadonlyArray<TileCoord>): void {
     for (const coord of coords) this._rebuildTile(map, coord.x, coord.y);
+    this._trees.flush();
   }
 
   updateAround(map: CityMap, coord: TileCoord): void {
-    this._rebuildTile(map, coord.x, coord.y);
-    this._rebuildTile(map, coord.x + 1, coord.y);
-    this._rebuildTile(map, coord.x - 1, coord.y);
-    this._rebuildTile(map, coord.x, coord.y + 1);
-    this._rebuildTile(map, coord.x, coord.y - 1);
+    this.updateTiles(map, [
+      coord,
+      { x: coord.x + 1, y: coord.y },
+      { x: coord.x - 1, y: coord.y },
+      { x: coord.x, y: coord.y + 1 },
+      { x: coord.x, y: coord.y - 1 },
+    ]);
   }
 
   /**
@@ -101,12 +112,19 @@ export class VegetationRenderer {
    */
   refreshStreets(map: CityMap): void {
     map.forEach((tile) => {
-      if (tile.roadType === RoadType.Street) this._rebuildTile(map, tile.x, tile.y, false);
+      if (tile.roadType !== RoadType.Street) return;
+      const busy = tile.trafficPressure >= STREET_TREE_BUSY_PRESSURE;
+      if (this._busy.get(`${tile.x},${tile.y}`) === busy) return;
+      this._rebuildTile(map, tile.x, tile.y, false);
     });
+    this._trees.flush();
   }
 
   private _rebuildTile(map: CityMap, x: number, y: number, force = true): void {
     const key = `${x},${y}`;
+    const tile = map.getTile(x, y);
+    if (tile?.roadType === RoadType.Street) this._busy.set(key, tile.trafficPressure >= STREET_TREE_BUSY_PRESSURE);
+    else this._busy.delete(key);
     const ox = x * TILE_SIZE + TILE_SIZE / 2;
     const oz = y * TILE_SIZE + TILE_SIZE / 2;
     const heights = this._heights;
@@ -114,33 +132,23 @@ export class VegetationRenderer {
       heights ? heights.sample(ox + slot.dx, oz + slot.dz) : 0;
     const slots = drySlots(this._slotsFor(map, x, y), groundAt, WATER_SURFACE_Y);
     const sig = slots.map((s) => `${s.dx.toFixed(3)}:${s.dz.toFixed(3)}:${s.scale.toFixed(3)}`).join('|');
-    if (!force && (this._tiles.get(key)?.sig ?? '') === sig) return;
-    this._clear(key);
+    if (!force && (this._sigs.get(key) ?? '') === sig) return;
+    this._trees.clear(key);
+    this._sigs.delete(key);
     if (slots.length === 0) return;
-
-    const meshes: InstancedMesh[] = [];
 
     for (const slot of slots) {
       const groundY = groundAt(slot);
-      const trunk = this._trunkSrc.createInstance(`veg-t-${this._seq++}`);
-      const canopy = this._canopySrc.createInstance(`veg-c-${this._seq++}`);
-      const canopy2 = this._canopySrc.createInstance(`veg-c2-${this._seq++}`);
       const s = slot.scale;
-      trunk.scaling.set(s, s, s);
-      canopy.scaling.set(s * 1.05, s * 0.72, s * 1.05);
-      canopy2.scaling.set(s * 0.72, s * 0.55, s * 0.72);
-      trunk.position = new Vector3(ox + slot.dx, groundY + 0.18 * s, oz + slot.dz);
-      canopy.position = new Vector3(ox + slot.dx, groundY + 0.42 * s, oz + slot.dz);
-      canopy2.position = new Vector3(ox + slot.dx + 0.06 * s, groundY + 0.50 * s, oz + slot.dz + 0.04 * s);
-      trunk.isPickable = false;
-      canopy.isPickable = false;
-      canopy2.isPickable = false;
-      trunk.receiveShadows = true;
-      canopy.receiveShadows = true;
-      canopy2.receiveShadows = true;
-      meshes.push(trunk, canopy, canopy2);
+      this._trees.add(key, this._trunkSrc,
+        new Vector3(ox + slot.dx, groundY + 0.18 * s, oz + slot.dz), new Vector3(s, s, s));
+      this._trees.add(key, this._canopySrc,
+        new Vector3(ox + slot.dx, groundY + 0.42 * s, oz + slot.dz), new Vector3(s * 1.05, s * 0.72, s * 1.05));
+      this._trees.add(key, this._canopySrc,
+        new Vector3(ox + slot.dx + 0.06 * s, groundY + 0.50 * s, oz + slot.dz + 0.04 * s),
+        new Vector3(s * 0.72, s * 0.55, s * 0.72));
     }
-    this._tiles.set(key, { meshes, sig });
+    this._sigs.set(key, sig);
   }
 
   /** Park trees, or one curb tree on a quiet land street. Bridges get none. */
@@ -163,12 +171,5 @@ export class VegetationRenderer {
       if (slot) return [slot];
     }
     return [];
-  }
-
-  private _clear(key: string): void {
-    const planted = this._tiles.get(key);
-    if (!planted) return;
-    for (const mesh of planted.meshes) mesh.dispose();
-    this._tiles.delete(key);
   }
 }

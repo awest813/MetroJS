@@ -2,7 +2,7 @@ import { CitySim } from '../openpublica/src/sim/CitySim';
 import { CityMap } from '../openpublica/src/sim/CityMap';
 import { RoadType, TerrainType, ZoneType } from '../openpublica/src/sim/CityTile';
 import { buildingFacing, rotateOffset } from '../openpublica/src/render/buildingFacing';
-import { TURN_SPAN, vehiclePose } from '../openpublica/src/render/roadGraph';
+import { TURN_SPAN, roadNetworkKey, vehiclePose } from '../openpublica/src/render/roadGraph';
 import { ROAD_COST, BRIDGE_COST_MULTIPLIER, RoadTool } from '../openpublica/src/tools/RoadTool';
 import { formatLinePlan, planRoadLine, roadLinePath } from '../openpublica/src/tools/roadLine';
 import { createResidentialLowBrush } from '../openpublica/src/tools/ZoneBrushTool';
@@ -183,5 +183,21 @@ describe('vehicle turns', () => {
     expect(Math.sign(out.z - 0.5)).toBe(-Math.sign(back.z - 0.5));
     expect(Number.isFinite(node.x)).toBe(true);
     expect(Number.isFinite(node.heading)).toBe(true);
+  });
+});
+
+describe('road network key', () => {
+  it('should change only when the roads do', () => {
+    const sim = makeSim();
+    sim.placeRoad(3, 3, RoadType.Street);
+    const key = roadNetworkKey(sim.map);
+    sim.setZone(5, 5, ZoneType.Residential);
+    sim.getTile(3, 3)!.trafficPressure = 12;
+    expect(roadNetworkKey(sim.map)).toBe(key);
+    sim.placeRoad(4, 3, RoadType.Street);
+    const longer = roadNetworkKey(sim.map);
+    expect(longer).not.toBe(key);
+    sim.placeRoad(4, 3, RoadType.TrolleyAvenue);
+    expect(roadNetworkKey(sim.map)).not.toBe(longer);
   });
 });

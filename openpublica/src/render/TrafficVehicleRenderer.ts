@@ -32,6 +32,7 @@ import {
   trolleyLineLengths,
   trolleyTargetCount,
   vehicleTargetCount,
+  roadNetworkKey,
   vehiclePose,
   TURN_SPAN,
   type NodeKey,
@@ -90,6 +91,8 @@ export class TrafficVehicleRenderer {
   private _trolleyGraph: RoadGraph = emptyGraph();
   private _map: CityMap | null = null;
   private _heights: HeightField | null = null;
+  /** {@link roadNetworkKey} of the map the graphs were built from. */
+  private _networkKey = '';
   private readonly _decks = new Map<NodeKey, number>();
   private _seq = 0;
 
@@ -140,6 +143,14 @@ export class TrafficVehicleRenderer {
   }
 
   rebuildGraph(map: CityMap, heights?: HeightField | null): void {
+    // Monthly traffic updates leave the roads alone: only the car count changes.
+    const network = roadNetworkKey(map);
+    const sameHeights = heights === undefined || (heights ?? null) === this._heights;
+    if (map === this._map && sameHeights && network === this._networkKey) {
+      this.syncDensity(map);
+      return;
+    }
+    this._networkKey = network;
     this._map = map;
     if (heights !== undefined) this._heights = heights ?? null;
     this._graph = buildRoadGraph(map);

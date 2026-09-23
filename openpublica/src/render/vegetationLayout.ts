@@ -31,6 +31,9 @@ export function parkTreeSlots(x: number, y: number): TreeSlot[] {
  * On a corner the tree takes the side with no road arm, so it never stands
  * on the street it lines.
  */
+/** Streets at or above this traffic pressure lose their curb tree. */
+export const STREET_TREE_BUSY_PRESSURE = 6;
+
 export function streetTreeSlot(
   x: number,
   y: number,
@@ -41,7 +44,7 @@ export function streetTreeSlot(
   arms?: { n: boolean; e: boolean; s: boolean; w: boolean },
 ): TreeSlot | null {
   if (roadType !== RoadType.Street) return null;
-  if (trafficPressure >= 6) return null;
+  if (trafficPressure >= STREET_TREE_BUSY_PRESSURE) return null;
   if (neighborCount >= 3) return null;
   const rng = createSeededRng(`openpublica-street-${x}-${y}`);
   if (rng() > 0.42) return null;

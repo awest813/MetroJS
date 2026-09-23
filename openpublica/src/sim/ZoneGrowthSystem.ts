@@ -23,6 +23,7 @@ import {
   UNPOWERED_FACTOR,
   demandForZone,
   growthChance,
+  lotTooHostile,
   monthlyGrowthBudget,
   nextDevelopmentDef,
   targetBuildingDef,
@@ -305,6 +306,7 @@ export class ZoneGrowthSystem {
       if (tile.buildingId !== null) return;
       if (tile.neglectMonths > 0) return;
       if (!tileHasAdjacentRoad(map, tile.x, tile.y)) return;
+      if (lotTooHostile(tile)) return;
 
       const demand = demandForZone(tile.zoneType, stats);
       if (demand <= 0) return;
