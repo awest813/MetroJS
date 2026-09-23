@@ -6,7 +6,7 @@ import { generateTerrain } from '../sim/TerrainGenerator';
 import { HeightField } from '../sim/HeightField';
 import { MAP_SIZE } from '../data/constants';
 import { InspectTool } from '../tools/InspectTool';
-import { RoadTool } from '../tools/RoadTool';
+import { RoadTool, isRoadTool } from '../tools/RoadTool';
 import {
   createResidentialLowBrush,
   createCommercialLowBrush,
@@ -35,6 +35,8 @@ import { formatGrowthHint } from '../sim/zoneGrowthHints';
 import { applyDaylight } from '../render/daylight';
 import { CityView } from './CityView';
 import { mountCityMenu } from './cityFile';
+import { RoadLineInput } from './roadLineInput';
+import { planRoadLine } from '../tools/roadLine';
 import {
   POWER_PLANT_SERVICE,
   createServiceTools,
@@ -158,10 +160,31 @@ export class App {
     });
 
     cameraController.onModeChange(() => redrawLook());
+    const roadLine = new RoadLineInput(sim, view, toolController, statusEl, (tool, summary, path) => {
+      hud.update(sim.stats, sim.clock);
+      budgetPanel.update(sim.stats);
+      if (summary.applied === 0) {
+        audio.play(FAIL_VOICE, 'fail');
+        statusEl.textContent = path.length === 1
+          ? explainToolFailure(tool.name, path[0], sim)
+          : formatStrokeStatus(tool.label, summary) ?? 'Nothing new to build along that line.';
+        return;
+      }
+      const voice = sfxForTool(tool.name);
+      if (voice) audio.playPaint(voice);
+      statusEl.textContent = formatStrokeStatus(tool.label, summary) ?? '';
+    });
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && roadLine.cancel()) event.preventDefault();
+    });
+
     view.picker.onDragEnd(() => {
-      const stroke = toolController.resetDrag();
-      const line = formatStrokeStatus(toolController.activeTool.label, stroke);
-      if (line) statusEl.textContent = line;
+      if (!roadLine.finish()) {
+        const stroke = toolController.resetDrag();
+        const line = formatStrokeStatus(toolController.activeTool.label, stroke);
+        if (line) statusEl.textContent = line;
+      }
+      refreshHover();
     });
 
     const nearestPlant = (coord: { x: number; y: number } | null): { x: number; y: number } | null => {
@@ -217,13 +240,30 @@ export class App {
       view.highlight.hideCoverage();
     };
 
+    /** Would the active tool refuse this tile? Road tools pass through existing roads. */
+    const refuses = (coord: { x: number; y: number }): boolean => {
+      const tool = toolController.activeTool;
+      if (isRoadTool(tool)) return planRoadLine(tool, [coord], sim).blocked.length > 0;
+      return tool.canApply ? !tool.canApply(coord, sim) : false;
+    };
+
+    /** Tile under the pointer, from hover or the last pick of a drag. */
+    let hoverCoord: { x: number; y: number } | null = null;
+    /** Re-tint the cursor when the tool or the map changed under a still pointer. */
+    const refreshHover = (): void => {
+      if (!hoverCoord || roadLine.busy) return;
+      view.highlight.show(hoverCoord, view.surface, refuses(hoverCoord));
+      previewCoverage(hoverCoord);
+    };
+
     view.picker.onHover((coord) => {
-      if (coord) view.highlight.show(coord, view.surface);
+      hoverCoord = coord;
+      if (coord) view.highlight.show(coord, view.surface, refuses(coord));
       else view.highlight.hide();
       previewCoverage(coord);
     });
 
-    const toolbar = new Toolbar(toolbarEl, toolController);
+    const toolbar = new Toolbar(toolbarEl, toolController, () => refreshHover());
     toolbar.build(allTools);
     toolbar.select('road');
     statusEl.textContent = `${sim.stats.advisory} R road · I inspect · P pause.`;
@@ -305,7 +345,12 @@ export class App {
       budgetPanel.update(sim.stats);
     });
 
-    view.picker.onPick((coord, via) => {
+    view.picker.onPick((coord, via, mods) => {
+      hoverCoord = coord;
+      if (roadLine.handlePick(coord, via, mods.shift)) {
+        view.highlight.show(coord, view.surface, roadLine.targetBlocked);
+        return;
+      }
       const result = toolController.applyToTile(coord, sim);
       view.highlight.show(coord, view.surface);
       previewCoverage(coord);

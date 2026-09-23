@@ -154,6 +154,24 @@ buildings floated up to 0.1.
 Hill noise was measured too: dropping the finest octave changed tile
 bumpiness by about 3%, so hills are unchanged.
 
+### Gap H — Placement and turns **shipped**
+
+A fourth audit looked at how roads get laid and how things sit along them.
+Kits front on +z, so 57% of buildings in a grid town turned their backs or
+sides to every street. A diagonal road drag left a freehand staircase, and
+the only feedback on cost, bridges, or refusals came after the fact. The cursor
+looked the same over tiles every tool would refuse. Cars snapped from one
+lane to the next at every node, so they jumped sideways and spun in place at
+corners.
+
+| Slice | What shipped |
+|---|---|
+| H1 Facing | `buildingFacing`: a building turns toward its land-road frontage (trolley avenue, then highway, then street; ties N, E, S, W; bridges are not frontage). Foundations turn with it and re-orient when a road is painted beside the lot. |
+| H2 Road lines | Road tools press to anchor and drag a line: the longer axis first, one turn. `planRoadLine` dry-runs it in order (earlier tiles count for the bridge rules, money runs down) and tints each tile build, bridge, upgrade, keep, or skipped; the status line gives tiles, bridges, and cost; release builds through the normal stroke. Esc cancels, Shift paints freehand. |
+| H3 Cursor | Tools gain an optional `canApply` dry run; the hover cursor turns red where the active tool would refuse (water or an occupied lot for a zone brush, an empty tile for the bulldozer, a bad station site, a road blocked by a building or the bridge rules). It re-tints on tool switch and after release, and while dragging a line it shows the end tile's verdict. |
+| H4 Turns | `vehiclePose`: cars leave each node on a short quadratic curve from their incoming lane to the outgoing one (the next hop is chosen before the node), and dead ends loop onto the other lane. In the browser at a fixed 16 ms step no car moved more than about twice its median frame step. |
+| H5 Details | Plan and reach tints on shore tiles stay above the raised beach instead of hiding under it; the page has an inline favicon, so loading no longer logs a 404. |
+
 ---
 
 ## 4. Explicitly still out of scope (Phase I)
@@ -196,3 +214,4 @@ GLB (C4) and SSAO (C5) stay optional. C3 skirt is optional.
 - Roads: drag a street straight across a river (status names the bridge tiles), drag one across a highway (the highway stays), and watch Traffic drop on a jammed street after a parallel street is joined up.
 - Water: from an angled camera, hover the edge of a bridge deck (the cursor sits on the deck); beach lots show dry ground to the water's edge; Value shows the waterfront premium.
 - Terrain: drag a street across a hillside (the ground levels under it, no grass through the deck); hills shade with the sun at Dawn/Dusk; tilt the camera low at the map edge to see the skirt.
+- Placement: with Road, drag an L across a lake so it turns on the water (blue bridge tiles, the turn tile red, status gives cost and bridges), press Esc before releasing (nothing is built), then release a line on land; Shift-drag paints freehand; hover water with a zone brush (red cursor); shops along a street face it; cars curve through corners.

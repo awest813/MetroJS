@@ -32,6 +32,8 @@ import {
   trolleyLineLengths,
   trolleyTargetCount,
   vehicleTargetCount,
+  vehiclePose,
+  TURN_SPAN,
   type NodeKey,
   type RoadGraph,
 } from './roadGraph';
@@ -57,8 +59,12 @@ const CAR_COLORS: ReadonlyArray<Color3> = [
 
 interface Actor {
   readonly kind: 'car' | 'trolley';
+  /** Node before `from`, so the vehicle can finish rounding that corner. */
+  prev: NodeKey | null;
   from: NodeKey;
   to: NodeKey;
+  /** Hop after `to`, chosen early so the vehicle can start its turn. */
+  next: NodeKey | null;
   t: number;
   speed: number;
   lane: number;
@@ -232,8 +238,10 @@ export class TrafficVehicleRenderer {
     cabin.receiveShadows = true;
     const actor: Actor = {
       kind: 'car',
+      prev: null,
       from: '',
       to: '',
+      next: null,
       t: 0,
       speed: BASE_CAR_SPEED,
       lane: id % 2 === 0 ? 1 : -1,
@@ -260,8 +268,10 @@ export class TrafficVehicleRenderer {
     cabin.receiveShadows = true;
     const actor: Actor = {
       kind: 'trolley',
+      prev: null,
       from: '',
       to: '',
+      next: null,
       t: 0,
       speed: BASE_TROLLEY_SPEED,
       lane: 0,
@@ -280,8 +290,10 @@ export class TrafficVehicleRenderer {
     const from = starts[Math.floor(Math.random() * starts.length)];
     const to = pickNext(graph, null, from, Math.random);
     if (!to) return false;
+    actor.prev = null;
     actor.from = from;
     actor.to = to;
+    actor.next = null;
     actor.t = Math.random();
     actor.speed = this._speedFor(actor);
     actor.root.setEnabled(true);
@@ -319,35 +331,50 @@ export class TrafficVehicleRenderer {
       let guard = 0;
       while (actor.t >= 1 && guard++ < 8) {
         actor.t -= 1;
-        const prev = actor.from;
-        actor.from = actor.to;
-        const next = pickNext(graph, prev, actor.from, Math.random);
+        const next = this._nextHop(graph, actor);
         if (!next) {
           actor.t = 0;
           actor.root.setEnabled(false);
           break;
         }
+        actor.prev = actor.from;
+        actor.from = actor.to;
         actor.to = next;
+        actor.next = null;
         actor.speed = this._speedFor(actor);
       }
+      // Choose the turn ahead early so the corner can be rounded.
+      if (actor.root.isEnabled() && actor.t > 1 - TURN_SPAN) this._nextHop(graph, actor);
       this._pose(actor);
     });
+  }
+
+  /** The hop after `to`, kept if still on the graph, otherwise picked now. */
+  private _nextHop(graph: RoadGraph, actor: Actor): NodeKey | null {
+    if (actor.next && edgeExists(graph, actor.to, actor.next)) return actor.next;
+    actor.next = pickNext(graph, actor.from, actor.to, Math.random);
+    return actor.next;
   }
 
   private _pose(actor: Actor): void {
     const from = parseNodeKey(actor.from);
     const to = parseNodeKey(actor.to);
-    const fx = from.x * TILE_SIZE + TILE_SIZE / 2;
-    const fz = from.y * TILE_SIZE + TILE_SIZE / 2;
-    const tx = to.x * TILE_SIZE + TILE_SIZE / 2;
-    const tz = to.y * TILE_SIZE + TILE_SIZE / 2;
-    const dx = tx - fx;
-    const dz = tz - fz;
-    const x = fx + dx * actor.t;
-    const z = fz + dz * actor.t;
-    const len = Math.hypot(dx, dz) || 1;
-    const ox = (-dz / len) * LANE_OFFSET * actor.lane;
-    const oz = (dx / len) * LANE_OFFSET * actor.lane;
+    const center = (key: NodeKey | null): { x: number; z: number } | null => {
+      if (!key) return null;
+      const n = parseNodeKey(key);
+      return { x: n.x * TILE_SIZE + TILE_SIZE / 2, z: n.y * TILE_SIZE + TILE_SIZE / 2 };
+    };
+    const fromC = center(actor.from)!;
+    const toC = center(actor.to)!;
+    const len = Math.hypot(toC.x - fromC.x, toC.z - fromC.z) || 1;
+    const pose = vehiclePose(
+      center(actor.prev),
+      fromC,
+      toC,
+      center(actor.next),
+      actor.t,
+      LANE_OFFSET * actor.lane,
+    );
 
     const map = this._map;
     const fromTile = map?.getTile(from.x, from.y);
@@ -363,7 +390,7 @@ export class TrafficVehicleRenderer {
     const y = deck + ROAD_DECK_LIFT + thickness + CAR_HEIGHT / 2 + CAR_CLEARANCE;
     const pitch = -Math.atan2(deckTo - deckFrom, len);
 
-    actor.root.position = new Vector3(x + ox, y, z + oz);
-    actor.root.rotation = new Vector3(pitch, Math.atan2(dx, dz), 0);
+    actor.root.position = new Vector3(pose.x, y, pose.z);
+    actor.root.rotation = new Vector3(pitch, pose.heading, 0);
   }
 }

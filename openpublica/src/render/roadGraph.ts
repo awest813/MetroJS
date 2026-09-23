@@ -251,6 +251,94 @@ export function advanceWithGaps(movers: readonly Mover[], steps: readonly number
   return next;
 }
 
+/** Share of an edge each side of a node spent rounding the corner. */
+export const TURN_SPAN = 0.3;
+
+export interface Vec2 {
+  readonly x: number;
+  readonly z: number;
+}
+
+export interface VehiclePose {
+  readonly x: number;
+  readonly z: number;
+  /** Radians around Y, 0 facing +z. */
+  readonly heading: number;
+}
+
+function lanePoint(a: Vec2, b: Vec2, t: number, offset: number): Vec2 {
+  const dx = b.x - a.x;
+  const dz = b.z - a.z;
+  const len = Math.hypot(dx, dz) || 1;
+  return {
+    x: a.x + dx * t + (-dz / len) * offset,
+    z: a.z + dz * t + (dx / len) * offset,
+  };
+}
+
+/**
+ * Control point for the curve through node `b` from edge a→b to b→c, in the
+ * lane `offset` to the right. Straight on stays straight; a turn meets where
+ * the two lanes cross; a dead-end U-turn loops just past the node.
+ */
+function cornerControl(a: Vec2, b: Vec2, c: Vec2, offset: number, p0: Vec2, p2: Vec2): Vec2 {
+  const inX = b.x - a.x;
+  const inZ = b.z - a.z;
+  const outX = c.x - b.x;
+  const outZ = c.z - b.z;
+  const inLen = Math.hypot(inX, inZ) || 1;
+  const outLen = Math.hypot(outX, outZ) || 1;
+  const dot = (inX * outX + inZ * outZ) / (inLen * outLen);
+  if (dot > 0.999) return { x: (p0.x + p2.x) / 2, z: (p0.z + p2.z) / 2 };
+  if (dot < -0.999) return { x: b.x + (inX / inLen) * TURN_SPAN, z: b.z + (inZ / inLen) * TURN_SPAN };
+  return {
+    x: b.x + (-inZ / inLen) * offset + (-outZ / outLen) * offset,
+    z: b.z + (inX / inLen) * offset + (outX / outLen) * offset,
+  };
+}
+
+/**
+ * Where a vehicle at `t` along from→to sits, in its lane, rounding the node
+ * behind it (from `prev`) and the node ahead (toward `next`) so its lane never
+ * jumps sides at a junction. Without a neighbour it drives the straight lane.
+ */
+export function vehiclePose(
+  prev: Vec2 | null,
+  from: Vec2,
+  to: Vec2,
+  next: Vec2 | null,
+  t: number,
+  offset: number,
+): VehiclePose {
+  let a: Vec2;
+  let b: Vec2;
+  let c: Vec2;
+  let u: number;
+  if (next && t > 1 - TURN_SPAN) {
+    [a, b, c] = [from, to, next];
+    u = (t - (1 - TURN_SPAN)) / (2 * TURN_SPAN);
+  } else if (prev && t < TURN_SPAN) {
+    [a, b, c] = [prev, from, to];
+    u = 0.5 + t / (2 * TURN_SPAN);
+  } else {
+    const p = lanePoint(from, to, t, offset);
+    return { x: p.x, z: p.z, heading: Math.atan2(to.x - from.x, to.z - from.z) };
+  }
+  const p0 = lanePoint(a, b, 1 - TURN_SPAN, offset);
+  const p2 = lanePoint(b, c, TURN_SPAN, offset);
+  const p1 = cornerControl(a, b, c, offset, p0, p2);
+  const w0 = (1 - u) * (1 - u);
+  const w1 = 2 * u * (1 - u);
+  const w2 = u * u;
+  const dx = 2 * (1 - u) * (p1.x - p0.x) + 2 * u * (p2.x - p1.x);
+  const dz = 2 * (1 - u) * (p1.z - p0.z) + 2 * u * (p2.z - p1.z);
+  return {
+    x: w0 * p0.x + w1 * p1.x + w2 * p2.x,
+    z: w0 * p0.z + w1 * p1.z + w2 * p2.z,
+    heading: Math.atan2(dx, dz),
+  };
+}
+
 /** True when both ends of the edge are highway tiles. */
 export function edgeIsHighway(map: CityMap, from: NodeKey, to: NodeKey): boolean {
   const a = parseNodeKey(from);

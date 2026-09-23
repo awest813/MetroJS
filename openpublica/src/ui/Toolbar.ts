@@ -11,9 +11,9 @@ const TOOL_GROUPS: ReadonlyArray<ReadonlyArray<string>> = [
 
 const TOOL_TITLES: Readonly<Record<string, string>> = {
   inspect: 'Inspect a tile (key I)',
-  road: 'Street — $10 a tile, $50 as a bridge over water. Houses grow on lots beside it (key R)',
-  highway: 'Highway — $25 a tile, $125 as a bridge. Carries twice the traffic; police and fire drive it faster (key H)',
-  trolleyAvenue: 'Trolley avenue — $30 a tile, $150 as a bridge. A line of 4+ tiles runs a trolley and gives transit access (key T)',
+  road: 'Street — $10 a tile, $50 as a bridge over water. Drag a line, release to build; Shift paints freehand. Houses grow on lots beside it (key R)',
+  highway: 'Highway — $25 a tile, $125 as a bridge. Drag a line, release to build. Carries twice the traffic; police and fire drive it faster (key H)',
+  trolleyAvenue: 'Trolley avenue — $30 a tile, $150 as a bridge. Drag a line, release to build. A line of 4+ tiles runs a trolley and gives transit access (key T)',
   bulldoze: 'Clear a tile — $1 (key B)',
   zoneResidentialLow: 'Housing lots — $5. Paint beside a street, not on it (key Z)',
   zoneCommercialLow: 'Shop lots — $5. Need residents before they fill (key C)',
@@ -51,7 +51,12 @@ export class Toolbar {
   private readonly _container: HTMLElement;
   private readonly _controller: ToolController;
 
-  constructor(container: HTMLElement, controller: ToolController) {
+  constructor(
+    container: HTMLElement,
+    controller: ToolController,
+    /** Called after a tool is activated, e.g. to re-tint the hover cursor. */
+    private readonly _onSelect?: (name: string) => void,
+  ) {
     this._container  = container;
     this._controller = controller;
 
@@ -88,6 +93,7 @@ export class Toolbar {
   select(name: string): void {
     this._controller.setActiveTool(name);
     this._setActiveButton(this._controller.activeTool.name);
+    this._onSelect?.(this._controller.activeTool.name);
   }
 
   private _appendGroup(tools: Tool[]): void {

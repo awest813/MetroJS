@@ -85,6 +85,10 @@ export class RoadTool implements Tool {
     return null;
   }
 
+  canApply(coord: TileCoord, sim: CitySim): boolean {
+    return this.blockAt(coord, sim) === null;
+  }
+
   apply(coord: TileCoord, sim: CitySim): boolean {
     const block = this.blockAt(coord, sim);
     if (block !== null) {

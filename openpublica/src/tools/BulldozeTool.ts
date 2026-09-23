@@ -12,20 +12,19 @@ export class BulldozeTool implements Tool {
   readonly label = '🚧 Bulldoze';
   readonly stroke = true;
 
-  apply(coord: TileCoord, sim: CitySim): boolean {
+  canApply(coord: TileCoord, sim: CitySim): boolean {
     const tile = sim.getTile(coord.x, coord.y);
     if (!tile) return false;
     const empty =
       tile.roadType === RoadType.None &&
       tile.zoneType === ZoneType.None &&
       tile.buildingId === null;
-    if (empty) return false;
-    if (!sim.deductMoney(BULLDOZE_COST)) {
-      console.warn(
-        `[Bulldoze] Insufficient funds (need $${BULLDOZE_COST}, have $${sim.stats.money})`,
-      );
-      return false;
-    }
+    return !empty && sim.canAfford(BULLDOZE_COST);
+  }
+
+  apply(coord: TileCoord, sim: CitySim): boolean {
+    if (!this.canApply(coord, sim)) return false;
+    if (!sim.deductMoney(BULLDOZE_COST)) return false;
     sim.bulldoze(coord.x, coord.y);
     return true;
   }

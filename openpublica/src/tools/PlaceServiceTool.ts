@@ -17,6 +17,10 @@ export class PlaceServiceTool implements Tool {
     this.label = spec.label;
   }
 
+  canApply(coord: TileCoord, sim: CitySim): boolean {
+    return sim.canPlaceServiceBuilding(coord.x, coord.y, this.spec.defId, this.spec.cost);
+  }
+
   apply(coord: TileCoord, sim: CitySim): boolean {
     return sim.placeServiceBuilding(coord.x, coord.y, this.spec.defId, this.spec.cost);
   }

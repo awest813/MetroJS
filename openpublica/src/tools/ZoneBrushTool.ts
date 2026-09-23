@@ -44,7 +44,7 @@ export class ZoneBrushTool implements Tool {
     this.label     = ZONE_LABELS[zoneType];
   }
 
-  apply(coord: TileCoord, sim: CitySim): boolean {
+  canApply(coord: TileCoord, sim: CitySim): boolean {
     const tile = sim.getTile(coord.x, coord.y);
     if (!tile) return false;
     if (tile.terrain === TerrainType.Water) return false;
@@ -58,17 +58,19 @@ export class ZoneBrushTool implements Tool {
     if (this._zoneType !== ZoneType.None && tile.roadType !== RoadType.None) {
       return false;
     }
+    return sim.canAfford(this._cost());
+  }
 
-    const cost = this._zoneType === ZoneType.None ? 0 : ZONE_COST;
-    if (cost > 0 && !sim.deductMoney(cost)) {
-      console.warn(
-        `[ZoneBrush] Insufficient funds (need $${cost}, have $${sim.stats.money})`,
-      );
-      return false;
-    }
-
+  apply(coord: TileCoord, sim: CitySim): boolean {
+    if (!this.canApply(coord, sim)) return false;
+    const cost = this._cost();
+    if (cost > 0 && !sim.deductMoney(cost)) return false;
     sim.setZone(coord.x, coord.y, this._zoneType);
     return true;
+  }
+
+  private _cost(): number {
+    return this._zoneType === ZoneType.None ? 0 : ZONE_COST;
   }
 }
 

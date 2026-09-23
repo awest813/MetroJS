@@ -302,6 +302,11 @@ export class CitySim {
     this.refreshDerivedState({ applyCrimeHappiness: true, notify: true });
   }
 
+  /** True when {@link placeServiceBuilding} would succeed here right now. */
+  canPlaceServiceBuilding(x: number, y: number, defId: string, cost: number): boolean {
+    return this._serviceLot(x, y, defId) !== null && this.canAfford(cost);
+  }
+
   /**
    * Place a service building (e.g. a power plant) on the tile at (x, y).
    *
@@ -312,11 +317,8 @@ export class CitySim {
    * Returns `true` if the building was placed successfully.
    */
   placeServiceBuilding(x: number, y: number, defId: string, cost: number): boolean {
-    const tile = this.map.getTile(x, y);
-    if (!tile || tile.terrain === TerrainType.Water) return false;
-    if (tile.buildingId !== null) return false;
-    if (tile.roadType !== RoadType.None) return false;
-    if (!this.growth.defs.has(defId)) return false;
+    const tile = this._serviceLot(x, y, defId);
+    if (!tile) return false;
 
     if (!this.deductMoney(cost)) {
       console.warn(
@@ -332,6 +334,16 @@ export class CitySim {
 
     this.refreshDerivedState({ applyCrimeHappiness: true, notify: true });
     return true;
+  }
+
+  /** The dry, empty, road-free lot a known service building can go on, or null. */
+  private _serviceLot(x: number, y: number, defId: string): CityTile | null {
+    const tile = this.map.getTile(x, y);
+    if (!tile || tile.terrain === TerrainType.Water) return null;
+    if (tile.buildingId !== null) return null;
+    if (tile.roadType !== RoadType.None) return null;
+    if (!this.growth.defs.has(defId)) return null;
+    return tile;
   }
 
   /**

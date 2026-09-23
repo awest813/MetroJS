@@ -18,4 +18,9 @@ export interface Tool {
    * Returns `true` if the tile was mutated (so the renderer can refresh it).
    */
   apply(coord: TileCoord, sim: CitySim): boolean;
+  /**
+   * Dry run: would `apply` change this tile right now? Drives the hover
+   * cursor tint. Tools that never change tiles (Inspect) leave it out.
+   */
+  canApply?(coord: TileCoord, sim: CitySim): boolean;
 }

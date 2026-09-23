@@ -13,6 +13,7 @@ import { OverlayRenderer } from '../render/OverlayRenderer';
 import { TrafficVehicleRenderer } from '../render/TrafficVehicleRenderer';
 import { RoadRenderer, ROAD_DECK_LIFT } from '../render/RoadRenderer';
 import { deckBaseHeight, deckDirtyTiles } from '../render/roadDeck';
+import { buildingFacing } from '../render/buildingFacing';
 import type { SurfaceHeights } from '../render/HighlightRenderer';
 import { VegetationRenderer } from '../render/VegetationRenderer';
 import { SmokeRenderer } from '../render/SmokeRenderer';
@@ -129,7 +130,9 @@ export class CityView {
     sim.map.forEach((tile) => this.buildings.removeBuilding(tile.x, tile.y));
     for (const instance of sim.growth.buildings.values()) {
       const tile = sim.getTile(instance.x, instance.y);
-      if (tile) this.buildings.addBuilding(instance, tile.zoneType);
+      if (tile) {
+        this.buildings.addBuilding(instance, tile.zoneType, buildingFacing(sim.map, instance.x, instance.y));
+      }
     }
 
     this.refreshPowerVisuals(sim);
@@ -157,8 +160,14 @@ export class CityView {
     } else {
       const instance = sim.growth.buildings.get(tileKey(coord.x, coord.y));
       if (instance) {
-        this.buildings.addBuilding(instance, tile.zoneType);
+        this.buildings.addBuilding(instance, tile.zoneType, buildingFacing(sim.map, coord.x, coord.y));
       }
+    }
+    // A road paved or cleared beside a building can change which way it faces.
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const x = coord.x + dx;
+      const y = coord.y + dy;
+      if (sim.getTile(x, y)?.buildingId) this.buildings.setFacing(x, y, buildingFacing(sim.map, x, y));
     }
     this.refreshPowerVisuals(sim);
     this.onRedraw();
@@ -204,7 +213,7 @@ export class CityView {
       if (tile.buildingId !== null) {
         const instance = sim.growth.buildings.get(tileKey(coord.x, coord.y));
         if (instance) {
-          this.buildings.addBuilding(instance, tile.zoneType);
+          this.buildings.addBuilding(instance, tile.zoneType, buildingFacing(sim.map, coord.x, coord.y));
           grew = true;
         }
       } else {

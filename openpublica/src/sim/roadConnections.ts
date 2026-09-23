@@ -104,12 +104,18 @@ export type BridgeProblem =
  * Bridges run straight: a road over water may only connect along one axis,
  * and nothing may join a bridge from the side. Checks the tile as if it
  * already held a road, plus each neighbouring bridge that would connect to it.
+ * `planned` marks tiles a pending road line will pave first.
  */
-export function bridgeProblem(map: CityMap, x: number, y: number): BridgeProblem | null {
+export function bridgeProblem(
+  map: CityMap,
+  x: number,
+  y: number,
+  planned: (x: number, y: number) => boolean = () => false,
+): BridgeProblem | null {
   const here = map.getTile(x, y);
   if (!here) return null;
   const roadAt = (tx: number, ty: number): boolean =>
-    (tx === x && ty === y) || isRoadTile(map, tx, ty);
+    (tx === x && ty === y) || isRoadTile(map, tx, ty) || planned(tx, ty);
 
   if (here.terrain === TerrainType.Water && _joinsBothAxes(x, y, roadAt)) {
     return 'bridge-turn';
@@ -117,7 +123,9 @@ export function bridgeProblem(map: CityMap, x: number, y: number): BridgeProblem
   for (const [dx, dy] of ROAD_STEPS) {
     const nx = x + dx;
     const ny = y + dy;
-    if (!isBridgeAt(map, nx, ny)) continue;
+    const neighbour = map.getTile(nx, ny);
+    const bridge = isBridge(neighbour) || (neighbour?.terrain === TerrainType.Water && planned(nx, ny));
+    if (!bridge) continue;
     if (_joinsBothAxes(nx, ny, roadAt)) {
       return here.terrain === TerrainType.Water ? 'bridge-turn' : 'bridge-branch';
     }

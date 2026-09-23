@@ -29,6 +29,7 @@ import {
 } from './buildingVisuals';
 import { coloredPbr, vertexColorPbr } from './pbrSurfaces';
 import { foundationFor } from './foundation';
+import { rotateOffset } from './buildingFacing';
 
 type KitVariant = 'zone' | 'service' | 'civic' | 'fire' | 'water' | 'warning';
 
@@ -46,6 +47,8 @@ interface PlacedBuilding {
   defId: string;
   zoneType: ZoneType;
   variant: KitVariant;
+  /** Y rotation that turns the kit's front toward its street. */
+  facing: number;
 }
 
 /**
@@ -90,12 +93,23 @@ export class BuildingRenderer {
     this._heights = heights;
   }
 
-  addBuilding(instance: BuildingInstance, zoneType: ZoneType): void {
+  /** Place a kit on its lot; `facing` turns its front (+z) toward the street. */
+  addBuilding(instance: BuildingInstance, zoneType: ZoneType, facing = 0): void {
     this.removeBuilding(instance.x, instance.y);
 
     if (SKIP_MESH_DEF_IDS.has(instance.defId)) return;
 
-    this._spawn(instance, zoneType, kitKindForDef(instance.defId));
+    this._spawn(instance, zoneType, kitKindForDef(instance.defId), facing);
+  }
+
+  /** Turn an existing building after the roads beside it changed. */
+  setFacing(x: number, y: number, facing: number): void {
+    const placed = this._placed.get(_tileKey(x, y));
+    if (!placed || Math.abs(placed.facing - facing) < 1e-6) return;
+    placed.facing = facing;
+    placed.instance.rotation.y = facing;
+    placed.foundation?.dispose();
+    placed.foundation = this._foundation(placed.defId, x, y, facing);
   }
 
   removeBuilding(x: number, y: number): void {
@@ -116,7 +130,7 @@ export class BuildingRenderer {
       if (!placed) continue;
       placed.instance.position.y = this._floorY(coord.x, coord.y);
       placed.foundation?.dispose();
-      placed.foundation = this._foundation(placed.defId, coord.x, coord.y);
+      placed.foundation = this._foundation(placed.defId, coord.x, coord.y, placed.facing);
     }
   }
 
@@ -154,7 +168,7 @@ export class BuildingRenderer {
     placed.instance.dispose();
     placed.foundation?.dispose();
     this._placed.delete(key);
-    this._spawn({ defId: placed.defId, x: pick.x, y: pick.y }, placed.zoneType, next);
+    this._spawn({ defId: placed.defId, x: pick.x, y: pick.y }, placed.zoneType, next, placed.facing);
     if (selected) this.selectBuilding(pick.x, pick.y);
   }
 
@@ -162,6 +176,7 @@ export class BuildingRenderer {
     instance: BuildingInstance,
     zoneType: ZoneType,
     variant: KitVariant,
+    facing: number,
   ): void {
     const key = _tileKey(instance.x, instance.y);
     const source = this._sourceFor(instance.defId, zoneType, variant);
@@ -172,32 +187,37 @@ export class BuildingRenderer {
       this._floorY(instance.x, instance.y),
       instance.y * TILE_SIZE + TILE_SIZE / 2,
     );
+    mesh.rotation = new Vector3(0, facing, 0);
 
     const pickData: BuildingPickData = { buildingId: instance.defId, x: instance.x, y: instance.y };
     mesh.metadata = pickData;
     mesh.useVertexColors = true;
     mesh.receiveShadows = true;
 
-    const foundation = this._foundation(instance.defId, instance.x, instance.y);
-    this._placed.set(key, { instance: mesh, foundation, defId: instance.defId, zoneType, variant });
+    const foundation = this._foundation(instance.defId, instance.x, instance.y, facing);
+    this._placed.set(key, { instance: mesh, foundation, defId: instance.defId, zoneType, variant, facing });
   }
 
   private _floorY(x: number, y: number): number {
     return this._heights?.footing(x, y) ?? 0;
   }
 
-  /** Plinth from the floor down past the lowest ground in the footprint. */
-  private _foundation(defId: string, x: number, y: number): InstancedMesh | null {
+  /** Plinth from the floor down past the lowest ground in the (turned) footprint. */
+  private _foundation(defId: string, x: number, y: number, facing: number): InstancedMesh | null {
     const heights = this._heights;
     if (!heights) return null;
     const cx = x * TILE_SIZE + TILE_SIZE / 2;
     const cz = y * TILE_SIZE + TILE_SIZE / 2;
     const shape = BUILDING_SHAPES[defId] ?? DEFAULT_SHAPE;
-    const spec = foundationFor(shape, this._floorY(x, y), (dx, dz) => heights.sample(cx + dx, cz + dz));
+    const spec = foundationFor(shape, this._floorY(x, y), (dx, dz) => {
+      const world = rotateOffset(dx, dz, facing);
+      return heights.sample(cx + world.dx, cz + world.dz);
+    });
     if (!spec) return null;
     const plinth = this._plinth.createInstance(`bld-foundation-${x},${y}`);
     plinth.position = new Vector3(cx, (spec.top + spec.bottom) / 2, cz);
     plinth.scaling = new Vector3(spec.width, spec.top - spec.bottom, spec.depth);
+    plinth.rotation = new Vector3(0, facing, 0);
     plinth.isPickable = false;
     return plinth;
   }
