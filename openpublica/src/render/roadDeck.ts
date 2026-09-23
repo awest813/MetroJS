@@ -1,0 +1,72 @@
+// Render-only deck heights. No Babylon — Jest can load this file.
+
+import type { CityMap } from '../sim/CityMap';
+import { WATER_SURFACE_Y } from '../sim/HeightField';
+import { bridgeSpanAt, isBridgeAt, isLandRoad } from '../sim/roadConnections';
+
+/** Anything that can report ground height at a tile centre (HeightField does). */
+export interface GroundHeights {
+  tileCenter(x: number, y: number): number;
+}
+
+/** Gap between the water plane and the lowest bridge deck base. */
+export const BRIDGE_CLEARANCE = 0.2;
+
+/** Lowest Y a bridge deck base may sit at. */
+export const BRIDGE_DECK_MIN_Y = WATER_SURFACE_Y + BRIDGE_CLEARANCE;
+
+/**
+ * Base Y of the road deck at (x, y), before the renderer's deck lift.
+ * Land roads follow the terrain. A bridge runs level-ish from one land
+ * abutment to the other, never lower than {@link BRIDGE_DECK_MIN_Y}.
+ * Non-road tiles report the ground.
+ */
+export function deckBaseHeight(map: CityMap, ground: GroundHeights, x: number, y: number): number {
+  if (!isBridgeAt(map, x, y)) return ground.tileCenter(x, y);
+  const span = bridgeSpanAt(map, x, y);
+  if (!span) return ground.tileCenter(x, y);
+
+  const before = _abutment(map, ground, span.before.x, span.before.y);
+  const after = _abutment(map, ground, span.after.x, span.after.y);
+  let h: number;
+  if (before !== null && after !== null) {
+    const index = span.tiles.findIndex((t) => t.x === x && t.y === y);
+    const t = (index + 1) / (span.tiles.length + 1);
+    h = before + (after - before) * t;
+  } else {
+    h = before ?? after ?? BRIDGE_DECK_MIN_Y;
+  }
+  return Math.max(BRIDGE_DECK_MIN_Y, h);
+}
+
+function _abutment(map: CityMap, ground: GroundHeights, x: number, y: number): number | null {
+  return isLandRoad(map.getTile(x, y)) ? ground.tileCenter(x, y) : null;
+}
+
+/**
+ * Tiles whose deck geometry may change when (x, y) is paved or cleared:
+ * the tile, its four neighbours, and every tile of any bridge span touching
+ * them plus each span's abutments.
+ */
+export function deckDirtyTiles(map: CityMap, x: number, y: number): Array<{ x: number; y: number }> {
+  const out = new Map<string, { x: number; y: number }>();
+  const add = (tx: number, ty: number): void => {
+    if (!map.getTile(tx, ty)) return;
+    out.set(`${tx},${ty}`, { x: tx, y: ty });
+  };
+  const around: Array<[number, number]> = [[x, y], [x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]];
+  for (const [tx, ty] of around) {
+    add(tx, ty);
+    const span = bridgeSpanAt(map, tx, ty);
+    if (!span) continue;
+    for (const t of span.tiles) add(t.x, t.y);
+    add(span.before.x, span.before.y);
+    add(span.after.x, span.after.y);
+  }
+  return Array.from(out.values());
+}
+
+/** Height of the deck surface under a vehicle part-way along an edge. */
+export function edgeDeckHeight(fromDeck: number, toDeck: number, t: number): number {
+  return fromDeck + (toDeck - fromDeck) * t;
+}

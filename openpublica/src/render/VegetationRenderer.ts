@@ -8,7 +8,7 @@ import {
   InstancedMesh,
 } from '@babylonjs/core';
 import type { CityMap } from '../sim/CityMap';
-import { RoadType } from '../sim/CityTile';
+import { RoadType, TerrainType } from '../sim/CityTile';
 import type { TileCoord } from '../data/types';
 import { TILE_SIZE } from '../data/constants';
 import type { HeightField } from '../sim/HeightField';
@@ -19,6 +19,8 @@ import { coloredPbr } from './pbrSurfaces';
 
 interface PlantedTile {
   meshes: InstancedMesh[];
+  /** Slot signature; a refresh that yields the same one leaves the trees alone. */
+  sig: string;
 }
 
 /**
@@ -88,34 +90,22 @@ export class VegetationRenderer {
     this._rebuildTile(map, coord.x, coord.y - 1);
   }
 
+  /**
+   * Re-check street trees after traffic changes (busy streets lose theirs).
+   * Tiles whose tree slots did not change keep their instances.
+   */
   refreshStreets(map: CityMap): void {
     map.forEach((tile) => {
-      if (tile.roadType === RoadType.Street) this._rebuildTile(map, tile.x, tile.y);
+      if (tile.roadType === RoadType.Street) this._rebuildTile(map, tile.x, tile.y, false);
     });
   }
 
-  private _rebuildTile(map: CityMap, x: number, y: number): void {
+  private _rebuildTile(map: CityMap, x: number, y: number, force = true): void {
     const key = `${x},${y}`;
+    const slots = this._slotsFor(map, x, y);
+    const sig = slots.map((s) => `${s.dx.toFixed(3)}:${s.dz.toFixed(3)}:${s.scale.toFixed(3)}`).join('|');
+    if (!force && (this._tiles.get(key)?.sig ?? '') === sig) return;
     this._clear(key);
-    const tile = map.getTile(x, y);
-    if (!tile) return;
-
-    let slots: TreeSlot[] = [];
-    if (tile.buildingId === 'small_park') {
-      slots = parkTreeSlots(x, y);
-    } else if (
-      this._streetTrees &&
-      tile.roadType === RoadType.Street &&
-      tile.buildingId === null
-    ) {
-      const nbrs = roadNeighbors(map, x, y);
-      const heading = roadHeading(nbrs);
-      const slot = streetTreeSlot(
-        x, y, tile.roadType, tile.trafficPressure, heading,
-        connectedCardinals(nbrs).length,
-      );
-      if (slot) slots = [slot];
-    }
     if (slots.length === 0) return;
 
     const groundY = this._heights?.tileCenter(x, y) ?? 0;
@@ -142,7 +132,29 @@ export class VegetationRenderer {
       canopy2.receiveShadows = true;
       meshes.push(trunk, canopy, canopy2);
     }
-    this._tiles.set(key, { meshes });
+    this._tiles.set(key, { meshes, sig });
+  }
+
+  /** Park trees, or one curb tree on a quiet land street. Bridges get none. */
+  private _slotsFor(map: CityMap, x: number, y: number): TreeSlot[] {
+    const tile = map.getTile(x, y);
+    if (!tile) return [];
+    if (tile.buildingId === 'small_park') return parkTreeSlots(x, y);
+    if (
+      this._streetTrees &&
+      tile.roadType === RoadType.Street &&
+      tile.terrain !== TerrainType.Water &&
+      tile.buildingId === null
+    ) {
+      const nbrs = roadNeighbors(map, x, y);
+      const heading = roadHeading(nbrs);
+      const slot = streetTreeSlot(
+        x, y, tile.roadType, tile.trafficPressure, heading,
+        connectedCardinals(nbrs).length,
+      );
+      if (slot) return [slot];
+    }
+    return [];
   }
 
   private _clear(key: string): void {

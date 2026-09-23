@@ -78,7 +78,7 @@ describe('HeightField', () => {
 });
 
 describe('water is not buildable', () => {
-  it('should reject roads, zones, and service buildings on water', () => {
+  it('should reject zones and service buildings on water, but take a bridge', () => {
     const sim = CitySim.createCity(64, 64);
     generateTerrain(sim.map, 2026);
     const water = findTerrain(sim, TerrainType.Water);
@@ -86,14 +86,16 @@ describe('water is not buildable', () => {
     const { x, y } = water!;
     expect(sim.isBuildable(x, y)).toBe(false);
 
-    sim.placeRoad(x, y, RoadType.Street);
-    expect(sim.getTile(x, y)?.roadType).toBe(RoadType.None);
-
     sim.setZone(x, y, ZoneType.Residential);
     expect(sim.getTile(x, y)?.zoneType).toBe(ZoneType.None);
 
     expect(sim.placeServiceBuilding(x, y, 'small_power_plant', 1)).toBe(false);
     expect(sim.getTile(x, y)?.buildingId).toBeNull();
+
+    // A road on water is a bridge span; the lake stays a lake underneath.
+    expect(sim.placeRoad(x, y, RoadType.Street)).toBe(true);
+    expect(sim.getTile(x, y)?.roadType).toBe(RoadType.Street);
+    expect(sim.getTile(x, y)?.terrain).toBe(TerrainType.Water);
   });
 });
 

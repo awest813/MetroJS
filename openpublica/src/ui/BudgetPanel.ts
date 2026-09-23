@@ -16,6 +16,7 @@ export class BudgetPanel {
   private readonly _incomeEl:   HTMLElement;
   private readonly _expenseEl:  HTMLElement;
   private readonly _serviceEl:  HTMLElement;
+  private readonly _roadsEl:    HTMLElement;
   private readonly _netEl:      HTMLElement;
   private readonly _resSlider:  HTMLInputElement;
   private readonly _comSlider:  HTMLInputElement;
@@ -42,6 +43,10 @@ export class BudgetPanel {
           <div class="budget-row budget-row-sub">
             <span class="budget-key">Civic now</span>
             <span class="budget-val expense" id="budget-services">$0/mo</span>
+          </div>
+          <div class="budget-row budget-row-sub">
+            <span class="budget-key">Roads now</span>
+            <span class="budget-val expense" id="budget-roads" title="Street, highway, trolley, and bridge upkeep at the current layout">$0/mo</span>
           </div>
           <div class="budget-row">
             <span class="budget-key">Next</span>
@@ -73,6 +78,7 @@ export class BudgetPanel {
     this._incomeEl  = root.querySelector('#budget-income')!;
     this._expenseEl = root.querySelector('#budget-expense')!;
     this._serviceEl = root.querySelector('#budget-services')!;
+    this._roadsEl   = root.querySelector('#budget-roads')!;
     this._netEl     = root.querySelector('#budget-net')!;
     this._resSlider = root.querySelector<HTMLInputElement>('#tax-res')!;
     this._comSlider = root.querySelector<HTMLInputElement>('#tax-com')!;
@@ -105,6 +111,8 @@ export class BudgetPanel {
     this._incomeEl.textContent  = `${formatSignedMoney(stats.monthlyIncome)}/mo`;
     this._expenseEl.textContent = `${formatSignedMoney(stats.monthlyExpenses)}/mo`;
     this._serviceEl.textContent = `${formatSignedMoney(stats.serviceExpenses)}/mo`;
+    const roads = Math.max(0, stats.projectedExpenses - stats.serviceExpenses);
+    this._roadsEl.textContent = `${formatSignedMoney(roads)}/mo`;
     const next = stats.projectedIncome - stats.projectedExpenses;
     this._netEl.textContent = formatBudgetNet(stats.projectedIncome, stats.projectedExpenses);
     this._netEl.classList.toggle('income', next >= 0);

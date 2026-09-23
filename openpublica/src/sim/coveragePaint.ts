@@ -4,7 +4,8 @@ import type { CityMap } from './CityMap';
 import type { CityTile } from './CityTile';
 
 /**
- * Visit every tile in a circular radius. Shared by power, police, fire, water.
+ * Visit every tile in a circular radius. Shared by power and water; police and
+ * fire drive the road network instead (see roadDispatch).
  */
 export function forEachTileInRadius(
   map: CityMap,
@@ -26,7 +27,7 @@ export function forEachTileInRadius(
   }
 }
 
-/** Linear 100 → 0 falloff used by police/fire coverage. */
+/** Linear 100 → 0 falloff used by police/fire coverage (distance in road steps). */
 export function coverageAtDistance(dist: number, radius: number): number {
   if (radius <= 0) return 0;
   return Math.round(100 * (1 - dist / radius));

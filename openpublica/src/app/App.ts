@@ -42,7 +42,9 @@ import {
   serviceRadius,
   serviceSpecForDef,
   serviceSpecForTool,
+  type ServiceSpec,
 } from '../tools/serviceCatalog';
+import { stationHasRoad } from '../sim/roadDispatch';
 
 /**
  * Top-level application coordinator.
@@ -150,8 +152,8 @@ export class App {
     redrawLook();
 
     look.minimap.onJump((x, y) => {
-      cameraController.lookAtTile(x, y, view.heights.tileCenter(x, y));
-      view.highlight.show({ x, y }, view.heights);
+      cameraController.lookAtTile(x, y, view.surfaceY(x, y));
+      view.highlight.show({ x, y }, view.surface);
       redrawLook();
     });
 
@@ -175,29 +177,29 @@ export class App {
       return best;
     };
 
+    /** Disc for radius services; street-following tiles for police and fire. */
+    const showServiceReach = (coord: { x: number; y: number }, spec: ServiceSpec): void => {
+      const radius = serviceRadius(sim.growth.defs.get(spec.defId));
+      if (spec.dispatch) {
+        view.previewDispatch(coord.x, coord.y, radius, spec.preview);
+      } else {
+        view.highlight.showCoverage(coord, radius, spec.preview, view.surface);
+      }
+    };
+
     const previewCoverage = (coord: { x: number; y: number } | null): void => {
       const tool = toolController.activeTool;
       const toolSpec = coord ? serviceSpecForTool(tool.name) : undefined;
       if (coord && toolSpec) {
-        view.highlight.showCoverage(
-          coord,
-          serviceRadius(sim.growth.defs.get(toolSpec.defId)),
-          toolSpec.preview,
-          view.heights,
-        );
+        showServiceReach(coord, toolSpec);
         return;
       }
       if (coord) {
         const hover = sim.getTile(coord.x, coord.y);
         const defId = hover?.buildingId ?? undefined;
         const spec = defId ? serviceSpecForDef(defId) : undefined;
-        if (spec && defId) {
-          view.highlight.showCoverage(
-            coord,
-            serviceRadius(sim.growth.defs.get(defId)),
-            spec.preview,
-            view.heights,
-          );
+        if (spec) {
+          showServiceReach(coord, spec);
           return;
         }
       }
@@ -208,7 +210,7 @@ export class App {
           plant,
           plantDef.powerRadius,
           POWER_PLANT_SERVICE.preview,
-          view.heights,
+          view.surface,
         );
         return;
       }
@@ -216,7 +218,7 @@ export class App {
     };
 
     view.picker.onHover((coord) => {
-      if (coord) view.highlight.show(coord, view.heights);
+      if (coord) view.highlight.show(coord, view.surface);
       else view.highlight.hide();
       previewCoverage(coord);
     });
@@ -305,7 +307,7 @@ export class App {
 
     view.picker.onPick((coord, via) => {
       const result = toolController.applyToTile(coord, sim);
-      view.highlight.show(coord, view.heights);
+      view.highlight.show(coord, view.surface);
       previewCoverage(coord);
       hud.update(sim.stats, sim.clock);
       budgetPanel.update(sim.stats);
@@ -333,7 +335,11 @@ export class App {
         : placing
           ? sim.growth.defs.get(placing.defId)
           : undefined;
-      const serviceHint = formatServiceHint(inspectDef, tile?.powered ?? false);
+      const serviceHint = formatServiceHint(
+        inspectDef,
+        tile?.powered ?? false,
+        stationHasRoad(sim.map, coord.x, coord.y),
+      );
       const growthHint = tile ? formatGrowthHint(tile, sim.map, sim.stats) : null;
       const hint = [serviceHint, growthHint].filter((part): part is string => Boolean(part)).join(' · ') || null;
       statusEl.textContent = formatInspectStatus(

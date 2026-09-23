@@ -3,7 +3,9 @@
 
 import type { CityMap } from './CityMap';
 import { RoadType, ZoneType } from './CityTile';
+import type { CityTile } from './CityTile';
 import type { CityStats } from './CitySim';
+import { ROAD_STEPS } from './roadConnections';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -28,6 +30,13 @@ const TRANSIT_PEAK_SCORE = 40;
  */
 const TRANSIT_TRAFFIC_DIVISOR = 25;
 
+/**
+ * Connected trolley tiles needed before a trolley runs the line.
+ * Shorter stubs are track, not service: they give no transit access, and the
+ * renderer spawns no trolley on them.
+ */
+export const MIN_TROLLEY_LINE_TILES = 4;
+
 // ──────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -37,9 +46,11 @@ const TRANSIT_TRAFFIC_DIVISOR = 25;
  * per-tile scores reflect the full monthly picture before effects are applied.
  *
  * ## How it works
- * Every `RoadType.TrolleyAvenue` tile radiates a transit-access score to all
- * tiles within `TRANSIT_RADIUS`.  The score decays linearly with distance.
- * Multiple overlapping corridors stack, capped at 100.
+ * Every trolley tile on a line of at least {@link MIN_TROLLEY_LINE_TILES}
+ * connected tiles radiates a transit-access score to all tiles within
+ * `TRANSIT_RADIUS`.  The score decays linearly with distance.  Multiple
+ * overlapping corridors stack, capped at 100.  A lone stub has no trolley,
+ * so it gives no access.
  *
  * ## Effects applied to map / stats
  * - `tile.transitAccess` [0–100] — written for every tile.
@@ -68,23 +79,24 @@ export class TransitSystem {
     const r  = TRANSIT_RADIUS;
     const r2 = r * r;
 
-    // 2. Each trolley avenue tile radiates a transit-access score to
-    //    all tiles within TRANSIT_RADIUS.
-    map.forEach((trolleyTile) => {
-      if (trolleyTile.roadType !== RoadType.TrolleyAvenue) return;
-
-      for (let dy = -r; dy <= r; dy++) {
-        for (let dx = -r; dx <= r; dx++) {
-          const dist2 = dx * dx + dy * dy;
-          if (dist2 > r2) continue;
-          const tile = map.getTile(trolleyTile.x + dx, trolleyTile.y + dy);
-          if (!tile) continue;
-          const dist  = Math.sqrt(dist2);
-          const score = Math.round(TRANSIT_PEAK_SCORE * (1 - dist / r));
-          tile.transitAccess = Math.min(100, tile.transitAccess + score);
+    // 2. Each tile of a running trolley line radiates a transit-access score
+    //    to all tiles within TRANSIT_RADIUS.
+    for (const line of trolleyLines(map)) {
+      if (line.length < MIN_TROLLEY_LINE_TILES) continue;
+      for (const trolleyTile of line) {
+        for (let dy = -r; dy <= r; dy++) {
+          for (let dx = -r; dx <= r; dx++) {
+            const dist2 = dx * dx + dy * dy;
+            if (dist2 > r2) continue;
+            const tile = map.getTile(trolleyTile.x + dx, trolleyTile.y + dy);
+            if (!tile) continue;
+            const dist  = Math.sqrt(dist2);
+            const score = Math.round(TRANSIT_PEAK_SCORE * (1 - dist / r));
+            tile.transitAccess = Math.min(100, tile.transitAccess + score);
+          }
         }
       }
-    });
+    }
 
     // 3. On road tiles, transit access reduces traffic pressure.
     //    Trolley corridors capture commute trips that would otherwise
@@ -109,4 +121,29 @@ export class TransitSystem {
       ? Math.round(accessSum / zonedCount)
       : 0;
   }
+}
+
+/**
+ * Connected groups of trolley-avenue tiles (4-neighbour), each one line.
+ * Street tiles do not join two trolley lines — trolleys stay on their rails.
+ */
+export function trolleyLines(map: CityMap): CityTile[][] {
+  const seen = new Set<CityTile>();
+  const lines: CityTile[][] = [];
+  map.forEach((start) => {
+    if (start.roadType !== RoadType.TrolleyAvenue || seen.has(start)) return;
+    const line: CityTile[] = [start];
+    seen.add(start);
+    for (let i = 0; i < line.length; i++) {
+      const from = line[i];
+      for (const [dx, dy] of ROAD_STEPS) {
+        const next = map.getTile(from.x + dx, from.y + dy);
+        if (!next || next.roadType !== RoadType.TrolleyAvenue || seen.has(next)) continue;
+        seen.add(next);
+        line.push(next);
+      }
+    }
+    lines.push(line);
+  });
+  return lines;
 }

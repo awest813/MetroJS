@@ -128,7 +128,8 @@ export function cityTileColor(tile: CityTile): TileColor {
       b: terrain.b * (0.88 + n * 0.14),
     };
   }
-  if (tile.roadType !== RoadType.None) {
+  // Darken the ground under land roads. A bridge leaves the lake bed alone.
+  if (tile.roadType !== RoadType.None && tile.terrain !== TerrainType.Water) {
     return { r: terrain.r * 0.72, g: terrain.g * 0.72, b: terrain.b * 0.72 };
   }
   return terrain;

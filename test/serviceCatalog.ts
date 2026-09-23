@@ -55,7 +55,29 @@ describe('serviceCatalog', () => {
       policeRadius: 10,
     };
     expect(formatServiceHint(police, false)).toMatch(/coverage off/i);
-    expect(formatServiceHint(police, true)).toBe('police radius 10');
+    expect(formatServiceHint(police, true)).toBe('police reach 10 road tiles');
     expect(serviceRadius(police)).toBe(10);
+  });
+
+  it('should tell the player a station needs a street before it covers anyone', () => {
+    const fire = {
+      id: 'small_fire_station',
+      name: 'Fire',
+      zoneType: ZoneType.None,
+      population: 0,
+      jobs: 4,
+      isService: true,
+      fireRadius: 14,
+    };
+    expect(formatServiceHint(fire, true, false)).toMatch(/no street/i);
+    expect(formatServiceHint(fire, false, false)).toMatch(/no street/i);
+    expect(formatServiceHint(fire, true, true)).toBe('fire reach 14 road tiles');
+  });
+
+  it('should mark police and fire as road-dispatched, not radius discs', () => {
+    expect(serviceSpecForTool('placePoliceStation')?.dispatch).toBe(true);
+    expect(serviceSpecForTool('placeFireStation')?.dispatch).toBe(true);
+    expect(serviceSpecForTool('placeWaterTower')?.dispatch).toBeFalsy();
+    expect(serviceSpecForTool('placePowerPlant')?.dispatch).toBeFalsy();
   });
 });

@@ -57,11 +57,12 @@ export interface BuildingDef {
    */
   readonly pollutionRadius?: number;
   /**
-   * Radius (in tiles) of police coverage. Only while the station tile is powered.
+   * Police reach in road steps (highways count half). Patrol cars leave by the
+   * station's street, so a station needs power and a street to cover anyone.
    */
   readonly policeRadius?: number;
   /**
-   * Radius (in tiles) of fire coverage. Only while the station tile is powered.
+   * Fire reach in road steps (highways count half), like `policeRadius`.
    * No disaster simulation uses this yet — it is a coverage field for HUD/overlay.
    */
   readonly fireRadius?: number;

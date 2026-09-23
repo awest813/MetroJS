@@ -30,6 +30,13 @@ export const TIE_WIDTH = 0.28;
 export const TIE_HEIGHT = 0.016;
 export const TIE_LENGTH = 0.055;
 export const CROSSWALK_BAR = 0.045;
+/** Bridge parapet: taller and lighter than a curb so the span reads from far off. */
+export const RAILING_WIDTH = 0.03;
+export const RAILING_HEIGHT = 0.12;
+/** Box girder hung under a bridge deck. */
+export const GIRDER_DEPTH = 0.09;
+/** Pier wall thickness along the span (its width runs across the deck). */
+export const PIER_THICKNESS = 0.12;
 
 export type RoadPieceKind =
   | 'pad'
@@ -38,7 +45,11 @@ export type RoadPieceKind =
   | 'dash'
   | 'rail'
   | 'tie'
-  | 'crosswalk';
+  | 'crosswalk'
+  | 'railing'
+  | 'girder'
+  /** Vertical extent is resolved by the renderer (water bed up to the girder). */
+  | 'pier';
 
 export interface RoadPiece {
   readonly kind: RoadPieceKind;
@@ -67,7 +78,11 @@ export function countByKind(pieces: readonly RoadPiece[], kind: RoadPieceKind): 
   return pieces.filter((p) => p.kind === kind).length;
 }
 
-export function roadPieces(type: RoadType, neighbors: RoadNeighbors): RoadPiece[] {
+/**
+ * Kit pieces for one road tile, centred on the tile.
+ * With `bridge`, curbs become railings and the deck gets girders and a pier.
+ */
+export function roadPieces(type: RoadType, neighbors: RoadNeighbors, bridge = false): RoadPiece[] {
   const profile = roadProfile(type);
   const pieces: RoadPiece[] = [];
   const dirs = connectedCardinals(neighbors);
@@ -75,6 +90,9 @@ export function roadPieces(type: RoadType, neighbors: RoadNeighbors): RoadPiece[
   const trolley = type === RoadType.TrolleyAvenue;
   const w = profile.width;
   const thick = profile.thickness;
+  const edge: RoadPieceKind = bridge ? 'railing' : 'curb';
+  const edgeW = bridge ? RAILING_WIDTH : CURB_WIDTH;
+  const edgeH = bridge ? RAILING_HEIGHT : CURB_HEIGHT;
 
   pieces.push({ kind: 'pad', ox: 0, oz: 0, sx: w, sy: thick, sz: w, rotY: 0 });
 
@@ -92,35 +110,37 @@ export function roadPieces(type: RoadType, neighbors: RoadNeighbors): RoadPiece[
       slope: dir,
     });
 
-    const side = w / 2 + CURB_WIDTH / 2;
+    const side = w / 2 + edgeW / 2;
     if (eastWest) {
-      pieces.push(piece('curb', dx * (ARM_SPAN / 2), dz * (ARM_SPAN / 2) + side, ARM_SPAN, CURB_HEIGHT, CURB_WIDTH, dir));
-      pieces.push(piece('curb', dx * (ARM_SPAN / 2), dz * (ARM_SPAN / 2) - side, ARM_SPAN, CURB_HEIGHT, CURB_WIDTH, dir));
+      pieces.push(piece(edge, dx * (ARM_SPAN / 2), dz * (ARM_SPAN / 2) + side, ARM_SPAN, edgeH, edgeW, dir));
+      pieces.push(piece(edge, dx * (ARM_SPAN / 2), dz * (ARM_SPAN / 2) - side, ARM_SPAN, edgeH, edgeW, dir));
     } else {
-      pieces.push(piece('curb', dx * (ARM_SPAN / 2) + side, dz * (ARM_SPAN / 2), CURB_WIDTH, CURB_HEIGHT, ARM_SPAN, dir));
-      pieces.push(piece('curb', dx * (ARM_SPAN / 2) - side, dz * (ARM_SPAN / 2), CURB_WIDTH, CURB_HEIGHT, ARM_SPAN, dir));
+      pieces.push(piece(edge, dx * (ARM_SPAN / 2) + side, dz * (ARM_SPAN / 2), edgeW, edgeH, ARM_SPAN, dir));
+      pieces.push(piece(edge, dx * (ARM_SPAN / 2) - side, dz * (ARM_SPAN / 2), edgeW, edgeH, ARM_SPAN, dir));
     }
   }
 
   if (isolated) {
-    const edge = w / 2 + CURB_WIDTH / 2;
-    pieces.push(piece('curb', 0, edge, w + CURB_WIDTH * 2, CURB_HEIGHT, CURB_WIDTH));
-    pieces.push(piece('curb', 0, -edge, w + CURB_WIDTH * 2, CURB_HEIGHT, CURB_WIDTH));
-    pieces.push(piece('curb', edge, 0, CURB_WIDTH, CURB_HEIGHT, w));
-    pieces.push(piece('curb', -edge, 0, CURB_WIDTH, CURB_HEIGHT, w));
+    const off = w / 2 + edgeW / 2;
+    pieces.push(piece(edge, 0, off, w + edgeW * 2, edgeH, edgeW));
+    pieces.push(piece(edge, 0, -off, w + edgeW * 2, edgeH, edgeW));
+    pieces.push(piece(edge, off, 0, edgeW, edgeH, w));
+    pieces.push(piece(edge, -off, 0, edgeW, edgeH, w));
   } else {
     for (const dir of CARDINALS) {
       if (neighbors[dir]) continue;
       const { dx, dz } = CARDINAL_VEC[dir];
-      const edge = w / 2 + CURB_WIDTH / 2;
+      const off = w / 2 + edgeW / 2;
       const eastWest = dir === 'e' || dir === 'w';
       if (eastWest) {
-        pieces.push(piece('curb', dx * edge, 0, CURB_WIDTH, CURB_HEIGHT, w));
+        pieces.push(piece(edge, dx * off, 0, edgeW, edgeH, w));
       } else {
-        pieces.push(piece('curb', 0, dz * edge, w, CURB_HEIGHT, CURB_WIDTH));
+        pieces.push(piece(edge, 0, dz * off, w, edgeH, edgeW));
       }
     }
   }
+
+  if (bridge) addBridgeKit(pieces, dirs, w);
 
   if (trolley) addTrolleyKit(pieces, dirs, isolated, w);
   else addStreetKit(pieces, type, dirs, isolated, isFourWay(neighbors));
@@ -138,6 +158,28 @@ function piece(
   slope?: Cardinal,
 ): RoadPiece {
   return { kind, ox, oz, sx, sy, sz, rotY: 0, slope };
+}
+
+/** Girders under the pad and each arm, plus one pier wall across the span. */
+function addBridgeKit(pieces: RoadPiece[], dirs: Cardinal[], deckWidth: number): void {
+  const gw = deckWidth + 0.02;
+  pieces.push(piece('girder', 0, 0, gw, GIRDER_DEPTH, gw));
+  for (const dir of dirs) {
+    const { dx, dz } = CARDINAL_VEC[dir];
+    const eastWest = dir === 'e' || dir === 'w';
+    pieces.push(piece(
+      'girder',
+      dx * (ARM_SPAN / 2),
+      dz * (ARM_SPAN / 2),
+      eastWest ? ARM_SPAN : gw,
+      GIRDER_DEPTH,
+      eastWest ? gw : ARM_SPAN,
+      dir,
+    ));
+  }
+  const alongX = dirs.includes('e') || dirs.includes('w');
+  const across = deckWidth * 0.86;
+  pieces.push(piece('pier', 0, 0, alongX ? PIER_THICKNESS : across, 1, alongX ? across : PIER_THICKNESS));
 }
 
 function addStreetKit(

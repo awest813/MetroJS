@@ -38,7 +38,7 @@ export class TilePicker {
           if (this._isDragging) {
             if (this._camera.shouldIgnoreToolPointer(event)) return;
             this._handlePick('drag');
-          } else if (!this._camera.shouldIgnoreToolPointer(event)) {
+          } else if (!this._camera.shouldIgnoreHover(event)) {
             this._handleHover();
           }
           break;

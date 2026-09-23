@@ -5,18 +5,30 @@ import {
   Color3,
   Mesh,
   Vector3,
+  VertexData,
 } from '@babylonjs/core';
 import type { TileCoord } from '../data/types';
 import { TILE_SIZE, TILE_FILL } from '../data/constants';
-import type { HeightField } from '../sim/HeightField';
+import { writeSlopedQuad, type HeightField } from '../sim/HeightField';
+
+/** Anything that can say how high the visible surface is at a tile centre. */
+export interface SurfaceHeights {
+  tileCenter(x: number, y: number): number;
+}
+
+/** Reach tiles sit just above road decks, like the overlay. */
+const REACH_LIFT = 0.15;
 
 /**
- * Tile cursor plus a translucent coverage disc for civic/utility tools.
+ * Tile cursor, a translucent coverage disc for radius services, and a tile
+ * mask for road-dispatched services (police, fire) whose reach follows streets.
  */
 export class HighlightRenderer {
   private readonly _mesh: Mesh;
   private readonly _cover: Mesh;
   private readonly _coverMat: StandardMaterial;
+  private readonly _reach: Mesh;
+  private readonly _reachMat: StandardMaterial;
 
   constructor(scene: Scene) {
     this._mesh = MeshBuilder.CreateGround(
@@ -48,13 +60,23 @@ export class HighlightRenderer {
     this._coverMat.backFaceCulling = false;
     this._coverMat.disableLighting = true;
     this._cover.material = this._coverMat;
+
+    this._reach = new Mesh('service-reach', scene);
+    this._reach.isPickable = false;
+    this._reach.isVisible = false;
+    this._reach.hasVertexAlpha = true;
+    this._reach.useVertexColors = true;
+    this._reachMat = new StandardMaterial('service-reach-mat', scene);
+    this._reachMat.specularColor = Color3.Black();
+    this._reachMat.backFaceCulling = false;
+    this._reach.material = this._reachMat;
   }
 
   /** Move the highlight to the given tile and make it visible. */
-  show(coord: TileCoord, heights?: HeightField | null): void {
+  show(coord: TileCoord, surface?: SurfaceHeights | null): void {
     this._mesh.position.x = coord.x * TILE_SIZE + (TILE_SIZE * TILE_FILL) / 2;
     this._mesh.position.z = coord.y * TILE_SIZE + (TILE_SIZE * TILE_FILL) / 2;
-    this._mesh.position.y = (heights?.tileCenter(coord.x, coord.y) ?? 0) + 0.02;
+    this._mesh.position.y = (surface?.tileCenter(coord.x, coord.y) ?? 0) + 0.02;
     this._mesh.isVisible = true;
   }
 
@@ -62,8 +84,9 @@ export class HighlightRenderer {
     coord: TileCoord,
     radiusTiles: number,
     rgb: { r: number; g: number; b: number },
-    heights?: HeightField | null,
+    surface?: SurfaceHeights | null,
   ): void {
+    this._reach.isVisible = false;
     if (radiusTiles <= 0) {
       this.hideCoverage();
       return;
@@ -73,10 +96,59 @@ export class HighlightRenderer {
     this._cover.scaling.z = diameter;
     this._cover.position.x = coord.x * TILE_SIZE + TILE_SIZE / 2;
     this._cover.position.z = coord.y * TILE_SIZE + TILE_SIZE / 2;
-    this._cover.position.y = (heights?.tileCenter(coord.x, coord.y) ?? 0) + 0.015;
+    this._cover.position.y = (surface?.tileCenter(coord.x, coord.y) ?? 0) + 0.015;
     this._coverMat.emissiveColor = new Color3(rgb.r, rgb.g, rgb.b);
     this._coverMat.diffuseColor = new Color3(rgb.r, rgb.g, rgb.b);
     this._cover.isVisible = true;
+  }
+
+  /**
+   * Tint each tile a station reaches, stronger where coverage is higher.
+   * `flatY` returns a height for tiles that should sit flat (bridge decks,
+   * water); other tiles follow the terrain.
+   */
+  showReach(
+    tiles: ReadonlyArray<{ x: number; y: number; coverage: number }>,
+    rgb: { r: number; g: number; b: number },
+    heights: HeightField,
+    flatY: (x: number, y: number) => number | null,
+  ): void {
+    this._cover.isVisible = false;
+    if (tiles.length === 0) {
+      this._reach.isVisible = false;
+      return;
+    }
+    const positions = new Float32Array(tiles.length * 12);
+    const colors = new Float32Array(tiles.length * 16);
+    const indices = new Uint32Array(tiles.length * 6);
+    const span = TILE_SIZE * TILE_FILL;
+    tiles.forEach((tile, i) => {
+      const vi = i * 4;
+      const flat = flatY(tile.x, tile.y);
+      if (flat === null) {
+        writeSlopedQuad(positions, vi, tile.x, tile.y, span, heights, REACH_LIFT);
+      } else {
+        const x0 = tile.x * TILE_SIZE;
+        const z0 = tile.y * TILE_SIZE;
+        const corners = [[x0, z0], [x0 + span, z0], [x0, z0 + span], [x0 + span, z0 + span]];
+        corners.forEach(([cx, cz], v) => {
+          positions.set([cx, flat + REACH_LIFT, cz], (vi + v) * 3);
+        });
+      }
+      const alpha = 0.12 + 0.38 * Math.max(0, Math.min(1, tile.coverage / 100));
+      for (let v = 0; v < 4; v++) colors.set([rgb.r, rgb.g, rgb.b, alpha], (vi + v) * 4);
+      indices.set([vi, vi + 2, vi + 1, vi + 1, vi + 2, vi + 3], i * 6);
+    });
+    const normals = new Float32Array(positions.length);
+    VertexData.ComputeNormals(positions, indices, normals);
+    const data = new VertexData();
+    data.positions = positions;
+    data.normals = normals;
+    data.colors = colors;
+    data.indices = indices;
+    data.applyToMesh(this._reach, true);
+    this._reachMat.emissiveColor = new Color3(rgb.r * 0.35, rgb.g * 0.35, rgb.b * 0.35);
+    this._reach.isVisible = true;
   }
 
   hide(): void {
@@ -85,5 +157,6 @@ export class HighlightRenderer {
 
   hideCoverage(): void {
     this._cover.isVisible = false;
+    this._reach.isVisible = false;
   }
 }

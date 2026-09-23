@@ -3,8 +3,7 @@
 import type { TileCoord } from '../data/types';
 import type { CitySim } from '../sim/CitySim';
 import { RoadType, TerrainType, ZoneType } from '../sim/CityTile';
-import { ROAD_COST } from './RoadTool';
-import { TROLLEY_AVENUE_COST } from './TrolleyAvenueTool';
+import { RoadTool, type RoadToolBlock } from './RoadTool';
 import { ZONE_COST } from './ZoneBrushTool';
 import { BULLDOZE_COST } from './BulldozeTool';
 import { POWER_PLANT_COST } from './PlacePowerPlantTool';
@@ -17,17 +16,69 @@ import type { StrokeSummary } from './ToolController';
 
 /** Status line for the stroke that just ended. Null when nothing was spent or cut. */
 export function formatStrokeStatus(toolLabel: string, stroke: StrokeSummary): string | null {
-  const cut = stroke.blockedByWater > 0 && stroke.applied > 0;
-  if (stroke.spent <= 0 && !cut) return null;
   const name = toolLabel.replace(/^[^\w]+/, '').trim() || toolLabel;
-  const spent = `$${Math.round(stroke.spent).toLocaleString()}`;
-  if (stroke.spent > 0 && cut) return `${name} spent ${spent}. The street was cut by water.`;
-  if (cut) return 'The street was cut by water.';
-  return `${name} spent ${spent}.`;
+  const parts: string[] = [];
+  if (stroke.spent > 0) {
+    const spent = `$${Math.round(stroke.spent).toLocaleString()}`;
+    const bridges = stroke.bridged > 0
+      ? ` — ${stroke.bridged} bridge tile${stroke.bridged === 1 ? '' : 's'}`
+      : '';
+    parts.push(`${name} spent ${spent}${bridges}.`);
+  }
+  if (stroke.applied > 0 && stroke.blockedByBridge > 0) {
+    parts.push('Bridges run straight — drag straight across the water.');
+  }
+  if (stroke.applied > 0 && stroke.blockedByFunds > 0) {
+    parts.push('Ran out of money partway.');
+  }
+  return parts.length > 0 ? parts.join(' ') : null;
 }
 
 function fundsLine(need: number, have: number): string {
   return `Need $${need.toLocaleString()} (have $${have.toLocaleString()})`;
+}
+
+const ROAD_TOOL_TYPES: Readonly<Record<string, RoadType>> = {
+  road: RoadType.Street,
+  highway: RoadType.Highway,
+  trolleyAvenue: RoadType.TrolleyAvenue,
+};
+
+const ROAD_NOUN: Record<RoadType, string> = {
+  [RoadType.None]:          'road',
+  [RoadType.Street]:        'street',
+  [RoadType.Highway]:       'highway',
+  [RoadType.TrolleyAvenue]: 'trolley avenue',
+};
+
+function explainRoadFailure(tool: RoadTool, coord: TileCoord, sim: CitySim): string {
+  const tile = sim.getTile(coord.x, coord.y);
+  const block: RoadToolBlock | null = tool.blockAt(coord, sim);
+  const noun = ROAD_NOUN[tool.roadType];
+  const bridge = tile?.terrain === TerrainType.Water;
+  switch (block) {
+    case 'off-map':
+      return 'Off the map.';
+    case 'building':
+      return 'Clear the building before paving.';
+    case 'same':
+      return bridge ? `Already a ${noun} bridge.` : `Already a ${noun}.`;
+    case 'replace': {
+      const existing = tile ? ROAD_NOUN[tile.roadType] : 'road';
+      return `Already a ${existing} — bulldoze it first to lay a ${noun}.`;
+    }
+    case 'bridge-turn':
+      return 'Bridges run straight — no turns or junctions over water.';
+    case 'bridge-branch':
+      return 'Nothing can join a bridge from the side — connect at its ends.';
+    case 'funds': {
+      const need = tool.costAt(coord, sim);
+      if (!bridge) return fundsLine(need, sim.stats.money);
+      return `Need $${need.toLocaleString()} for a bridge tile (have $${sim.stats.money.toLocaleString()})`;
+    }
+    default:
+      return bridge ? 'Could not bridge the water here.' : `Could not place a ${noun} here.`;
+  }
 }
 
 /** Player-facing reason a tool did not change the tile. */
@@ -39,34 +90,14 @@ export function explainToolFailure(
   const tile = sim.getTile(coord.x, coord.y);
   if (!tile) return 'Off the map.';
 
+  const roadType = ROAD_TOOL_TYPES[toolName];
+  if (roadType !== undefined) return explainRoadFailure(new RoadTool(roadType), coord, sim);
+
   if (tile.terrain === TerrainType.Water && toolName !== 'inspect' && toolName !== 'bulldoze') {
     return 'Cannot build on water.';
   }
 
   switch (toolName) {
-    case 'road':
-      if (tile.buildingId !== null) return 'Clear the building before paving.';
-      if (tile.roadType === RoadType.Street) return 'Already a street.';
-      if (!sim.canAfford(ROAD_COST[RoadType.Street])) {
-        return fundsLine(ROAD_COST[RoadType.Street], sim.stats.money);
-      }
-      return 'Could not place a street here.';
-
-    case 'highway':
-      if (tile.buildingId !== null) return 'Clear the building before paving.';
-      if (tile.roadType === RoadType.Highway) return 'Already a highway.';
-      if (!sim.canAfford(ROAD_COST[RoadType.Highway])) {
-        return fundsLine(ROAD_COST[RoadType.Highway], sim.stats.money);
-      }
-      return 'Could not place a highway here.';
-
-    case 'trolleyAvenue':
-      if (tile.buildingId !== null) return 'Clear the building before paving.';
-      if (tile.roadType === RoadType.TrolleyAvenue) return 'Already a trolley avenue.';
-      if (!sim.canAfford(TROLLEY_AVENUE_COST)) {
-        return fundsLine(TROLLEY_AVENUE_COST, sim.stats.money);
-      }
-      return 'Could not place a trolley avenue here.';
 
     case 'zoneResidentialLow':
     case 'zoneCommercialLow':

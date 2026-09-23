@@ -1,42 +1,26 @@
 // ⚠️  This file must NOT import anything from @babylonjs/core.
 //     Tool logic is renderer-agnostic; the renderer reacts via onTileChanged.
 
-import type { Tool } from './Tool';
-import type { TileCoord } from '../data/types';
-import type { CitySim } from '../sim/CitySim';
 import { RoadType } from '../sim/CityTile';
+import { ROAD_COST, RoadTool } from './RoadTool';
 
 /**
- * Cost in city funds to place one trolley avenue tile.
+ * Cost in city funds to place one trolley avenue tile on land.
  * Higher than a normal street ($10) to reflect track and overhead wire
- * installation.
+ * installation. Over water it is a bridge at the usual multiplier.
  */
-export const TROLLEY_AVENUE_COST = 30;
+export const TROLLEY_AVENUE_COST = ROAD_COST[RoadType.TrolleyAvenue];
 
 /**
  * Placement tool for trolley / streetcar avenues.
  *
- * Clicking a tile places a `RoadType.TrolleyAvenue` road and deducts
- * `TROLLEY_AVENUE_COST` from the city treasury.
+ * Paints `RoadType.TrolleyAvenue`, upgrading streets it crosses. A line needs
+ * a few connected tiles before a trolley runs it (see TransitSystem).
  *
  * Monthly maintenance ($5/tile) is handled separately by EconomySystem.
  */
-export class TrolleyAvenueTool implements Tool {
-  readonly name  = 'trolleyAvenue';
-  readonly label = '🚃 Trolley Ave';
-  readonly stroke = true;
-
-  apply(coord: TileCoord, sim: CitySim): boolean {
-    if (!sim.isBuildable(coord.x, coord.y)) return false;
-    const tile = sim.getTile(coord.x, coord.y);
-    if (!tile || tile.roadType === RoadType.TrolleyAvenue) return false;
-    if (tile.buildingId !== null) return false;
-    const cost = TROLLEY_AVENUE_COST;
-    if (!sim.deductMoney(cost)) {
-      console.warn(`[TrolleyAve] Insufficient funds (need $${cost}, have $${sim.stats.money})`);
-      return false;
-    }
-    sim.placeRoad(coord.x, coord.y, RoadType.TrolleyAvenue);
-    return true;
+export class TrolleyAvenueTool extends RoadTool {
+  constructor() {
+    super(RoadType.TrolleyAvenue);
   }
 }

@@ -3,7 +3,7 @@
 
 import type { CityMap } from './CityMap';
 import type { CityStats } from './CitySim';
-import { RoadType, ZoneType } from './CityTile';
+import { RoadType, ZoneType, TerrainType } from './CityTile';
 import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 
@@ -54,6 +54,21 @@ const HIGHWAY_MAINTENANCE_PER_TILE = 4;
 const TROLLEY_MAINTENANCE_PER_TILE = 5;
 
 /**
+ * Upkeep multiplier for a road tile laid over water (a bridge span).
+ * Decks, bearings, and piers cost more to keep than asphalt on dirt.
+ */
+export const BRIDGE_UPKEEP_MULTIPLIER = 3;
+
+/** Monthly upkeep for one road tile of this type, bridges included. */
+export function roadUpkeep(type: RoadType, overWater: boolean): number {
+  let base = 0;
+  if (type === RoadType.Street) base = ROAD_MAINTENANCE_PER_TILE;
+  else if (type === RoadType.Highway) base = HIGHWAY_MAINTENANCE_PER_TILE;
+  else if (type === RoadType.TrolleyAvenue) base = TROLLEY_MAINTENANCE_PER_TILE;
+  return overWater ? base * BRIDGE_UPKEEP_MULTIPLIER : base;
+}
+
+/**
  * Monthly operating cost (dollars) used when a service building omits monthlyCost.
  */
 const SERVICE_BUILDING_MONTHLY_COST = 50;
@@ -76,6 +91,7 @@ const SERVICE_BUILDING_MONTHLY_COST = 50;
  * monthlyExpenses = streetTileCount   × ROAD_MAINTENANCE_PER_TILE
  *                 + highwayTileCount  × HIGHWAY_MAINTENANCE_PER_TILE
  *                 + trolleyTileCount  × TROLLEY_MAINTENANCE_PER_TILE
+ *                 + (bridge tiles pay × BRIDGE_UPKEEP_MULTIPLIER)
  *                 + sum(service.monthlyCost)
  * ```
  *
@@ -134,24 +150,11 @@ export function tallyBudget(
     indJobs          * stats.indTaxRate * IND_INCOME_PER_JOB_PER_PCT,
   );
 
-  let streetTileCount  = 0;
-  let highwayTileCount = 0;
-  let trolleyTileCount = 0;
+  let roadUpkeepTotal = 0;
   map.forEach((tile) => {
-    if (tile.roadType === RoadType.TrolleyAvenue) {
-      trolleyTileCount += 1;
-    } else if (tile.roadType === RoadType.Highway) {
-      highwayTileCount += 1;
-    } else if (tile.roadType === RoadType.Street) {
-      streetTileCount += 1;
-    }
+    roadUpkeepTotal += roadUpkeep(tile.roadType, tile.terrain === TerrainType.Water);
   });
-
-  const roadExpenses = Math.floor(
-    streetTileCount  * ROAD_MAINTENANCE_PER_TILE    +
-    highwayTileCount * HIGHWAY_MAINTENANCE_PER_TILE +
-    trolleyTileCount * TROLLEY_MAINTENANCE_PER_TILE,
-  );
+  const roadExpenses = Math.floor(roadUpkeepTotal);
 
   return {
     income,

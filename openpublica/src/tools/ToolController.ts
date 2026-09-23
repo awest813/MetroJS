@@ -5,6 +5,7 @@ import type { Tool } from './Tool';
 import type { TileCoord } from '../data/types';
 import type { CitySim } from '../sim/CitySim';
 import { TerrainType } from '../sim/CityTile';
+import { isRoadTool } from './RoadTool';
 
 export type ToolApplyResult = 'applied' | 'unchanged' | 'repeat';
 
@@ -12,10 +13,13 @@ export type ToolApplyResult = 'applied' | 'unchanged' | 'repeat';
 export interface StrokeSummary {
   spent: number;
   applied: number;
-  blockedByWater: number;
+  /** Road tiles laid over water as bridge spans. */
+  bridged: number;
+  /** Water tiles skipped because a bridge there would turn or branch. */
+  blockedByBridge: number;
+  /** Road tiles skipped because the treasury ran dry mid-stroke. */
+  blockedByFunds: number;
 }
-
-const ROAD_TOOL_NAMES = new Set(['road', 'highway', 'trolleyAvenue']);
 
 /**
  * Manages the active player tool and routes tile interactions to it.
@@ -34,7 +38,9 @@ export class ToolController {
   private _onTileChangedCb: ((coord: TileCoord) => void) | undefined;
   private _strokeSpent = 0;
   private _strokeApplied = 0;
-  private _strokeWater = 0;
+  private _strokeBridged = 0;
+  private _strokeBridgeBlocked = 0;
+  private _strokeFunds = 0;
 
   constructor(defaultTool: Tool) {
     this._activeTool = defaultTool;
@@ -90,16 +96,18 @@ export class ToolController {
 
     const before = sim.stats.money;
     let applied = false;
-    const roadStroke = ROAD_TOOL_NAMES.has(this._activeTool.name);
+    const tool = this._activeTool;
     for (const tile of tiles) {
-      const mapTile = sim.getTile(tile.x, tile.y);
-      const water = mapTile?.terrain === TerrainType.Water;
-      if (this._activeTool.apply(tile, sim)) {
+      const water = sim.getTile(tile.x, tile.y)?.terrain === TerrainType.Water;
+      if (tool.apply(tile, sim)) {
         this._onTileChangedCb?.(tile);
         applied = true;
         this._strokeApplied += 1;
-      } else if (roadStroke && water) {
-        this._strokeWater += 1;
+        if (water && isRoadTool(tool)) this._strokeBridged += 1;
+      } else if (isRoadTool(tool)) {
+        const why = tool.blockAt(tile, sim);
+        if (why === 'bridge-turn' || why === 'bridge-branch') this._strokeBridgeBlocked += 1;
+        else if (why === 'funds') this._strokeFunds += 1;
       }
     }
     this._strokeSpent += Math.max(0, before - sim.stats.money);
@@ -115,7 +123,9 @@ export class ToolController {
     const summary: StrokeSummary = {
       spent: this._strokeSpent,
       applied: this._strokeApplied,
-      blockedByWater: this._strokeWater,
+      bridged: this._strokeBridged,
+      blockedByBridge: this._strokeBridgeBlocked,
+      blockedByFunds: this._strokeFunds,
     };
     this._clearStroke();
     return summary;
@@ -125,7 +135,9 @@ export class ToolController {
     this._lastDragCoord = null;
     this._strokeSpent = 0;
     this._strokeApplied = 0;
-    this._strokeWater = 0;
+    this._strokeBridged = 0;
+    this._strokeBridgeBlocked = 0;
+    this._strokeFunds = 0;
   }
 }
 

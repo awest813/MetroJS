@@ -22,6 +22,10 @@ import { STARTER_RESIDENTIAL_DEMAND } from './zoneGrowthHints';
 import { tallyBudget } from './EconomySystem';
 import { DEFAULT_TERRAIN_SEED } from './TerrainGenerator';
 import { composeHappiness } from './happiness';
+import { bridgeProblem, type BridgeProblem } from './roadConnections';
+
+/** Why a road cannot be laid on a tile at the sim layer (tools add cost/upgrade rules). */
+export type RoadPlacementBlock = 'off-map' | 'building' | BridgeProblem;
 
 /** Aggregate statistics for the city, updated each tick. */
 export interface CityStats {
@@ -264,17 +268,29 @@ export class CitySim {
   }
 
   /**
-   * Place a road on the tile at (x, y).
-   * No-op if out of bounds, water, or a building is on the tile.
+   * Why a road cannot go on (x, y), or null when it can.
+   * Water is allowed: a road over water is a bridge, and bridges run straight
+   * (no turns, junctions, or side streets over the water).
+   */
+  roadPlacementBlock(x: number, y: number): RoadPlacementBlock | null {
+    const tile = this.map.getTile(x, y);
+    if (!tile) return 'off-map';
+    if (tile.buildingId !== null) return 'building';
+    return bridgeProblem(this.map, x, y);
+  }
+
+  /**
+   * Place a road on the tile at (x, y). A road on water is a bridge span.
+   * No-op (returns false) when {@link roadPlacementBlock} names a reason.
    * Paving an empty lot clears the zone — a street is not a housing plat.
    */
-  placeRoad(x: number, y: number, roadType: RoadType): void {
-    const tile = this.map.getTile(x, y);
-    if (!tile || tile.terrain === TerrainType.Water) return;
-    if (tile.buildingId !== null) return;
+  placeRoad(x: number, y: number, roadType: RoadType): boolean {
+    if (this.roadPlacementBlock(x, y) !== null) return false;
+    const tile = this.map.getTile(x, y)!;
     tile.roadType = roadType;
     tile.zoneType = ZoneType.None;
     this._refreshNetwork();
+    return true;
   }
 
   /** Clear the road, zone, and building from the tile at (x, y). No-op if out of bounds. */

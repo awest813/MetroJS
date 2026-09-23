@@ -3,6 +3,7 @@
 
 import { RoadType } from '../sim/CityTile';
 import type { CityMap } from '../sim/CityMap';
+import { MIN_TROLLEY_LINE_TILES, trolleyLines } from '../sim/TransitSystem';
 
 export type NodeKey = string;
 
@@ -21,6 +22,21 @@ export interface RoadGraph {
 export const MAX_VEHICLES = 48;
 export const BASE_CAR_SPEED = 1.2;
 export const BASE_TROLLEY_SPEED = 0.85;
+
+/** Cars run this much faster on a highway than on a street. */
+export const HIGHWAY_SPEED_FACTOR = 1.5;
+
+/** Edge pressure that halves a car's free-flow speed (matches the extreme-traffic bar). */
+export const HALF_SPEED_PRESSURE = 8;
+
+/** Slowest a jammed car crawls, as a share of its free-flow speed. */
+export const MIN_SPEED_SHARE = 0.3;
+
+/** Tiles of trolley line per running trolley. */
+export const TILES_PER_TROLLEY = 8;
+
+/** Trolleys on screen at once, across every line. */
+export const MAX_TROLLEYS = 6;
 
 export function nodeKey(x: number, y: number): NodeKey {
   return `${x},${y}`;
@@ -53,10 +69,6 @@ function emptyGraph(): RoadGraph {
 function isRoad(map: CityMap, x: number, y: number): boolean {
   const tile = map.getTile(x, y);
   return !!tile && tile.roadType !== RoadType.None;
-}
-
-function isTrolley(map: CityMap, x: number, y: number): boolean {
-  return map.getTile(x, y)?.roadType === RoadType.TrolleyAvenue;
 }
 
 function buildFilteredGraph(
@@ -97,10 +109,17 @@ export function buildRoadGraph(map: CityMap): RoadGraph {
   return buildFilteredGraph(map, (x, y) => isRoad(map, x, y));
 }
 
-/** Subgraph of trolley-avenue tiles only (cars stay on the full road graph). */
+/**
+ * Subgraph of trolley lines long enough to run a trolley (cars stay on the
+ * full road graph). Short stubs are left out so no trolley shuttles on them.
+ */
 export function buildTrolleyGraph(map: CityMap): RoadGraph {
-  const graph = buildFilteredGraph(map, (x, y) => isTrolley(map, x, y));
-  return graph;
+  const running = new Set<string>();
+  for (const line of trolleyLines(map)) {
+    if (line.length < MIN_TROLLEY_LINE_TILES) continue;
+    for (const tile of line) running.add(nodeKey(tile.x, tile.y));
+  }
+  return buildFilteredGraph(map, (x, y) => running.has(nodeKey(x, y)));
 }
 
 export function undirectedEdgeCount(graph: RoadGraph): number {
@@ -163,13 +182,44 @@ export function vehicleTargetCount(totalPressure: number, roadTileCount: number)
   return Math.max(0, Math.min(MAX_VEHICLES, Math.round(totalPressure / 4) + bonus));
 }
 
-export function trolleyTargetCount(trolleyTileCount: number): number {
-  if (trolleyTileCount < 4) return 0;
-  return trolleyTileCount >= 8 ? 2 : 1;
+/**
+ * Trolleys to run: one per {@link TILES_PER_TROLLEY} tiles of each running
+ * line (at least one per line), capped at {@link MAX_TROLLEYS}.
+ */
+export function trolleyTargetCount(lineLengths: readonly number[]): number {
+  let total = 0;
+  for (const length of lineLengths) {
+    if (length < MIN_TROLLEY_LINE_TILES) continue;
+    total += Math.max(1, Math.floor(length / TILES_PER_TROLLEY));
+  }
+  return Math.min(MAX_TROLLEYS, total);
 }
 
-export function edgeSpeedTilesPerSec(pressure: number, base: number = BASE_CAR_SPEED): number {
-  return base * (1 + Math.max(0, pressure) / 20);
+/** Tile counts of each connected trolley line. */
+export function trolleyLineLengths(map: CityMap): number[] {
+  return trolleyLines(map).map((line) => line.length);
+}
+
+/**
+ * Car speed on an edge: free flow on an empty road (faster on highways),
+ * half speed at {@link HALF_SPEED_PRESSURE}, never below {@link MIN_SPEED_SHARE}.
+ */
+export function edgeSpeedTilesPerSec(
+  pressure: number,
+  base: number = BASE_CAR_SPEED,
+  highway = false,
+): number {
+  const free = base * (highway ? HIGHWAY_SPEED_FACTOR : 1);
+  const share = 1 / (1 + Math.max(0, pressure) / HALF_SPEED_PRESSURE);
+  return free * Math.max(MIN_SPEED_SHARE, share);
+}
+
+/** True when both ends of the edge are highway tiles. */
+export function edgeIsHighway(map: CityMap, from: NodeKey, to: NodeKey): boolean {
+  const a = parseNodeKey(from);
+  const b = parseNodeKey(to);
+  return map.getTile(a.x, a.y)?.roadType === RoadType.Highway &&
+    map.getTile(b.x, b.y)?.roadType === RoadType.Highway;
 }
 
 export function edgePressure(map: CityMap, from: NodeKey, to: NodeKey): number {

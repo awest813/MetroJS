@@ -1,6 +1,7 @@
 import { CitySim } from '../openpublica/src/sim/CitySim';
 import { RoadType, ZoneType } from '../openpublica/src/sim/CityTile';
 import { MONTH_SECONDS } from '../openpublica/src/data/constants';
+import { MIN_TROLLEY_LINE_TILES, trolleyLines } from '../openpublica/src/sim/TransitSystem';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -27,35 +28,70 @@ describe('TransitSystem', () => {
   });
 
   describe('trolley avenue radiates transit access', () => {
-    it('should give a high transitAccess score to the trolley tile itself', () => {
+    /** A north-south line of MIN_TROLLEY_LINE_TILES tiles from (8, 8) to (8, 5). */
+    function placeLine(sim: CitySim): void {
+      for (let i = 0; i < MIN_TROLLEY_LINE_TILES; i++) {
+        sim.placeRoad(8, 8 - i, RoadType.TrolleyAvenue);
+      }
+    }
+
+    it('should stack access from every tile of a running line', () => {
       const sim = CitySim.createCity(16, 16);
       sim.stats.money = 100_000;
-      sim.placeRoad(8, 8, RoadType.TrolleyAvenue);
+      placeLine(sim);
       tickOneMonth(sim);
 
-      // The trolley tile (distance=0) gets the full TRANSIT_PEAK_SCORE=40.
-      expect(sim.getTile(8, 8)!.transitAccess).toBe(40);
+      // 40 + 32 + 24 + 16 from the four line tiles, capped at 100.
+      expect(sim.getTile(8, 8)!.transitAccess).toBe(100);
+      // Two tiles past the north end: 24 + 16 + 8 + 0.
+      expect(sim.getTile(8, 10)!.transitAccess).toBe(48);
     });
 
     it('should radiate transitAccess to tiles within TRANSIT_RADIUS=5', () => {
       const sim = CitySim.createCity(16, 16);
       sim.stats.money = 100_000;
-      sim.placeRoad(8, 8, RoadType.TrolleyAvenue);
+      placeLine(sim);
       tickOneMonth(sim);
 
-      // Tile at distance 2 should have a positive, decayed score.
-      expect(sim.getTile(8, 6)!.transitAccess).toBeGreaterThan(0);
-      expect(sim.getTile(8, 6)!.transitAccess).toBeLessThan(40);
+      // Four tiles past the north end: only the nearest line tile reaches.
+      expect(sim.getTile(8, 12)!.transitAccess).toBeGreaterThan(0);
+      expect(sim.getTile(8, 12)!.transitAccess).toBeLessThan(40);
     });
 
     it('should not radiate beyond TRANSIT_RADIUS=5', () => {
       const sim = CitySim.createCity(32, 32);
       sim.stats.money = 100_000;
-      sim.placeRoad(8, 8, RoadType.TrolleyAvenue);
+      placeLine(sim);
       tickOneMonth(sim);
 
-      // Tile at distance 6 (beyond radius 5) should have zero transit access.
-      expect(sim.getTile(8, 14)!.transitAccess).toBe(0); // dy=6, exactly beyond radius
+      // Six tiles north of the line's north end is past the radius.
+      expect(sim.getTile(8, 14)!.transitAccess).toBe(0);
+    });
+
+    it('should give no access from a stub too short to run a trolley', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.stats.money = 100_000;
+      for (let i = 0; i < MIN_TROLLEY_LINE_TILES - 1; i++) {
+        sim.placeRoad(8, 8 - i, RoadType.TrolleyAvenue);
+      }
+      tickOneMonth(sim);
+      expect(sim.getTile(8, 8)!.transitAccess).toBe(0);
+      expect(sim.getTile(9, 7)!.transitAccess).toBe(0);
+
+      sim.placeRoad(8, 8 - (MIN_TROLLEY_LINE_TILES - 1), RoadType.TrolleyAvenue);
+      expect(sim.getTile(8, 8)!.transitAccess).toBeGreaterThan(0);
+    });
+
+    it('should not join two trolley stubs through a plain street', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.stats.money = 100_000;
+      sim.placeRoad(2, 8, RoadType.TrolleyAvenue);
+      sim.placeRoad(3, 8, RoadType.TrolleyAvenue);
+      sim.placeRoad(4, 8, RoadType.Street);
+      sim.placeRoad(5, 8, RoadType.TrolleyAvenue);
+      sim.placeRoad(6, 8, RoadType.TrolleyAvenue);
+      expect(trolleyLines(sim.map).map((line) => line.length).sort()).toEqual([2, 2]);
+      expect(sim.getTile(4, 8)!.transitAccess).toBe(0);
     });
 
     it('should cap stacked transit access at 100', () => {
@@ -77,8 +113,10 @@ describe('TransitSystem', () => {
       const sim = CitySim.createCity(16, 16);
       sim.stats.money = 100_000;
 
-      // Zone one tile right next to a trolley avenue.
-      sim.placeRoad(8, 8, RoadType.TrolleyAvenue);
+      // Zone one tile right next to a running trolley line.
+      for (let x = 8; x < 8 + MIN_TROLLEY_LINE_TILES; x++) {
+        sim.placeRoad(x, 8, RoadType.TrolleyAvenue);
+      }
       sim.setZone(8, 7, ZoneType.Residential);
 
       tickOneMonth(sim);

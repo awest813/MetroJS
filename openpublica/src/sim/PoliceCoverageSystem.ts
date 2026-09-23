@@ -3,11 +3,13 @@
 import type { CityMap } from './CityMap';
 import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
-import { coverageAtDistance, forEachTileInRadius } from './coveragePaint';
+import { forEachDispatchedTile } from './roadDispatch';
 
 /**
  * Writes `tile.policeCoverage` [0–100] from powered stations with policeRadius.
- * Unpowered stations contribute nothing.
+ * Patrol cars leave by the station's street and drive the road network, so
+ * `policeRadius` is a reach in road steps (highways count half). Unpowered
+ * stations, or stations with no street, contribute nothing.
  */
 export class PoliceCoverageSystem {
   tick(
@@ -26,9 +28,7 @@ export class PoliceCoverageSystem {
       const station = map.getTile(instance.x, instance.y);
       if (!station?.powered) continue;
 
-      const r = def.policeRadius;
-      forEachTileInRadius(map, instance.x, instance.y, r, (tile, dist) => {
-        const coverage = coverageAtDistance(dist, r);
+      forEachDispatchedTile(map, instance.x, instance.y, def.policeRadius, (tile, coverage) => {
         if (coverage > tile.policeCoverage) tile.policeCoverage = coverage;
       });
     }

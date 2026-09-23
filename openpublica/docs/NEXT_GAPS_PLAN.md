@@ -94,6 +94,29 @@ Buildings **do** empty after sustained neglect. Status is city-local (HUD adviso
 | D2 Split `App.ts` **shipped** | `CityView` rebuilds meshes; `mountCityMenu` owns save/load |
 | D3 Render tests | Keep GPU tests out of Jest; add a few more **pure** layout tests (picker math, daylight lerp) |
 
+### Gap E — Roads, traffic, road services, bridges **shipped**
+
+An audit found the road layer telling small lies: jams could not be fixed by
+adding roads (every road within three tiles took a full copy of each
+building's traffic), highways cost 2.5× a street for no effect, cars sped *up*
+in traffic, police and fire covered lots across lakes with no road at all, a
+single trolley tile gave transit access though no trolley could run, a street
+dragged across a highway downgraded it, and hover previews never fired for a
+mouse. This slice names the traffic, transit, and service fields it changes.
+
+| Slice | What shipped |
+|---|---|
+| E1 Traffic | `TrafficPressureSystem`: a lot's trips leave by its street (no street, no trips) and flood only the connected roads within 3 tiles. When a building reaches more road than `TRIP_SPREAD_BUDGET`, the same trips split across it, so a parallel street or highway relieves the jam. Highways draw and carry `HIGHWAY_CAPACITY` (2×). |
+| E2 Cars | Congestion slows cars (half speed at pressure 8, floor 30%); highways are 1.5× faster; trolleys keep rail pace. Cars ride the rendered deck height and pitch on slopes; parked cars rejoin when roads return. |
+| E3 Road tools | Highway / trolley paint upgrades streets; nothing downgrades a highway or trolley line without a bulldoze, so crossing strokes leave intersections. Failure copy names the reason. |
+| E4 Services on roads | Police and fire (`roadDispatch`) need power **and** a street; reach is `policeRadius` / `fireRadius` = 14 road steps (highways ½ step, lots up to 2 tiles off the curb, never across water). Placement preview paints reachable tiles, not a disc. Advisory flags stations with no street. |
+| E5 Transit | Only trolley lines of `MIN_TROLLEY_LINE_TILES` (4) connected tiles radiate transit; the renderer runs one trolley per 8 line tiles on those lines only. |
+| E6 Bridges | A road on water is a bridge (no save change: water terrain + road type). Straight spans only: no turns, junctions, or side streets over water. 5× build cost, 3× upkeep, no driveways. Level decks between abutments (never below water + 0.2) with railings, girders, and piers; overlay, cursor, and cars sit on the deck. Budget shows "Roads now". |
+
+**Exit:** Adding a parallel street visibly lowers a jammed street's pressure; a
+fire station across an unbridged river covers nothing there until a bridge is
+built.
+
 ---
 
 ## 4. Explicitly still out of scope (Phase I)
@@ -132,4 +155,5 @@ GLB (C4) and SSAO (C5) stay optional. C3 skirt is optional.
 - Network tab still has no `tiles.png` / `sprites/`.
 - Play: grow a city, toggle Smog, Frame, Save/Load, mute, Dawn/Dusk.
 - First minutes: Road is selected; HUD coach steps street → lots → plant; fire/water nags wait until population 40.
-- Services: hover a plant/station/park/tower to see its coverage disc; Budget lists service upkeep; water raises land value on covered lots.
+- Services: hover a plant/park/tower to see its coverage disc, or a police/fire tool over a lot to see the streets it reaches; Budget lists civic and road upkeep; water raises land value on covered lots.
+- Roads: drag a street straight across a river (status names the bridge tiles), drag one across a highway (the highway stays), and watch Traffic drop on a jammed street after a parallel street is joined up.

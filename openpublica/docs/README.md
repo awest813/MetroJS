@@ -67,7 +67,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] 64×64 `CityMap` with monthly sim (growth, power, economy, land value, traffic, walkability, transit, pollution)
 - [x] Procedural kit buildings (instanced) and vertex-coloured heightfield (no Micropolis tile sheets)
 - [x] Mouse tile picking via terrain/water ray hits
-- [x] Tools: Inspect, Road, Highway, R/C/I/Mixed/Dezone brushes, Bulldoze, Power plant, Park, Police, Fire, Water, Trolley avenue
+- [x] Tools: Inspect, Road, Highway, R/C/I/Mixed/Dezone brushes, Bulldoze, Power plant, Park, Police, Fire, Water, Trolley avenue (all three road tools bridge water)
 - [x] Overlays: power, land value, traffic, walkability, transit, pollution, crowd, crime, fire, water (one height-aware mesh)
 - [x] Save/load via `SaveSystem`
 - [x] Perspective camera, sun/shadows, orbit vs paint input (Phase A)
@@ -83,6 +83,9 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Camera polish: HTML minimap, Home/Frame, sun slider, High/Low quality
 - [x] City menu + Settings: save/load confirms, mute/quality/sun, Ctrl+S, budget net (Look is minimap + Frame)
 - [x] MIT `simplex-noise` + `alea` for seeded hills and tree jitter (lakes still use `terrainHash`)
+- [x] Network traffic: trips leave by a lot's street and split across connected roads; highways carry double
+- [x] Police and fire drive the streets (road-step reach, faster on highways); trolley lines of 4+ tiles give transit
+- [x] Bridges: paint a road straight across water (5× build, 3× upkeep) with piers, railings, and level decks
 
 Follow [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md) for optional GLB/SSAO. Untextured PBR, sky dome, `CityView` rebuild-on-load, city-health, mayor Score/advisory, highways, water, zoning plats/downtown, building degradation, opening coach, and per-service upkeep/coverage preview are in the HUD.
 

@@ -1,14 +1,19 @@
 import type { Scene, ShadowGenerator } from '@babylonjs/core';
 import type { CitySim } from '../sim/CitySim';
-import { HeightField } from '../sim/HeightField';
+import { TerrainType } from '../sim/CityTile';
+import { HeightField, WATER_SURFACE_Y } from '../sim/HeightField';
 import { tileKey } from '../sim/ZoneGrowthSystem';
+import { isBridge, roadProfile } from '../sim/roadConnections';
+import { dispatchCoverage } from '../sim/roadDispatch';
 import type { TileCoord } from '../data/types';
 import type { QualityLevel } from '../ui/settingsStore';
 import { TerrainRenderer } from '../render/TerrainRenderer';
 import { BuildingRenderer } from '../render/BuildingRenderer';
 import { OverlayRenderer } from '../render/OverlayRenderer';
 import { TrafficVehicleRenderer } from '../render/TrafficVehicleRenderer';
-import { RoadRenderer } from '../render/RoadRenderer';
+import { RoadRenderer, ROAD_DECK_LIFT } from '../render/RoadRenderer';
+import { deckBaseHeight, deckDirtyTiles } from '../render/roadDeck';
+import type { SurfaceHeights } from '../render/HighlightRenderer';
 import { VegetationRenderer } from '../render/VegetationRenderer';
 import { SmokeRenderer } from '../render/SmokeRenderer';
 import { WaterRenderer } from '../render/WaterRenderer';
@@ -31,7 +36,10 @@ export class CityView {
   readonly smoke: SmokeRenderer;
   readonly highlight: HighlightRenderer;
   readonly picker: TilePicker;
+  /** Visible surface for cursors: terrain, the water plane, or a bridge deck. */
+  readonly surface: SurfaceHeights;
   onRedraw: () => void = () => {};
+  private readonly _sim: CitySim;
 
   constructor(
     scene: Scene,
@@ -40,7 +48,9 @@ export class CityView {
     sim: CitySim,
     heights: HeightField,
   ) {
+    this._sim = sim;
     this.heights = heights;
+    this.surface = { tileCenter: (x, y) => this.surfaceY(x, y) };
     this.terrain = new TerrainRenderer(scene, shadows);
     this.terrain.buildCityGrid(sim.map, heights);
     new WaterRenderer(scene);
@@ -59,6 +69,33 @@ export class CityView {
     this.smoke.rebuild(sim.map, heights);
     this.highlight = new HighlightRenderer(scene);
     this.picker = new TilePicker(scene, camera);
+  }
+
+  /** Top of whatever the player sees at (x, y). */
+  surfaceY(x: number, y: number): number {
+    const tile = this._sim.getTile(x, y);
+    if (tile && isBridge(tile)) {
+      return deckBaseHeight(this._sim.map, this.heights, x, y) +
+        ROAD_DECK_LIFT + roadProfile(tile.roadType).thickness;
+    }
+    const ground = this.heights.tileCenter(x, y);
+    if (tile?.terrain === TerrainType.Water) return Math.max(ground, WATER_SURFACE_Y);
+    return ground;
+  }
+
+  /** Paint the tiles a police/fire station on (x, y) would reach by road. */
+  previewDispatch(
+    x: number,
+    y: number,
+    reach: number,
+    rgb: { r: number; g: number; b: number },
+  ): void {
+    const map = this._sim.map;
+    const tiles = dispatchCoverage(map, x, y, reach);
+    this.highlight.showReach(tiles, rgb, this.heights, (tx, ty) => {
+      const tile = map.getTile(tx, ty);
+      return tile?.terrain === TerrainType.Water ? this.surfaceY(tx, ty) : null;
+    });
   }
 
   applyQuality(level: QualityLevel, sim: CitySim): void {
@@ -98,13 +135,17 @@ export class CityView {
     this.onRedraw();
   }
 
+  /**
+   * Refresh meshes after a tool changed one tile. The traffic graph was
+   * already rebuilt by the sim's onTrafficChanged for the same edit.
+   */
   syncPaintedTile(sim: CitySim, coord: TileCoord): void {
     const tile = sim.getTile(coord.x, coord.y);
     if (!tile) return;
     this.terrain.updateCityTile(tile);
     this.roads.updateAround(sim.map, coord);
+    this.overlay.updateTiles(sim.map, deckDirtyTiles(sim.map, coord.x, coord.y));
     this.vegetation.updateAround(sim.map, coord);
-    this.traffic.rebuildGraph(sim.map, this.heights);
     if (tile.buildingId === 'small_power_plant' || tile.buildingId === null) {
       this.smoke.rebuild(sim.map, this.heights);
     }

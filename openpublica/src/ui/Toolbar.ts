@@ -11,9 +11,9 @@ const TOOL_GROUPS: ReadonlyArray<ReadonlyArray<string>> = [
 
 const TOOL_TITLES: Readonly<Record<string, string>> = {
   inspect: 'Inspect a tile (key I)',
-  road: 'Street — $10 a tile. Houses grow on lots beside it (key R)',
-  highway: 'Highway — $25 a tile (key H)',
-  trolleyAvenue: 'Trolley avenue — $30 a tile (key T)',
+  road: 'Street — $10 a tile, $50 as a bridge over water. Houses grow on lots beside it (key R)',
+  highway: 'Highway — $25 a tile. Carries twice the traffic; police and fire drive it faster (key H)',
+  trolleyAvenue: 'Trolley avenue — $30 a tile. A line of 4+ tiles runs a trolley and gives transit access (key T)',
   bulldoze: 'Clear a tile — $1 (key B)',
   zoneResidentialLow: 'Housing lots — $5. Paint beside a street, not on it (key Z)',
   zoneCommercialLow: 'Shop lots — $5. Need residents before they fill (key C)',
@@ -22,8 +22,8 @@ const TOOL_TITLES: Readonly<Record<string, string>> = {
   zoneClear: 'Remove zoning. Buildings must be bulldozed first',
   placePowerPlant: 'Power plant — $500, $80/mo. Place on grass. Disc shows power radius (key G)',
   placePark: 'Park — $200, $20/mo. Raises nearby land value (key K)',
-  placePoliceStation: 'Police — $400, $60/mo. Coverage only while powered (key O)',
-  placeFireStation: 'Fire — $400, $60/mo. Coverage only while powered (key F)',
+  placePoliceStation: 'Police — $400, $60/mo. Needs power and a street; patrols reach lots along the roads (key O)',
+  placeFireStation: 'Fire — $400, $60/mo. Needs power and a street; engines reach lots along the roads (key F)',
   placeWaterTower: 'Water tower — $350, $40/mo. Coverage only while powered (key W)',
 };
 

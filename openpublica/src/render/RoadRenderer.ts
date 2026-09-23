@@ -13,29 +13,39 @@ import { RoadType } from '../sim/CityTile';
 import type { TileCoord } from '../data/types';
 import { TILE_SIZE } from '../data/constants';
 import type { HeightField } from '../sim/HeightField';
-import { roadNeighbors, roadProfile } from '../sim/roadConnections';
+import { isBridgeAt, roadNeighbors, roadProfile } from '../sim/roadConnections';
 import {
   ARM_SPAN,
   CARDINAL_VEC,
+  GIRDER_DEPTH,
   roadPieces,
   type Cardinal,
   type RoadPiece,
   type RoadPieceKind,
 } from './roadLayout';
+import { deckBaseHeight, deckDirtyTiles } from './roadDeck';
 import { coloredPbr } from './pbrSurfaces';
 
 /** Extra Y so the deck sits on the heightfield without z-fighting. */
 export const ROAD_DECK_LIFT = 0.03;
 
+/** Pieces that sit on top of the deck surface rather than on its base. */
+const ON_DECK: ReadonlySet<RoadPieceKind> = new Set(['dash', 'rail', 'tie', 'crosswalk']);
+
+/** Pieces stretched along a sloped arm so seams stay closed. */
+const STRETCH: ReadonlySet<RoadPieceKind> = new Set(['arm', 'rail', 'curb', 'railing', 'girder']);
+
 /**
- * Extruded, slope-aware streets and trolley avenues. Shared 1×1 sources,
- * instanced per kit piece. Not pickable — picking stays on the heightfield.
+ * Extruded, slope-aware streets, trolley avenues, and bridges. Shared 1×1
+ * sources, instanced per kit piece. Not pickable — picking stays on the
+ * heightfield and water plane.
  */
 export class RoadRenderer {
   private readonly _scene: Scene;
   private readonly _shadows: ShadowGenerator | null;
   private readonly _roots = new Map<string, TransformNode>();
-  private readonly _src: Record<RoadPieceKind, Mesh>;
+  private readonly _src: Record<Exclude<RoadPieceKind, 'pad' | 'arm'>, Mesh>;
+  private readonly _decks: Record<RoadType, Mesh>;
   private _heights: HeightField | null = null;
   private _seq = 0;
 
@@ -53,26 +63,27 @@ export class RoadRenderer {
     const rail = this._mat('road-rail', new Color3(0.62, 0.64, 0.68), 0.38, 0.55);
     rail.emissiveColor = new Color3(0.05, 0.05, 0.06);
     const tie = this._mat('road-tie', new Color3(0.28, 0.16, 0.09), 0.88);
+    const railing = this._mat('road-railing', new Color3(0.80, 0.80, 0.77), 0.70, 0.15);
+    const concrete = this._mat('road-concrete', new Color3(0.56, 0.55, 0.52), 0.92);
 
+    const streetDeck = this._unit('road-src-street', street);
+    this._decks = {
+      [RoadType.None]: streetDeck,
+      [RoadType.Street]: streetDeck,
+      [RoadType.Highway]: this._unit('road-src-highway', highway),
+      [RoadType.TrolleyAvenue]: this._unit('road-src-trolley', trolley),
+    };
     this._src = {
-      pad: this._unit('road-src-street', street),
-      arm: this._unit('road-src-highway', highway),
       curb: this._unit('road-src-curb', curb),
       dash: this._unit('road-src-dash', mark),
       rail: this._unit('road-src-rail', rail),
       tie: this._unit('road-src-tie', tie),
       crosswalk: this._unit('road-src-walk', walk),
+      railing: this._unit('road-src-railing', railing),
+      girder: this._unit('road-src-girder', concrete),
+      pier: this._unit('road-src-pier', concrete),
     };
-    // pad/arm share look per tile type — swap material on instance is not allowed,
-    // so keep extra deck sources:
-    this._trolleyDeck = this._unit('road-src-trolley', trolley);
-    this._streetDeck = this._src.pad;
-    this._highwayDeck = this._src.arm;
   }
-
-  private readonly _trolleyDeck: Mesh;
-  private readonly _streetDeck: Mesh;
-  private readonly _highwayDeck: Mesh;
 
   setHeightField(heights: HeightField): void {
     this._heights = heights;
@@ -87,12 +98,17 @@ export class RoadRenderer {
     });
   }
 
+  /** Rebuild the painted tile, its neighbours, and any bridge span they touch. */
   updateAround(map: CityMap, coord: TileCoord): void {
-    this._rebuildTile(map, coord.x, coord.y);
-    this._rebuildTile(map, coord.x + 1, coord.y);
-    this._rebuildTile(map, coord.x - 1, coord.y);
-    this._rebuildTile(map, coord.x, coord.y + 1);
-    this._rebuildTile(map, coord.x, coord.y - 1);
+    for (const tile of deckDirtyTiles(map, coord.x, coord.y)) {
+      this._rebuildTile(map, tile.x, tile.y);
+    }
+  }
+
+  private _deck(map: CityMap, x: number, y: number): number {
+    const ground = this._heights;
+    if (!ground) return 0;
+    return deckBaseHeight(map, ground, x, y);
   }
 
   private _rebuildTile(map: CityMap, x: number, y: number): void {
@@ -106,32 +122,31 @@ export class RoadRenderer {
     const tile = map.getTile(x, y);
     if (!tile || tile.roadType === RoadType.None) return;
 
-    const h0 = (this._heights?.tileCenter(x, y) ?? 0) + ROAD_DECK_LIFT;
+    const h0 = this._deck(map, x, y) + ROAD_DECK_LIFT;
     const neighbors = roadNeighbors(map, x, y);
     const profile = roadProfile(tile.roadType);
-    const seams: Record<Cardinal, number> = {
-      n: this._seam(x, y, 'n'),
-      e: this._seam(x, y, 'e'),
-      s: this._seam(x, y, 's'),
-      w: this._seam(x, y, 'w'),
-    };
+    const seams = {} as Record<Cardinal, number>;
+    for (const dir of ['n', 'e', 's', 'w'] as const) {
+      const { dx, dz } = CARDINAL_VEC[dir];
+      const there = neighbors[dir] ? this._deck(map, x + dx, y + dz) + ROAD_DECK_LIFT : h0;
+      seams[dir] = (h0 + there) / 2;
+    }
 
     const cx = x * TILE_SIZE + TILE_SIZE / 2;
     const cz = y * TILE_SIZE + TILE_SIZE / 2;
     const root = new TransformNode(`road-${key}`, this._scene);
     this._roots.set(key, root);
 
-    const deckSrc = this._deckSource(tile.roadType);
-    for (const piece of roadPieces(tile.roadType, neighbors)) {
-      this._spawn(root, piece, cx, cz, h0, profile.thickness, seams, deckSrc);
+    const bridge = isBridgeAt(map, x, y);
+    const bed = this._heights?.tileCenter(x, y) ?? h0 - 1;
+    const deckSrc = this._decks[tile.roadType];
+    for (const piece of roadPieces(tile.roadType, neighbors, bridge)) {
+      if (piece.kind === 'pier') {
+        this._spawnPier(root, piece, cx, cz, bed, h0 - GIRDER_DEPTH);
+      } else {
+        this._spawn(root, piece, cx, cz, h0, profile.thickness, seams, deckSrc);
+      }
     }
-  }
-
-  private _seam(x: number, y: number, dir: Cardinal): number {
-    const { dx, dz } = CARDINAL_VEC[dir];
-    const here = this._heights?.tileCenter(x, y) ?? 0;
-    const there = this._heights?.tileCenter(x + dx, y + dz) ?? here;
-    return (here + there) / 2 + ROAD_DECK_LIFT;
   }
 
   private _spawn(
@@ -150,8 +165,9 @@ export class RoadRenderer {
     let rotZ = 0;
     let y: number;
 
-    const onDeck = piece.kind === 'dash' || piece.kind === 'rail' || piece.kind === 'tie' || piece.kind === 'crosswalk';
-    const lift = onDeck ? deckT + piece.sy / 2 + 0.002 : piece.sy / 2;
+    let lift = piece.sy / 2;
+    if (ON_DECK.has(piece.kind)) lift = deckT + piece.sy / 2 + 0.002;
+    else if (piece.kind === 'girder') lift = -piece.sy / 2;
 
     if (piece.slope) {
       const seam = seams[piece.slope];
@@ -165,7 +181,7 @@ export class RoadRenderer {
       else if (piece.slope === 's') rotX = pitch;
       else if (piece.slope === 'e') rotZ = pitch;
       else rotZ = -pitch;
-      if (piece.kind === 'arm' || piece.kind === 'rail' || piece.kind === 'curb') {
+      if (STRETCH.has(piece.kind)) {
         const stretch = Math.hypot(ARM_SPAN, dy) / ARM_SPAN;
         if (piece.slope === 'e' || piece.slope === 'w') sx *= stretch;
         else sz *= stretch;
@@ -174,25 +190,53 @@ export class RoadRenderer {
       y = h0 + lift;
     }
 
-    const src = this._sourceFor(piece.kind, deckSrc);
-    const inst = src.createInstance(`rd-${piece.kind}-${this._seq++}`);
+    const src = piece.kind === 'pad' || piece.kind === 'arm' ? deckSrc : this._src[piece.kind];
+    this._instance(
+      root,
+      src,
+      piece.kind,
+      new Vector3(cx + piece.ox, y, cz + piece.oz),
+      new Vector3(sx, piece.sy, sz),
+      new Vector3(rotX, piece.rotY, rotZ),
+    );
+  }
+
+  /** A pier wall from the lake bed (or bank) up to the underside of the girder. */
+  private _spawnPier(
+    root: TransformNode,
+    piece: RoadPiece,
+    cx: number,
+    cz: number,
+    bottom: number,
+    top: number,
+  ): void {
+    const height = top - bottom;
+    if (height <= 0.02) return;
+    this._instance(
+      root,
+      this._src.pier,
+      'pier',
+      new Vector3(cx + piece.ox, bottom + height / 2, cz + piece.oz),
+      new Vector3(piece.sx, height, piece.sz),
+      Vector3.Zero(),
+    );
+  }
+
+  private _instance(
+    root: TransformNode,
+    src: Mesh,
+    kind: RoadPieceKind,
+    position: Vector3,
+    scaling: Vector3,
+    rotation: Vector3,
+  ): void {
+    const inst = src.createInstance(`rd-${kind}-${this._seq++}`);
     inst.parent = root;
-    inst.position = new Vector3(cx + piece.ox, y, cz + piece.oz);
-    inst.scaling = new Vector3(sx, piece.sy, sz);
-    inst.rotation = new Vector3(rotX, piece.rotY, rotZ);
+    inst.position = position;
+    inst.scaling = scaling;
+    inst.rotation = rotation;
     inst.isPickable = false;
     inst.receiveShadows = true;
-  }
-
-  private _sourceFor(kind: RoadPieceKind, deckSrc: Mesh): Mesh {
-    if (kind === 'pad' || kind === 'arm') return deckSrc;
-    return this._src[kind];
-  }
-
-  private _deckSource(type: RoadType): Mesh {
-    if (type === RoadType.Highway) return this._highwayDeck;
-    if (type === RoadType.TrolleyAvenue) return this._trolleyDeck;
-    return this._streetDeck;
   }
 
   private _unit(name: string, mat: PBRMaterial): Mesh {

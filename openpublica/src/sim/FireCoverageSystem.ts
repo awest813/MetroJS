@@ -4,11 +4,14 @@ import type { CityMap } from './CityMap';
 import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 import type { CityStats } from './CitySim';
-import { coverageAtDistance, forEachTileInRadius } from './coveragePaint';
+import { forEachDispatchedTile } from './roadDispatch';
 
 /**
  * Writes `tile.fireCoverage` [0–100] from powered stations with fireRadius.
- * Unpowered stations contribute nothing. No disaster simulation in this slice.
+ * Engines drive the road network from the station's street, so `fireRadius`
+ * is a reach in road steps (highways count half, bridges cross water).
+ * Unpowered stations, or stations with no street, contribute nothing.
+ * No disaster simulation in this slice.
  *
  * `stats.fireAverage` is the mean coverage on occupied (density > 0) tiles.
  */
@@ -30,9 +33,7 @@ export class FireCoverageSystem {
       const station = map.getTile(instance.x, instance.y);
       if (!station?.powered) continue;
 
-      const r = def.fireRadius;
-      forEachTileInRadius(map, instance.x, instance.y, r, (tile, dist) => {
-        const coverage = coverageAtDistance(dist, r);
+      forEachDispatchedTile(map, instance.x, instance.y, def.fireRadius, (tile, coverage) => {
         if (coverage > tile.fireCoverage) tile.fireCoverage = coverage;
       });
     }

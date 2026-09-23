@@ -13,18 +13,22 @@ import type { HeightField } from '../sim/HeightField';
 import { roadProfile } from '../sim/roadConnections';
 import { ROAD_DECK_LIFT } from './RoadRenderer';
 import { coloredPbr } from './pbrSurfaces';
+import { deckBaseHeight, edgeDeckHeight } from './roadDeck';
 import {
   BASE_CAR_SPEED,
   BASE_TROLLEY_SPEED,
   buildRoadGraph,
   buildTrolleyGraph,
   edgeExists,
+  edgeIsHighway,
   edgePressure,
   edgeSpeedTilesPerSec,
   emptyGraph,
   nodesWithEdges,
+  parseNodeKey,
   pickNext,
   summarizeTraffic,
+  trolleyLineLengths,
   trolleyTargetCount,
   vehicleTargetCount,
   type NodeKey,
@@ -51,6 +55,7 @@ const CAR_COLORS: ReadonlyArray<Color3> = [
 ];
 
 interface Actor {
+  readonly kind: 'car' | 'trolley';
   from: NodeKey;
   to: NodeKey;
   t: number;
@@ -60,8 +65,11 @@ interface Actor {
 }
 
 /**
- * Instanced cars (and optional trolleys) that lerp along a render-only road
- * graph. Density and speed come from trafficPressure; sim state is never written.
+ * Instanced cars (and trolleys on running lines) that lerp along a
+ * render-only road graph. Busy edges slow cars down; highways let them go
+ * faster; trolleys keep their own pace on the rails. Vehicles ride the deck
+ * height, so they climb hills and cross bridges instead of sampling the
+ * lake bed. Sim state is never written.
  */
 export class TrafficVehicleRenderer {
   private readonly _scene: Scene;
@@ -75,6 +83,7 @@ export class TrafficVehicleRenderer {
   private _trolleyGraph: RoadGraph = emptyGraph();
   private _map: CityMap | null = null;
   private _heights: HeightField | null = null;
+  private readonly _decks = new Map<NodeKey, number>();
   private _seq = 0;
 
   constructor(scene: Scene, shadowGenerator: ShadowGenerator | null = null) {
@@ -128,6 +137,7 @@ export class TrafficVehicleRenderer {
     if (heights !== undefined) this._heights = heights ?? null;
     this._graph = buildRoadGraph(map);
     this._trolleyGraph = buildTrolleyGraph(map);
+    this._cacheDecks(map);
     this._rehome(this._cars, this._graph);
     this._rehome(this._trolleys, this._trolleyGraph);
     this.syncDensity(map);
@@ -137,7 +147,7 @@ export class TrafficVehicleRenderer {
     this._map = map;
     const summary = summarizeTraffic(map);
     const carTarget = vehicleTargetCount(summary.totalPressure, summary.roadTileCount);
-    const trolleyTarget = trolleyTargetCount(summary.trolleyTileCount);
+    const trolleyTarget = trolleyTargetCount(trolleyLineLengths(map));
     this._resizePool(this._cars, carTarget, this._graph, (id) => this._spawnCar(id));
     this._resizePool(this._trolleys, trolleyTarget, this._trolleyGraph, (id) => this._spawnTrolley(id));
   }
@@ -175,22 +185,27 @@ export class TrafficVehicleRenderer {
       if (!actor) break;
       pool.push(actor);
     }
+    this._rehome(pool, graph);
+  }
+
+  /**
+   * Put stranded vehicles back on the graph: their edge was removed, or they
+   * were parked while the graph had no edges and it has some again.
+   */
+  private _rehome(pool: Actor[], graph: RoadGraph): void {
     for (const actor of pool) {
-      if (!edgeExists(graph, actor.from, actor.to)) {
-        const placed = this._placeOnGraph(graph, actor);
-        if (!placed) {
-          actor.root.setEnabled(false);
-        }
-      }
+      if (actor.root.isEnabled() && edgeExists(graph, actor.from, actor.to)) continue;
+      const ok = this._placeOnGraph(graph, actor);
+      actor.root.setEnabled(ok);
     }
   }
 
-  private _rehome(pool: Actor[], graph: RoadGraph): void {
-    for (const actor of pool) {
-      if (!edgeExists(graph, actor.from, actor.to)) {
-        const ok = this._placeOnGraph(graph, actor);
-        actor.root.setEnabled(ok);
-      }
+  private _cacheDecks(map: CityMap): void {
+    this._decks.clear();
+    const heights = this._heights;
+    if (!heights) return;
+    for (const [key, node] of this._graph.nodes) {
+      this._decks.set(key, deckBaseHeight(map, heights, node.x, node.y));
     }
   }
 
@@ -209,6 +224,7 @@ export class TrafficVehicleRenderer {
     body.receiveShadows = true;
     cabin.receiveShadows = true;
     const actor: Actor = {
+      kind: 'car',
       from: '',
       to: '',
       t: 0,
@@ -236,6 +252,7 @@ export class TrafficVehicleRenderer {
     body.receiveShadows = true;
     cabin.receiveShadows = true;
     const actor: Actor = {
+      kind: 'trolley',
       from: '',
       to: '',
       t: 0,
@@ -259,15 +276,21 @@ export class TrafficVehicleRenderer {
     actor.from = from;
     actor.to = to;
     actor.t = Math.random();
-    actor.speed = this._speedFor(from, to, actor.lane === 0 ? BASE_TROLLEY_SPEED : BASE_CAR_SPEED);
+    actor.speed = this._speedFor(actor);
     actor.root.setEnabled(true);
     this._pose(actor);
     return true;
   }
 
-  private _speedFor(from: NodeKey, to: NodeKey, base: number): number {
-    if (!this._map) return base;
-    return edgeSpeedTilesPerSec(edgePressure(this._map, from, to), base);
+  /** Trolleys keep their own pace on the rails; cars slow in traffic. */
+  private _speedFor(actor: Actor): number {
+    if (actor.kind === 'trolley') return BASE_TROLLEY_SPEED;
+    if (!this._map) return BASE_CAR_SPEED;
+    return edgeSpeedTilesPerSec(
+      edgePressure(this._map, actor.from, actor.to),
+      BASE_CAR_SPEED,
+      edgeIsHighway(this._map, actor.from, actor.to),
+    );
   }
 
   private _stepActors(pool: Actor[], graph: RoadGraph, dt: number): void {
@@ -292,23 +315,19 @@ export class TrafficVehicleRenderer {
           break;
         }
         actor.to = next;
-        actor.speed = this._speedFor(
-          actor.from,
-          actor.to,
-          actor.lane === 0 ? BASE_TROLLEY_SPEED : BASE_CAR_SPEED,
-        );
+        actor.speed = this._speedFor(actor);
       }
       this._pose(actor);
     }
   }
 
   private _pose(actor: Actor): void {
-    const from = actor.from.split(',').map(Number);
-    const to = actor.to.split(',').map(Number);
-    const fx = from[0] * TILE_SIZE + TILE_SIZE / 2;
-    const fz = from[1] * TILE_SIZE + TILE_SIZE / 2;
-    const tx = to[0] * TILE_SIZE + TILE_SIZE / 2;
-    const tz = to[1] * TILE_SIZE + TILE_SIZE / 2;
+    const from = parseNodeKey(actor.from);
+    const to = parseNodeKey(actor.to);
+    const fx = from.x * TILE_SIZE + TILE_SIZE / 2;
+    const fz = from.y * TILE_SIZE + TILE_SIZE / 2;
+    const tx = to.x * TILE_SIZE + TILE_SIZE / 2;
+    const tz = to.y * TILE_SIZE + TILE_SIZE / 2;
     const dx = tx - fx;
     const dz = tz - fz;
     const x = fx + dx * actor.t;
@@ -318,15 +337,20 @@ export class TrafficVehicleRenderer {
     const oz = (dx / len) * LANE_OFFSET * actor.lane;
 
     const map = this._map;
-    const fromTile = map?.getTile(from[0], from[1]);
-    const toTile = map?.getTile(to[0], to[1]);
+    const fromTile = map?.getTile(from.x, from.y);
+    const toTile = map?.getTile(to.x, to.y);
     const thickA = fromTile ? roadProfile(fromTile.roadType).thickness : 0.055;
     const thickB = toTile ? roadProfile(toTile.roadType).thickness : thickA;
     const thickness = thickA + (thickB - thickA) * actor.t;
-    const ground = this._heights?.sample(x + ox, z + oz) ?? 0;
-    const y = ground + ROAD_DECK_LIFT + thickness + CAR_HEIGHT / 2 + CAR_CLEARANCE;
+
+    // Ride the deck the road renderer built: straight from centre to centre.
+    const deckFrom = this._decks.get(actor.from) ?? this._heights?.tileCenter(from.x, from.y) ?? 0;
+    const deckTo = this._decks.get(actor.to) ?? this._heights?.tileCenter(to.x, to.y) ?? deckFrom;
+    const deck = edgeDeckHeight(deckFrom, deckTo, actor.t);
+    const y = deck + ROAD_DECK_LIFT + thickness + CAR_HEIGHT / 2 + CAR_CLEARANCE;
+    const pitch = -Math.atan2(deckTo - deckFrom, len);
 
     actor.root.position = new Vector3(x + ox, y, z + oz);
-    actor.root.rotation = new Vector3(0, Math.atan2(dx, dz), 0);
+    actor.root.rotation = new Vector3(pitch, Math.atan2(dx, dz), 0);
   }
 }

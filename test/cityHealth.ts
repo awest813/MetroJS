@@ -3,7 +3,8 @@ import { CityMap } from '../openpublica/src/sim/CityMap';
 import { CrimeSystem } from '../openpublica/src/sim/CrimeSystem';
 import { composeHappiness } from '../openpublica/src/sim/happiness';
 import { PopulationDensitySystem } from '../openpublica/src/sim/PopulationDensitySystem';
-import { RoadType, ZoneType } from '../openpublica/src/sim/CityTile';
+import { RoadType, TerrainType, ZoneType } from '../openpublica/src/sim/CityTile';
+import { dispatchDistances, stationHasRoad } from '../openpublica/src/sim/roadDispatch';
 import { MONTH_SECONDS } from '../openpublica/src/data/constants';
 import { PlacePoliceStationTool, POLICE_STATION_COST } from '../openpublica/src/tools/PlacePoliceStationTool';
 import { PlaceFireStationTool, FIRE_STATION_COST } from '../openpublica/src/tools/PlaceFireStationTool';
@@ -82,31 +83,114 @@ describe('PopulationDensitySystem', () => {
   });
 });
 
+/** Powered station at (12, 13) fronting a north-south street on x = 13, y 13..31. */
+function stationOnStreet(defId: string): CitySim {
+  const sim = CitySim.createCity(32, 32);
+  sim.stats.money = 100_000;
+  sim.placeServiceBuilding(12, 12, 'small_power_plant', 0);
+  sim.placeServiceBuilding(12, 13, defId, 0);
+  for (let y = 13; y < 32; y++) sim.placeRoad(13, y, RoadType.Street);
+  return sim;
+}
+
 describe('PoliceCoverageSystem', () => {
   it('should ignore an unpowered station', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
     sim.placeServiceBuilding(12, 12, 'small_police_station', 0);
+    sim.placeRoad(13, 12, RoadType.Street);
 
     expect(sim.getTile(12, 12)!.powered).toBe(false);
     expect(sim.getTile(12, 12)!.policeCoverage).toBe(0);
     expect(sim.getTile(12, 13)!.policeCoverage).toBe(0);
   });
 
-  it('should radiate coverage from a powered station like a plant radius', () => {
+  it('should cover nothing until a street touches the station', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
     sim.placeServiceBuilding(12, 12, 'small_power_plant', 0);
     sim.placeServiceBuilding(12, 13, 'small_police_station', 0);
 
     expect(sim.getTile(12, 13)!.powered).toBe(true);
+    expect(sim.getTile(12, 13)!.policeCoverage).toBe(0);
+    expect(sim.getTile(12, 14)!.policeCoverage).toBe(0);
+
+    sim.placeRoad(13, 13, RoadType.Street);
+    expect(sim.getTile(12, 13)!.policeCoverage).toBe(100);
+    expect(sim.getTile(12, 14)!.policeCoverage).toBeGreaterThan(0);
+  });
+
+  it('should patrol along the street and fade with road distance', () => {
+    const sim = stationOnStreet('small_police_station');
+
     expect(sim.getTile(12, 13)!.policeCoverage).toBe(100);
     expect(sim.getTile(12, 14)!.policeCoverage).toBeGreaterThan(0);
     expect(sim.getTile(12, 14)!.policeCoverage).toBeLessThan(100);
-    // policeRadius = 10; nine tiles away still has coverage, ten tiles is 0
-    expect(sim.getTile(12, 22)!.policeCoverage).toBeGreaterThan(0);
-    expect(sim.getTile(12, 23)!.policeCoverage).toBe(0);
+    // policeRadius = 14 road steps: one step to the curb, then one per tile.
+    expect(sim.getTile(13, 25)!.policeCoverage).toBeGreaterThan(0);
+    expect(sim.getTile(13, 26)!.policeCoverage).toBe(0);
+    // Lots on the street are covered; lots far from any reached road are not,
+    // even when they sit well inside the old straight-line radius.
+    expect(sim.getTile(14, 20)!.policeCoverage).toBeGreaterThan(0);
+    expect(sim.getTile(5, 13)!.policeCoverage).toBe(0);
     expect(sim.getTile(0, 0)!.policeCoverage).toBe(0);
+  });
+});
+
+describe('road dispatch', () => {
+  it('should cross a river only over a bridge', () => {
+    const sim = CitySim.createCity(32, 32);
+    sim.stats.money = 100_000;
+    for (let y = 0; y < 32; y++) {
+      sim.getTile(16, y)!.terrain = TerrainType.Water;
+      sim.getTile(17, y)!.terrain = TerrainType.Water;
+    }
+    sim.placeServiceBuilding(12, 12, 'small_power_plant', 0);
+    sim.placeServiceBuilding(12, 13, 'small_fire_station', 0);
+    for (let x = 12; x <= 22; x++) {
+      if (x === 16 || x === 17) continue;
+      sim.placeRoad(x, 14, RoadType.Street);
+    }
+    // Far bank: six tiles east of the station, no bridge yet.
+    expect(sim.getTile(19, 14)!.fireCoverage).toBe(0);
+    expect(sim.getTile(19, 15)!.fireCoverage).toBe(0);
+
+    expect(sim.placeRoad(16, 14, RoadType.Street)).toBe(true);
+    expect(sim.placeRoad(17, 14, RoadType.Street)).toBe(true);
+    expect(sim.getTile(19, 14)!.fireCoverage).toBeGreaterThan(0);
+    expect(sim.getTile(19, 15)!.fireCoverage).toBeGreaterThan(0);
+  });
+
+  it('should reach farther along a highway than a street', () => {
+    const street = stationOnStreet('small_fire_station');
+    const highway = stationOnStreet('small_fire_station');
+    for (let y = 14; y < 32; y++) highway.placeRoad(13, y, RoadType.Highway);
+
+    expect(highway.getTile(13, 24)!.fireCoverage).toBeGreaterThan(street.getTile(13, 24)!.fireCoverage);
+    expect(street.getTile(13, 28)!.fireCoverage).toBe(0);
+    expect(highway.getTile(13, 28)!.fireCoverage).toBeGreaterThan(0);
+  });
+
+  it('should not walk responders across water from the curb', () => {
+    const map = new CityMap(8, 8);
+    map.getTile(3, 3)!.roadType = RoadType.Street;
+    map.getTile(3, 4)!.terrain = TerrainType.Water;
+    const dist = dispatchDistances(map, 2, 3, 14);
+    expect(dist[3 * 8 + 3]).toBe(1);
+    expect(dist[4 * 8 + 3]).toBe(Infinity);
+    expect(dist[5 * 8 + 3]).toBe(Infinity);
+    expect(dist[2 * 8 + 3]).toBe(2);
+  });
+
+  it('should flag a station with no street in the advisory', () => {
+    const sim = CitySim.createCity(16, 16);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(4, 4, 'small_power_plant', 0);
+    sim.placeServiceBuilding(4, 5, 'small_police_station', 0);
+    expect(stationHasRoad(sim.map, 4, 5)).toBe(false);
+    sim.setZone(8, 8, ZoneType.Residential);
+    sim.placeRoad(8, 9, RoadType.Street);
+    expect(sim.stats.advisory).toMatch(/no street/i);
   });
 });
 
@@ -115,31 +199,26 @@ describe('FireCoverageSystem', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
     sim.placeServiceBuilding(12, 12, 'small_fire_station', 0);
+    sim.placeRoad(13, 12, RoadType.Street);
 
     expect(sim.getTile(12, 12)!.powered).toBe(false);
     expect(sim.getTile(12, 12)!.fireCoverage).toBe(0);
     expect(sim.stats.fireAverage).toBe(0);
   });
 
-  it('should radiate fire coverage from a powered station', () => {
-    const sim = CitySim.createCity(24, 24);
-    sim.stats.money = 100_000;
-    sim.placeServiceBuilding(12, 12, 'small_power_plant', 0);
-    sim.placeServiceBuilding(12, 13, 'small_fire_station', 0);
+  it('should send engines along the street from a powered station', () => {
+    const sim = stationOnStreet('small_fire_station');
 
     expect(sim.getTile(12, 13)!.powered).toBe(true);
     expect(sim.getTile(12, 13)!.fireCoverage).toBe(100);
     expect(sim.getTile(12, 14)!.fireCoverage).toBeGreaterThan(0);
     expect(sim.getTile(12, 14)!.fireCoverage).toBeLessThan(100);
-    expect(sim.getTile(12, 22)!.fireCoverage).toBeGreaterThan(0);
-    expect(sim.getTile(12, 23)!.fireCoverage).toBe(0);
+    expect(sim.getTile(13, 25)!.fireCoverage).toBeGreaterThan(0);
+    expect(sim.getTile(13, 26)!.fireCoverage).toBe(0);
   });
 
   it('should average fire coverage only on occupied tiles', () => {
-    const sim = CitySim.createCity(24, 24);
-    sim.stats.money = 100_000;
-    sim.placeServiceBuilding(12, 12, 'small_power_plant', 0);
-    sim.placeServiceBuilding(12, 13, 'small_fire_station', 0);
+    const sim = stationOnStreet('small_fire_station');
     sim.growth.buildings.set('12,14', { defId: 'small_house', x: 12, y: 14 });
     sim.getTile(12, 14)!.buildingId = 'small_house';
     sim.getTile(12, 14)!.zoneType = ZoneType.Residential;
@@ -276,7 +355,7 @@ describe('city health wiring', () => {
       sim.getTile(x, 4)!.zoneType = ZoneType.Commercial;
     }
     expect(sim.stats.happiness).toBe(100);
-    sim.placeRoad(5, 5, RoadType.Street);
+    for (let x = 4; x <= 7; x++) sim.placeRoad(x, 5, RoadType.Street);
     expect(sim.getTile(5, 5)!.trafficPressure).toBeGreaterThanOrEqual(8);
     expect(sim.stats.happiness).toBeLessThan(100);
   });

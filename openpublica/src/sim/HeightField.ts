@@ -80,7 +80,7 @@ export class HeightField {
  * `vertexIndex` is the first vertex index (not the float offset).
  */
 export function writeSlopedQuad(
-  positions: Float32Array,
+  positions: Float32Array | number[],
   vertexIndex: number,
   tileX: number,
   tileY: number,

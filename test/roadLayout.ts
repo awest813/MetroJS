@@ -1,6 +1,8 @@
 import { RoadType } from '../openpublica/src/sim/CityTile';
 import { roadProfile } from '../openpublica/src/sim/roadConnections';
 import {
+  PIER_THICKNESS,
+  RAILING_HEIGHT,
   countByKind,
   isFourWay,
   isIsolated,
@@ -51,5 +53,22 @@ describe('roadLayout', () => {
 
   it('should keep trolley wider than street after the visual widen', () => {
     expect(roadProfile(RoadType.TrolleyAvenue).width).toBeGreaterThan(roadProfile(RoadType.Street).width);
+  });
+
+  it('should swap curbs for railings and hang girders and a pier on a bridge', () => {
+    const ew = { n: false, e: true, s: false, w: true };
+    const land = roadPieces(RoadType.Street, ew);
+    const bridge = roadPieces(RoadType.Street, ew, true);
+    expect(countByKind(bridge, 'curb')).toBe(0);
+    expect(countByKind(bridge, 'railing')).toBe(countByKind(land, 'curb'));
+    expect(bridge.filter((p) => p.kind === 'railing').every((p) => p.sy === RAILING_HEIGHT)).toBe(true);
+    expect(countByKind(bridge, 'girder')).toBe(3);
+    expect(countByKind(bridge, 'pier')).toBe(1);
+    expect(countByKind(bridge, 'dash')).toBe(countByKind(land, 'dash'));
+    // The pier wall is thin along the span and wide across it.
+    const pier = bridge.find((p) => p.kind === 'pier')!;
+    expect(pier.sx).toBe(PIER_THICKNESS);
+    expect(pier.sz).toBeGreaterThan(pier.sx);
+    expect(countByKind(land, 'pier')).toBe(0);
   });
 });

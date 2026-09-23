@@ -2,7 +2,8 @@
 //     All simulation logic must remain renderer-agnostic.
 
 import type { CityMap } from './CityMap';
-import { RoadType, ZoneType } from './CityTile';
+import { ZoneType } from './CityTile';
+import { hasRoadFrontage } from './roadConnections';
 import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 
@@ -195,8 +196,8 @@ export class LandValueSystem {
 
     // ── Per-tile modifiers and clamping ────────────────────────────────────
     map.forEach((tile) => {
-      // Road access bonus — any orthogonal neighbour with a road qualifies.
-      if (_hasAdjacentRoad(map, tile.x, tile.y)) {
+      // Road access bonus — a land road beside the lot (a bridge is not frontage).
+      if (hasRoadFrontage(map, tile.x, tile.y)) {
         tile.landValue += ROAD_BONUS;
       }
       if (tile.watered) {
@@ -241,14 +242,4 @@ function _residentialCentroid(
   }
   if (n < DOWNTOWN_MIN_HOMES) return null;
   return { x: sx / n, y: sy / n };
-}
-
-function _hasAdjacentRoad(map: CityMap, x: number, y: number): boolean {
-  const n = [
-    map.getTile(x,     y - 1),
-    map.getTile(x,     y + 1),
-    map.getTile(x - 1, y),
-    map.getTile(x + 1, y),
-  ];
-  return n.some((t) => t !== undefined && t.roadType !== RoadType.None);
 }

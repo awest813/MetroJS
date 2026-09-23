@@ -45,7 +45,8 @@ export function formatInspectStatus(
   parts.push(TERRAIN[tile.terrain] ?? 'Terrain');
   if (tile.zoneType !== ZoneType.None) parts.push(ZONE[tile.zoneType]);
   if (tile.roadType !== RoadType.None) {
-    parts.push(ROAD[tile.roadType]);
+    const bridge = tile.terrain === TerrainType.Water;
+    parts.push(bridge ? `${ROAD[tile.roadType]} bridge` : ROAD[tile.roadType]);
     parts.push(`traffic ${tile.trafficPressure}`);
   }
   if (buildingId) {

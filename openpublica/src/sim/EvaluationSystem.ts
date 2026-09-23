@@ -6,6 +6,7 @@ import type { BuildingInstance } from './BuildingInstance';
 import type { CityStats } from './CitySim';
 import { RoadType, ZoneType } from './CityTile';
 import { tileHasAdjacentRoad } from './zoneGrowthHints';
+import { stationHasRoad } from './roadDispatch';
 import { EXTREME_TRAFFIC_PRESSURE } from './happiness';
 
 /** Pollution average subtracted from approval at this weight. */
@@ -72,6 +73,8 @@ interface Census {
   buildingCount: number;
   unpoweredCount: number;
   unpoweredStations: number;
+  /** Police/fire stations whose vehicles have no street to leave by. */
+  strandedStations: number;
   extremeRoads: number;
   lotsNeedRoad: number;
   zonedCount: number;
@@ -95,10 +98,14 @@ function survey(
   let buildingCount = 0;
   let unpoweredCount = 0;
   let unpoweredStations = 0;
+  let strandedStations = 0;
 
   for (const instance of buildings.values()) {
     const def = defs.get(instance.defId);
     if (def?.powerRadius && def.powerRadius > 0) hasPlant = true;
+    if ((def?.policeRadius || def?.fireRadius) && !stationHasRoad(map, instance.x, instance.y)) {
+      strandedStations += 1;
+    }
     if (instance.defId === 'small_park') continue;
     buildingCount += 1;
     const tile = map.getTile(instance.x, instance.y);
@@ -161,6 +168,7 @@ function survey(
     buildingCount,
     unpoweredCount,
     unpoweredStations,
+    strandedStations,
     extremeRoads,
     lotsNeedRoad,
     zonedCount,
@@ -242,6 +250,13 @@ function listAdvisories(stats: CityStats, census: Census): Advisory[] {
       message: `${census.unpoweredStations} station${census.unpoweredStations === 1 ? '' : 's'} unpowered — coverage is off until a plant reaches them.`,
     });
   }
+  if (census.strandedStations > 0) {
+    const one = census.strandedStations === 1;
+    out.push({
+      id: 'station-road',
+      message: `${census.strandedStations} station${one ? ' has' : 's have'} no street — pave one beside ${one ? 'it' : 'them'} so crews can drive out.`,
+    });
+  }
   if (census.unpoweredCount > 0) {
     out.push({
       id: 'unpowered',
@@ -258,10 +273,10 @@ function listAdvisories(stats: CityStats, census: Census): Advisory[] {
     out.push({ id: 'smog', message: 'Smog spike — industrial and plants are fouling the air.' });
   }
   if (stats.crimeAverage >= 35) {
-    out.push({ id: 'crime', message: 'Crime is high — add a powered police station near housing.' });
+    out.push({ id: 'crime', message: 'Crime is high — add a powered police station on a street near housing.' });
   }
   if (census.extremeRoads >= 3) {
-    out.push({ id: 'traffic', message: 'Traffic is jammed — add roads or trolley near jobs.' });
+    out.push({ id: 'traffic', message: 'Traffic is jammed — add a parallel street, a highway, or a trolley line.' });
   }
   if (stats.resTaxRate >= 15 || stats.comTaxRate >= 15 || stats.indTaxRate >= 15) {
     out.push({ id: 'tax', message: 'Taxes are high — demand and approval will sag.' });
@@ -301,7 +316,7 @@ function listAdvisories(stats: CityStats, census: Census): Advisory[] {
     }
   }
   if (stats.population >= SERVICE_ADVISORY_POPULATION && stats.fireAverage < 20) {
-    out.push({ id: 'fire', message: 'Fire coverage is thin — place a powered fire station.' });
+    out.push({ id: 'fire', message: 'Fire coverage is thin — place a powered fire station on a street.' });
   }
   if (
     stats.population >= SERVICE_ADVISORY_POPULATION &&

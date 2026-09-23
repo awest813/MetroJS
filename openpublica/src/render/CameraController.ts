@@ -138,6 +138,16 @@ export class CameraController {
     return this.isOrbitModifierHeld(event);
   }
 
+  /**
+   * Hover previews (cursor, coverage) pause while any button is down — that is
+   * a paint stroke or a camera drag — or while an orbit modifier is held.
+   * A plain mouse move with no buttons is a hover.
+   */
+  shouldIgnoreHover(event: PointerEvent): boolean {
+    if (event.buttons !== 0) return true;
+    return this.isOrbitModifierHeld(event);
+  }
+
   onModeChange(callback: (mode: CameraViewMode) => void): void {
     this._onModeChange.add(callback);
   }

@@ -75,7 +75,10 @@ function _miniColor(
   zone: ZoneType,
   buildingId: string | null,
 ): [number, number, number] {
-  if (terrain === TerrainType.Water) return [18, 72, 118];
+  if (terrain === TerrainType.Water) {
+    // A bridge reads as a pale deck across the blue.
+    return road === RoadType.None ? [18, 72, 118] : [150, 146, 138];
+  }
   if (buildingId === 'small_park') return [36, 140, 58];
   if (buildingId === 'small_power_plant') return [210, 196, 72];
   if (buildingId === 'small_police_station') return [48, 88, 168];

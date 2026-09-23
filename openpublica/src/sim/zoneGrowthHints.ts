@@ -4,6 +4,7 @@ import type { CityMap } from './CityMap';
 import type { CityStats } from './CitySim';
 import { RoadType, ZoneType, TerrainType } from './CityTile';
 import type { CityTile } from './CityTile';
+import { ROAD_STEPS, hasRoadFrontage, isBridgeAt } from './roadConnections';
 
 /**
  * Opening residential demand. The monthly loop otherwise decays R-demand when
@@ -44,14 +45,9 @@ export const POLLUTION_STRESS_THRESHOLD = 60;
 /** Tile crime at or above this stresses a zone building. */
 export const CRIME_STRESS_THRESHOLD = 50;
 
+/** True when the lot fronts a land road. Bridge decks have no driveways. */
 export function tileHasAdjacentRoad(map: CityMap, x: number, y: number): boolean {
-  const neighbours = [
-    map.getTile(x, y - 1),
-    map.getTile(x, y + 1),
-    map.getTile(x - 1, y),
-    map.getTile(x + 1, y),
-  ];
-  return neighbours.some((t) => t !== undefined && t.roadType !== RoadType.None);
+  return hasRoadFrontage(map, x, y);
 }
 
 export interface GrowthDef {
@@ -158,7 +154,10 @@ export function formatGrowthHint(
     return 'buildings grow on lots beside the street, not on the road';
   }
   if (!tileHasAdjacentRoad(map, tile.x, tile.y)) {
-    return 'needs a road next door';
+    const besideBridge = ROAD_STEPS.some(([dx, dy]) => isBridgeAt(map, tile.x + dx, tile.y + dy));
+    return besideBridge
+      ? 'a bridge has no driveways — needs a street next door'
+      : 'needs a road next door';
   }
 
   const demand = demandForZone(tile.zoneType, stats);

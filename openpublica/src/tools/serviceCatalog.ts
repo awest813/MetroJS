@@ -11,6 +11,12 @@ export interface ServiceSpec {
   readonly defId: string;
   readonly cost: number;
   readonly coverage: ServiceCoverage;
+  /**
+   * True when crews drive out along the roads (police, fire): coverage follows
+   * the street network from the lot, so the preview paints reachable tiles
+   * instead of a disc.
+   */
+  readonly dispatch?: boolean;
   /** Preview disc RGB. */
   readonly preview: { readonly r: number; readonly g: number; readonly b: number };
 }
@@ -45,6 +51,7 @@ export const POLICE_SERVICE: ServiceSpec = {
   defId: 'small_police_station',
   cost: POLICE_STATION_COST,
   coverage: 'police',
+  dispatch: true,
   preview: { r: 0.28, g: 0.48, b: 0.95 },
 };
 
@@ -54,6 +61,7 @@ export const FIRE_SERVICE: ServiceSpec = {
   defId: 'small_fire_station',
   cost: FIRE_STATION_COST,
   coverage: 'fire',
+  dispatch: true,
   preview: { r: 0.95, g: 0.32, b: 0.16 },
 };
 
@@ -95,14 +103,26 @@ export function serviceRadius(def: BuildingDef | undefined): number {
     || 0;
 }
 
-export function formatServiceHint(def: BuildingDef | undefined, powered: boolean): string | null {
+/**
+ * Short status for a service lot. Police and fire also need a street
+ * (`hasRoad`) because their crews drive out along the roads.
+ */
+export function formatServiceHint(
+  def: BuildingDef | undefined,
+  powered: boolean,
+  hasRoad = true,
+): string | null {
   const radius = serviceRadius(def);
   if (!def || radius <= 0) return null;
   if (def.powerRadius) return `power radius ${radius}`;
   if (def.parkRadius) return `park radius ${radius}`;
-  const kind = def.policeRadius ? 'police' : def.fireRadius ? 'fire' : 'water';
+  if (def.waterRadius) {
+    return powered ? `water radius ${radius}` : 'dark — water coverage off until powered';
+  }
+  const kind = def.policeRadius ? 'police' : 'fire';
+  if (!hasRoad) return `no street — ${kind} crews can't drive out until one touches this lot`;
   if (!powered) return `dark — ${kind} coverage off until powered`;
-  return `${kind} radius ${radius}`;
+  return `${kind} reach ${radius} road tiles`;
 }
 
 export function createServiceTools(): PlaceServiceTool[] {
