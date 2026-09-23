@@ -5,6 +5,7 @@ import type { CityMap } from '../sim/CityMap';
 import type { CitySim } from '../sim/CitySim';
 import { RoadType, TerrainType, ZoneType } from '../sim/CityTile';
 import { ROAD_STEPS, isLandRoad } from '../sim/roadConnections';
+import { groveStrengths, isWooded } from '../sim/woods';
 import { ROAD_COST } from './RoadTool';
 import type { ZoneBrushTool } from './ZoneBrushTool';
 
@@ -272,6 +273,8 @@ export interface AreaPlan {
   readonly blocked: readonly AreaTile[];
   /** Streets would help here: the lots lack frontage and the area is deep enough. */
   readonly streetsHelp: boolean;
+  /** Wooded tiles the new streets and zones would clear. */
+  readonly woods: number;
 }
 
 /**
@@ -354,7 +357,19 @@ export function planZoneArea(
     noStreet,
     blocked,
     streetsHelp: layout.length > 0,
+    woods: _woodedAmong(sim, [...pavedStreets, ...lots]),
   };
+}
+
+function _woodedAmong(sim: CitySim, tiles: readonly TileCoord[]): number {
+  const map = sim.map;
+  const strengths = groveStrengths(sim.terrainSeed, map.width, map.height);
+  let n = 0;
+  for (const t of tiles) {
+    const tile = map.getTile(t.x, t.y);
+    if (tile && isWooded(tile, strengths, map.width)) n += 1;
+  }
+  return n;
 }
 
 /** Status line while dragging: lots, streets, cost, and what will wait or be skipped. */
@@ -372,6 +387,7 @@ export function formatAreaPlan(label: string, plan: AreaPlan, withStreets: boole
     parts.push(`${name}: ${plural(lots, 'lot')}${streets} · $${plan.cost.toLocaleString()}`);
   }
   if (plan.noStreet > 0) parts.push(`${plan.noStreet} without a street won't grow yet`);
+  if (!dezone && plan.woods > 0) parts.push(`clears woods on ${plan.woods} tile${plan.woods === 1 ? '' : 's'}`);
   if (plan.blocked.length > 0) {
     const reasons = Array.from(new Set(plan.blocked.map((t) =>
       t.reason === 'funds' ? 'not enough money' : 'buildings in the way')));

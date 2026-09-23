@@ -65,6 +65,7 @@ export class CityView {
     this.roads = new RoadRenderer(scene, shadows);
     this.roads.rebuild(sim.map, heights);
     this.vegetation = new VegetationRenderer(scene, shadows);
+    this.vegetation.setTerrainSeed(sim.terrainSeed);
     this.vegetation.rebuild(sim.map, heights);
     this.smoke = new SmokeRenderer(scene);
     this.smoke.rebuild(sim.map, heights);
@@ -111,7 +112,7 @@ export class CityView {
   applyQuality(level: QualityLevel, sim: CitySim): void {
     const high = level === 'high';
     this.smoke.setEnabled(high);
-    if (this.vegetation.setStreetTrees(high)) {
+    if (this.vegetation.setExtraTrees(high)) {
       this.vegetation.rebuild(sim.map, this.heights);
     }
   }
@@ -131,6 +132,7 @@ export class CityView {
     this.overlay.rebuild(sim.map, this.heights);
     this.roads.rebuild(sim.map, this.heights);
     this.vegetation.setHeightField(this.heights);
+    this.vegetation.setTerrainSeed(sim.terrainSeed);
     this.vegetation.rebuild(sim.map, this.heights);
     this.smoke.rebuild(sim.map, this.heights);
 

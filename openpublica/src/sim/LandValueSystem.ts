@@ -2,9 +2,10 @@
 //     All simulation logic must remain renderer-agnostic.
 
 import type { CityMap } from './CityMap';
-import { ZoneType } from './CityTile';
+import { RoadType, TerrainType, ZoneType } from './CityTile';
 import { hasRoadFrontage } from './roadConnections';
 import { waterfrontDistance } from './shoreline';
+import { groveStrengths, isWooded } from './woods';
 import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 
@@ -60,6 +61,12 @@ export const WATERFRONT_BONUS = 8;
 /** Lots two tiles from the water get this smaller view premium. */
 export const NEAR_WATER_BONUS = 4;
 
+/** A lot beside the woods (see sim/woods) gets this premium; clearing them takes it away. */
+export const WOODS_EDGE_BONUS = 6;
+
+/** Lots two tiles from the woods get this smaller premium. */
+export const NEAR_WOODS_BONUS = 3;
+
 /**
  * Multiplier applied to `tile.pollution` when computing the land value penalty.
  * Kept low because pollution is populated by future systems and may reach large values.
@@ -104,6 +111,9 @@ const DOWNTOWN_BONUS = 16;
  *   sit next to people). Does not change demand formulas.
  */
 export class LandValueSystem {
+  /** Terrain seed of the map, for the woods; null leaves woods out. CitySim keeps it in step. */
+  woodsSeed: number | null = null;
+
   /**
    * Recompute land value for every tile.
    *
@@ -203,6 +213,8 @@ export class LandValueSystem {
       });
     }
 
+    const woodsDistance = this._woodsDistance(map);
+
     // ── Per-tile modifiers and clamping ────────────────────────────────────
     map.forEach((tile) => {
       // Road access bonus — a land road beside the lot (a bridge is not frontage).
@@ -215,6 +227,9 @@ export class LandValueSystem {
       const shore = waterfrontDistance(map, tile.x, tile.y);
       if (shore === 1) tile.landValue += WATERFRONT_BONUS;
       else if (shore === 2) tile.landValue += NEAR_WATER_BONUS;
+      const woods = woodsDistance[tile.y * map.width + tile.x];
+      if (woods === 1) tile.landValue += WOODS_EDGE_BONUS;
+      else if (woods === 2) tile.landValue += NEAR_WOODS_BONUS;
 
       // Pollution and traffic penalties (populated by other future systems).
       tile.landValue -= Math.round(tile.pollution       * POLLUTION_PENALTY_MULTIPLIER);
@@ -233,6 +248,32 @@ export class LandValueSystem {
       // Clamp to valid range.
       tile.landValue = Math.max(0, Math.min(100, tile.landValue));
     });
+  }
+
+  /**
+   * Chebyshev steps from each tile to the nearest wooded tile, up to 2
+   * (0 = none in reach, or the tile is woods itself). Only dry, road-free
+   * tiles count as lots beside the woods.
+   */
+  private _woodsDistance(map: CityMap): Uint8Array {
+    const w = map.width;
+    const out = new Uint8Array(w * map.height);
+    if (this.woodsSeed === null) return out;
+    const strengths = groveStrengths(this.woodsSeed, w, map.height);
+    map.forEach((tile) => {
+      if (!isWooded(tile, strengths, w)) return;
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const lot = map.getTile(tile.x + dx, tile.y + dy);
+          if (!lot || lot.terrain === TerrainType.Water || lot.roadType !== RoadType.None) continue;
+          if (isWooded(lot, strengths, w)) continue;
+          const d = Math.max(Math.abs(dx), Math.abs(dy));
+          const index = lot.y * w + lot.x;
+          if (out[index] === 0 || d < out[index]) out[index] = d;
+        }
+      }
+    });
+    return out;
   }
 }
 

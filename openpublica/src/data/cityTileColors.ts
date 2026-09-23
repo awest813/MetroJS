@@ -27,12 +27,17 @@ const TERRAIN_COLORS: Record<TerrainType, TileColor> = {
   [TerrainType.Dirt]:  { r: 0.50, g: 0.45, b: 0.30 },
 };
 
-const BUILDING_COLORS: Record<ZoneType, TileColor> = {
+/**
+ * Ground under a grown building: yards, pavement, and work yards, so a built
+ * block reads as a place. The kit itself carries the zone colour; only empty
+ * zoned lots keep the zone swatch, so the lots still waiting to grow stand out.
+ */
+const DEVELOPED_GROUND: Record<ZoneType, TileColor> = {
   [ZoneType.None]:        { r: 0.28, g: 0.54, b: 0.24 },
-  [ZoneType.Residential]: { r: 0.20, g: 0.35, b: 0.65 },
-  [ZoneType.Commercial]:  { r: 0.70, g: 0.55, b: 0.05 },
-  [ZoneType.Industrial]:  { r: 0.40, g: 0.22, b: 0.50 },
-  [ZoneType.MixedUse]:    { r: 0.10, g: 0.50, b: 0.42 },
+  [ZoneType.Residential]: { r: 0.33, g: 0.57, b: 0.26 }, // mown lawn
+  [ZoneType.Commercial]:  { r: 0.62, g: 0.60, b: 0.56 }, // pavement
+  [ZoneType.Industrial]:  { r: 0.45, g: 0.42, b: 0.37 }, // gravel yard
+  [ZoneType.MixedUse]:    { r: 0.66, g: 0.61, b: 0.53 }, // warm paving
 };
 
 /** Plat colour of an empty lot in this zone. */
@@ -65,8 +70,11 @@ export function averageColors(colors: ReadonlyArray<TileColor>): TileColor {
 export function tileCornerColors(map: CityMap, x: number, y: number): [TileColor, TileColor, TileColor, TileColor] {
   const tile = map.getTile(x, y);
   if (tile && isEmptyZonePlat(tile)) {
-    const plat = cityTileColor(tile);
-    return [plat, plat, plat, plat];
+    // Strong zone colour at the edges draws the lot line; a waterfront plat
+    // fades to the bank at corners that touch the water.
+    const plat = _mix(ZONE_COLORS[tile.zoneType], terrainColor(tile), PLAT_EDGE_ZONE);
+    const at = (cx: number, cy: number): TileColor => (_cornerTouchesWater(map, cx, cy) ? _cornerColor(map, cx, cy) : plat);
+    return [at(x, y), at(x + 1, y), at(x, y + 1), at(x + 1, y + 1)];
   }
   return [
     _cornerColor(map, x, y),
@@ -74,6 +82,19 @@ export function tileCornerColors(map: CityMap, x: number, y: number): [TileColor
     _cornerColor(map, x, y + 1),
     _cornerColor(map, x + 1, y + 1),
   ];
+}
+
+/** Share of the zone colour at an empty lot's edges and at its centre; the rest is the ground under it. */
+const PLAT_EDGE_ZONE = 0.9;
+const PLAT_CENTER_ZONE = 0.55;
+
+function _mix(a: TileColor, b: TileColor, t: number): TileColor {
+  return { r: a.r * t + b.r * (1 - t), g: a.g * t + b.g * (1 - t), b: a.b * t + b.b * (1 - t) };
+}
+
+/** Centre of an empty zoned lot: the zone colour washed over the ground, so the lot line reads at its edge. */
+export function platCenterColor(tile: CityTile): TileColor {
+  return _mix(ZONE_COLORS[tile.zoneType], terrainColor(tile), PLAT_CENTER_ZONE);
 }
 
 /** Empty zoned lots (no building, no road) painted as a hard-edged plat. */
@@ -86,6 +107,13 @@ export function isEmptyZonePlat(tile: CityTile): boolean {
   );
 }
 
+function _cornerTouchesWater(map: CityMap, cx: number, cy: number): boolean {
+  for (const [dx, dy] of [[-1, -1], [0, -1], [-1, 0], [0, 0]]) {
+    if (map.getTile(cx + dx, cy + dy)?.terrain === TerrainType.Water) return true;
+  }
+  return false;
+}
+
 function _cornerColor(map: CityMap, cx: number, cy: number): TileColor {
   const tiles = [
     map.getTile(cx - 1, cy - 1),
@@ -93,7 +121,10 @@ function _cornerColor(map: CityMap, cx: number, cy: number): TileColor {
     map.getTile(cx - 1, cy),
     map.getTile(cx, cy),
   ].filter((t): t is CityTile => t !== undefined);
-  return averageColors(tiles.map(cityTileColor));
+  // The shore and lake bed keep natural colours: a lot's yard or zone swatch
+  // stops at the bank instead of tinting the water beside it.
+  const wet = tiles.some((t) => t.terrain === TerrainType.Water);
+  return averageColors(tiles.map(wet ? terrainColor : cityTileColor));
 }
 
 /**
@@ -119,23 +150,27 @@ export function cityTileColor(tile: CityTile): TileColor {
     return WATER_GROUND;
   }
   if (tile.buildingId !== null && tile.zoneType !== ZoneType.None) {
-    return BUILDING_COLORS[tile.zoneType];
+    return DEVELOPED_GROUND[tile.zoneType];
   }
   if (tile.zoneType !== ZoneType.None) {
     return ZONE_COLORS[tile.zoneType];
   }
-  let terrain = TERRAIN_COLORS[tile.terrain];
-  if (tile.terrain === TerrainType.Grass) {
-    const n = terrainHash(tile.x, tile.y, 11);
-    terrain = {
-      r: terrain.r * (0.90 + n * 0.16),
-      g: terrain.g * (0.94 + n * 0.10),
-      b: terrain.b * (0.88 + n * 0.14),
-    };
-  }
+  const terrain = terrainColor(tile);
   // Darken the ground under land roads. A bridge leaves the lake bed alone.
   if (tile.roadType !== RoadType.None && tile.terrain !== TerrainType.Water) {
     return { r: terrain.r * 0.72, g: terrain.g * 0.72, b: terrain.b * 0.72 };
   }
   return terrain;
+}
+
+/** The natural ground of a tile, ignoring what is built or zoned on it. */
+export function terrainColor(tile: CityTile): TileColor {
+  const terrain = TERRAIN_COLORS[tile.terrain];
+  if (tile.terrain !== TerrainType.Grass) return terrain;
+  const n = terrainHash(tile.x, tile.y, 11);
+  return {
+    r: terrain.r * (0.90 + n * 0.16),
+    g: terrain.g * (0.94 + n * 0.10),
+    b: terrain.b * (0.88 + n * 0.14),
+  };
 }

@@ -49,6 +49,7 @@ import {
 } from '../tools/serviceCatalog';
 import { stationHasRoad } from '../sim/roadDispatch';
 import type { BuildingDef } from '../sim/BuildingDef';
+import { groveStrengths, isWooded } from '../sim/woods';
 import {
   GRID_LINE,
   GRID_SHORT,
@@ -430,7 +431,10 @@ export class App {
       );
       if (placing && result === 'applied') placementNote = serviceHint;
       const growthHint = tile ? formatGrowthHint(tile, sim.map, sim.stats) : null;
-      const hint = [serviceHint, growthHint].filter((part): part is string => Boolean(part)).join(' · ') || null;
+      const woods = tile && isWooded(tile, groveStrengths(sim.terrainSeed, sim.map.width, sim.map.height), sim.map.width)
+        ? 'woods — lots beside them are worth more; zoning or paving clears them'
+        : null;
+      const hint = [serviceHint, growthHint, woods].filter((part): part is string => Boolean(part)).join(' · ') || null;
       statusEl.textContent = formatInspectStatus(
         tool.label,
         tile ?? undefined,

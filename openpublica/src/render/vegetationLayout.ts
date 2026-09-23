@@ -2,6 +2,7 @@
 
 import { RoadType } from '../sim/CityTile';
 import { createSeededRng } from '../math/seededNoise';
+import { GROVE_DENSE, GROVE_THRESHOLD } from '../sim/woods';
 
 export interface TreeSlot {
   readonly dx: number;
@@ -21,6 +22,30 @@ export function parkTreeSlots(x: number, y: number): TreeSlot[] {
       dx: Math.cos(ang) * rad,
       dz: Math.sin(ang) * rad,
       scale: 1.12 + rng() * 0.55,
+    });
+  }
+  return slots;
+}
+
+/** Chance of a lone tree on open grass outside a grove. */
+export const LONE_TREE_CHANCE = 0.025;
+
+/**
+ * Wild trees on open grass, given the tile's grove noise (see sim/woods):
+ * clumps inside a grove, the odd lone tree elsewhere. Zoning, paving, or
+ * building on the tile clears them because it stops being open grass.
+ */
+export function groveSlots(x: number, y: number, seed: number, strength: number): TreeSlot[] {
+  const rng = createSeededRng(`openpublica-grove-${seed}-${x}-${y}`);
+  const count = strength > GROVE_DENSE ? 3 : strength > GROVE_THRESHOLD ? 2 : rng() < LONE_TREE_CHANCE ? 1 : 0;
+  const slots: TreeSlot[] = [];
+  for (let i = 0; i < count; i++) {
+    const ang = rng() * Math.PI * 2;
+    const rad = 0.06 + rng() * 0.32;
+    slots.push({
+      dx: Math.cos(ang) * rad,
+      dz: Math.sin(ang) * rad,
+      scale: 0.82 + rng() * 0.5,
     });
   }
   return slots;

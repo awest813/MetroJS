@@ -8,7 +8,7 @@ import {
 } from '@babylonjs/core';
 import type { CityMap } from '../sim/CityMap';
 import { RoadType, ZoneType } from '../sim/CityTile';
-import { averageColors, cityTileColor, isEmptyZonePlat, tileCornerColors } from '../data/cityTileColors';
+import { averageColors, cityTileColor, isEmptyZonePlat, platCenterColor, tileCornerColors } from '../data/cityTileColors';
 import { TILE_SIZE } from '../data/constants';
 import {
   FAN_TRIANGLES,
@@ -234,7 +234,7 @@ export class TerrainRenderer {
     // Developed tiles keep their own colour at the centre so lots and roads
     // read crisply; open ground blends so the grass shows no grid.
     const open = tile.zoneType === ZoneType.None && tile.roadType === RoadType.None && tile.buildingId === null;
-    const center = open || isEmptyZonePlat(tile) ? averageColors(corners) : cityTileColor(tile);
+    const center = isEmptyZonePlat(tile) ? platCenterColor(tile) : open ? averageColors(corners) : cityTileColor(tile);
     const fan = [...corners, center];
     const ci = (y * this._mapWidth + x) * FAN_VERTS * 4;
     fan.forEach((c, v) => {

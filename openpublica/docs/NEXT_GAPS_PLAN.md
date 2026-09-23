@@ -226,6 +226,23 @@ the town ($800/mo), which left buildings at pollution 50 and land value 4.
 Saves from before this change keep their buildings; a plant placed away from
 any street now reports that it has none.
 
+### Gap L — Ground and woods **shipped**
+
+An eighth audit looked at the terrain tiles and how they meet zoning and the
+other tile types. Hills are gentle (median drop 0.11 a tile, 90% under 0.19;
+only shore tiles fall steeply to the lake bed), so slope needs no rules.
+Dirt is beaches plus about 3% scattered specks, with no sim effect. The
+problems were in how lots looked: every zoned lot, empty or built, was a flat
+saturated swatch, so a city read as a pastel spreadsheet with no grass left;
+zone and building colours bled into the lake bed along every waterfront; and
+open land was bare green with nothing for the city to replace.
+
+| Slice | What shipped |
+|---|---|
+| L1 Lots | Empty zoned lots are tinted plots: 90% zone colour at the edges (the lot line), 55% at the centre so the ground shows through. Grown buildings stand on mown lawn (R), pavement (C), gravel yards (I), or warm paving (M); the kit carries the zone colour. |
+| L2 Shore | Corners that touch water blend natural colours only, and a waterfront plat fades to the bank there, so no zone or yard colour tints the lake bed. |
+| L3 Woods | `sim/woods`: a seeded noise field marks groves on open grass (about 22% of it); zoning, paving, or building on a tile clears it. Lots beside the woods get +6 land value, two tiles away +3. The renderer plants 2–3 trees per grove tile and the odd lone tree, as thin instances with a low-poly canopy (drawn indices 9.5M → 0.9M on a fresh map). The zone preview says how many wooded tiles it clears; inspecting woods explains them. Low quality drops groves with street trees. |
+
 ---
 
 ## 4. Explicitly still out of scope (Phase I)
@@ -272,3 +289,4 @@ GLB (C4) and SSAO (C5) stay optional. C3 skirt is optional.
 - Zoning: with Z, drag a 12×9 area beside a street (grey street rows, blue lots, status gives lots/streets/cost), press S (streets drop, lots turn amber), press S again and release (one quick build); run at 4× and watch houses fill along the new streets a few a month.
 - Frame cost: load a large city and check the scene holds a few hundred meshes, not tens of thousands; paint and bulldoze a road and reload the save (road pieces appear, vanish, and match after load).
 - Utilities: place a plant beside a street at the edge of town (the whole joined network previews yellow), watch Power in the HUD, hover the plant to see what it feeds, place one in an empty field (the status asks for a street), and add a water tower beside a powered street.
+- Ground: zone a rectangle over woods (the status says how many wooded tiles it clears; the trees go on release), inspect a grove tile, check the Value map for the woods premium, and look along a waterfront for zone colour in the water (there should be none).

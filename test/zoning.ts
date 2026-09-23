@@ -25,6 +25,7 @@ import {
   zoneAreaTiles,
 } from '../openpublica/src/tools/zoneArea';
 import type { TileCoord } from '../openpublica/src/data/types';
+import { GROVE_THRESHOLD, groveStrengths } from '../openpublica/src/sim/woods';
 
 function makeSim(size = 24, money = 100_000): CitySim {
   const sim = CitySim.createCity(size, size);
@@ -143,8 +144,8 @@ describe('zone areas', () => {
     expect(plan.streets).toHaveLength(0);
     expect(plan.noStreet).toBe(24);
     expect(plan.streetsHelp).toBe(false);
-    expect(formatAreaPlan('R Zone', plan, true, false)).toBe(
-      "R Zone: 24 lots · $120 · 24 without a street won't grow yet · release to zone · Esc cancels · Shift paints freehand",
+    expect(formatAreaPlan('R Zone', plan, true, false)).toMatch(
+      /^R Zone: 24 lots · \$120 · 24 without a street won't grow yet( · clears woods on \d+ tiles?)? · release to zone · Esc cancels · Shift paints freehand$/,
     );
   });
 });
@@ -200,7 +201,7 @@ describe('streets through big zones', () => {
     expect(plan.streets).toHaveLength(0);
     expect(plan.noStreet).toBe(28);
     expect(plan.streetsHelp).toBe(true);
-    expect(formatAreaPlan('R Zone', plan, false, false)).toMatch(/28 without a street won't grow yet · release to zone · S: lay streets/);
+    expect(formatAreaPlan('R Zone', plan, false, false)).toMatch(/28 without a street won't grow yet( · clears woods on \d+ tiles?)? · release to zone · S: lay streets/);
   });
 
   it('should drop street pieces a lake cuts off from the roads', () => {
@@ -224,6 +225,18 @@ describe('streets through big zones', () => {
       expect(tile.terrain).not.toBe(TerrainType.Water);
       expect(tile.buildingId).toBeNull();
     }
+  });
+
+  it('should say how many wooded tiles the area clears', () => {
+    const sim = makeSim(32);
+    const a = { x: 0, y: 0 };
+    const b = { x: 31, y: 31 };
+    const plan = planZoneArea(createResidentialLowBrush(), a, b, sim, false);
+    const strengths = groveStrengths(sim.terrainSeed, 32, 32);
+    const wooded = Array.from(strengths).filter((n) => n > GROVE_THRESHOLD).length;
+    expect(wooded).toBeGreaterThan(0);
+    expect(plan.woods).toBe(wooded);
+    expect(formatAreaPlan('R Zone', plan, false, false)).toContain(`clears woods on ${wooded} tiles`);
   });
 
   it('should report what release built', () => {

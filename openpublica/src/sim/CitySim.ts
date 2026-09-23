@@ -144,10 +144,20 @@ export class CitySim {
   readonly traffic:      TrafficPressureSystem;
   readonly walkability:  WalkabilitySystem;
   readonly transit:      TransitSystem;
+  private _terrainSeed = 0;
+
   /**
-   * Seed used to paint lakes/hills. Persisted so load rebuilds the same heightfield.
+   * Seed used to paint lakes, hills, and woods. Persisted so load rebuilds the
+   * same land; land value reads the woods from it.
    */
-  terrainSeed: number;
+  get terrainSeed(): number {
+    return this._terrainSeed;
+  }
+
+  set terrainSeed(seed: number) {
+    this._terrainSeed = seed;
+    if (this.landValue) this.landValue.woodsSeed = seed;
+  }
 
   /**
    * Called after each monthly growth tick with the list of tiles that received a
@@ -215,6 +225,7 @@ export class CitySim {
     this.crime        = new CrimeSystem();
     this.evaluation   = new EvaluationSystem();
     this.landValue    = new LandValueSystem();
+    this.landValue.woodsSeed = terrainSeed;
     this.traffic      = new TrafficPressureSystem();
     this.walkability  = new WalkabilitySystem();
     this.transit      = new TransitSystem();

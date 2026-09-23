@@ -16,16 +16,20 @@ import { connectedCardinals } from './roadLayout';
 import {
   STREET_TREE_BUSY_PRESSURE,
   drySlots,
+  groveSlots,
   parkTreeSlots,
   streetTreeSlot,
   type TreeSlot,
 } from './vegetationLayout';
 import { coloredPbr } from './pbrSurfaces';
 import { ThinInstanceGroups } from './thinInstanceGroups';
+import { groveStrengths, isOpenGrass } from '../sim/woods';
 
 /**
- * Trees for parks and quiet streets, as thin instances of one trunk and one
- * canopy. Pickable false so tools still hit the heightfield. Purely visual.
+ * Trees for parks, quiet streets, and wild groves on open grass, as thin
+ * instances of one trunk and one canopy. Pickable false so tools still hit
+ * the heightfield. Purely visual: groves clear when a tile is zoned, paved,
+ * or built on.
  */
 export class VegetationRenderer {
   private readonly _shadows: ShadowGenerator | null;
@@ -37,7 +41,9 @@ export class VegetationRenderer {
   /** Whether each street was busy when last planted; traffic only matters when this flips. */
   private readonly _busy = new Map<string, boolean>();
   private _heights: HeightField | null = null;
-  private _streetTrees = true;
+  /** Street trees and wild groves; Low quality drops both. */
+  private _extraTrees = true;
+  private _seed: number | null = null;
 
   constructor(scene: Scene, shadowGenerator: ShadowGenerator | null = null) {
     this._shadows = shadowGenerator;
@@ -56,9 +62,11 @@ export class VegetationRenderer {
     ThinInstanceGroups.prepare(this._trunkSrc);
     this._shadows?.addShadowCaster(this._trunkSrc);
 
-    this._canopySrc = MeshBuilder.CreateSphere('veg-canopy-src', {
-      diameter: 0.56,
-      segments: 8,
+    // Low-poly canopy: a map of groves draws a few thousand of these (twice, with shadows).
+    this._canopySrc = MeshBuilder.CreateIcoSphere('veg-canopy-src', {
+      radius: 0.28,
+      subdivisions: 1,
+      flat: false,
     }, scene);
     this._canopySrc.material = canopyMat;
     this._canopySrc.isPickable = false;
@@ -71,9 +79,15 @@ export class VegetationRenderer {
     this._heights = heights;
   }
 
-  setStreetTrees(on: boolean): boolean {
-    if (this._streetTrees === on) return false;
-    this._streetTrees = on;
+  /** Seed the wild groves from the map's terrain seed. Call before rebuild. */
+  setTerrainSeed(seed: number): void {
+    this._seed = seed;
+  }
+
+  /** Street trees and wild groves on or off. True when that changed (rebuild then). */
+  setExtraTrees(on: boolean): boolean {
+    if (this._extraTrees === on) return false;
+    this._extraTrees = on;
     return true;
   }
 
@@ -151,13 +165,17 @@ export class VegetationRenderer {
     this._sigs.set(key, sig);
   }
 
-  /** Park trees, or one curb tree on a quiet land street. Bridges get none. */
+  /** Park trees, one curb tree on a quiet land street, or a grove on open grass. Bridges get none. */
   private _slotsFor(map: CityMap, x: number, y: number): TreeSlot[] {
     const tile = map.getTile(x, y);
     if (!tile) return [];
     if (tile.buildingId === 'small_park') return parkTreeSlots(x, y);
+    if (this._extraTrees && this._seed !== null && isOpenGrass(tile)) {
+      const strength = groveStrengths(this._seed, map.width, map.height)[y * map.width + x];
+      return groveSlots(x, y, this._seed, strength);
+    }
     if (
-      this._streetTrees &&
+      this._extraTrees &&
       tile.roadType === RoadType.Street &&
       tile.terrain !== TerrainType.Water &&
       tile.buildingId === null
