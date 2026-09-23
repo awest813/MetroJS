@@ -281,7 +281,7 @@ describe('SaveCodec.migrate', () => {
         residentialDemand: 0, commercialDemand: 0, industrialDemand: 20,
         resTaxRate: 9, comTaxRate: 9, indTaxRate: 9,
         monthlyIncome: 0, monthlyExpenses: 0, bankruptcyWarning: false,
-        happiness: 100, walkability: 0, transitAccess: 0, pollutionAverage: 0, crimeAverage: 0, fireAverage: 0, waterAverage: 0, approval: 100, advisory: '',
+        happiness: 100, walkability: 0, transitAccess: 0, pollutionAverage: 0, crimeAverage: 0, fireAverage: 0, waterAverage: 0, powerSupply: 0, powerLoad: 0, powerShort: 0, waterSupply: 0, waterLoad: 0, waterShort: 0, approval: 100, advisory: '',
       },
     };
     const result = SaveCodec.migrate(raw);
@@ -397,6 +397,9 @@ describe('SaveSystem.load', () => {
 
   it('should restore power coverage without waiting a month', () => {
     const sim = makeSim();
+    sim.stats.money = 100_000;
+    for (let y = 0; y < 10; y++) sim.placeRoad(6, y, RoadType.Street);
+    sim.setZone(7, 0, ZoneType.Residential);
     sim.placeServiceBuilding(5, 5, 'small_power_plant', 0);
     expect(sim.getTile(5, 5)?.powered).toBe(true);
     SaveSystem.save(sim);
@@ -405,7 +408,8 @@ describe('SaveSystem.load', () => {
     expect(loaded.getTile(5, 5)?.powered).toBe(false);
     expect(SaveSystem.load(loaded)).toBe('loaded');
     expect(loaded.getTile(5, 5)?.powered).toBe(true);
-    expect(loaded.getTile(5, 0)?.powered).toBe(true);
+    expect(loaded.getTile(6, 0)?.powered).toBe(true);
+    expect(loaded.getTile(7, 0)?.powered).toBe(true);
   });
 
   it('should restore watered land value without waiting a month', () => {

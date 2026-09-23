@@ -36,7 +36,7 @@
     "population": 0,
     "jobs": 2,
     "isService": true,
-    "powerRadius": 8,
+    "powerCapacity": 400,
     "pollutionOutput": 60,
     "pollutionRadius": 8,
     "monthlyCost": 80
@@ -68,7 +68,7 @@
     "population": 0,
     "jobs": 2,
     "isService": true,
-    "waterRadius": 10,
+    "waterCapacity": 600,
     "monthlyCost": 40
   },
   {

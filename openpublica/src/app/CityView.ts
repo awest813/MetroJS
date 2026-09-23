@@ -14,7 +14,7 @@ import { TrafficVehicleRenderer } from '../render/TrafficVehicleRenderer';
 import { RoadRenderer, ROAD_DECK_LIFT } from '../render/RoadRenderer';
 import { deckBaseHeight, deckDirtyTiles } from '../render/roadDeck';
 import { buildingFacing } from '../render/buildingFacing';
-import type { SurfaceHeights } from '../render/HighlightRenderer';
+import type { SurfaceHeights, TileTint } from '../render/HighlightRenderer';
 import { VegetationRenderer } from '../render/VegetationRenderer';
 import { SmokeRenderer } from '../render/SmokeRenderer';
 import { WaterRenderer } from '../render/WaterRenderer';
@@ -84,6 +84,13 @@ export class CityView {
       return Math.max(this.heights.tileCenter(x, y), WATER_SURFACE_Y);
     }
     return this.heights.footing(x, y);
+  }
+
+  /** Tint tiles one colour each, e.g. the streets and lots a utility network feeds. */
+  previewTints(tints: ReadonlyArray<TileTint>): void {
+    const map = this._sim.map;
+    this.highlight.showTints(tints, this.heights, (tx, ty) =>
+      map.getTile(tx, ty)?.terrain === TerrainType.Water ? this.surfaceY(tx, ty) : null);
   }
 
   /** Paint the tiles a police/fire station on (x, y) would reach by road. */

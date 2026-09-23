@@ -75,6 +75,8 @@ interface Census {
   unpoweredStations: number;
   /** Police/fire stations whose vehicles have no street to leave by. */
   strandedStations: number;
+  /** Plants and towers with no street for their lines or mains to follow. */
+  strandedUtilities: number;
   extremeRoads: number;
   lotsNeedRoad: number;
   zonedCount: number;
@@ -99,19 +101,23 @@ function survey(
   let unpoweredCount = 0;
   let unpoweredStations = 0;
   let strandedStations = 0;
+  let strandedUtilities = 0;
 
   for (const instance of buildings.values()) {
     const def = defs.get(instance.defId);
-    if (def?.powerRadius && def.powerRadius > 0) hasPlant = true;
+    if (def?.powerCapacity && def.powerCapacity > 0) hasPlant = true;
     if ((def?.policeRadius || def?.fireRadius) && !stationHasRoad(map, instance.x, instance.y)) {
       strandedStations += 1;
+    }
+    if ((def?.powerCapacity || def?.waterCapacity) && !stationHasRoad(map, instance.x, instance.y)) {
+      strandedUtilities += 1;
     }
     if (instance.defId === 'small_park') continue;
     buildingCount += 1;
     const tile = map.getTile(instance.x, instance.y);
     if (tile && !tile.powered) {
       unpoweredCount += 1;
-      if (def?.isService && !def.powerRadius) unpoweredStations += 1;
+      if (def?.isService && !def.powerCapacity) unpoweredStations += 1;
     }
   }
 
@@ -169,6 +175,7 @@ function survey(
     unpoweredCount,
     unpoweredStations,
     strandedStations,
+    strandedUtilities,
     extremeRoads,
     lotsNeedRoad,
     zonedCount,
@@ -224,30 +231,39 @@ function listAdvisories(stats: CityStats, census: Census): Advisory[] {
     if (!census.hasRoad && census.zonedCount === 0 && census.buildingCount === 0) {
       out.push({
         id: 'start',
-        message: 'Paint a street, zone lots beside it, then place a power plant.',
+        message: 'Paint a street, zone lots beside it, then place a power plant beside the street.',
       });
     } else if (census.hasRoad && census.zonedCount === 0 && census.buildingCount === 0) {
       out.push({
         id: 'start-zone',
-        message: 'Zone empty lots beside the street, then place a power plant.',
+        message: 'Zone empty lots beside the street, then place a power plant beside it.',
       });
     } else {
       out.push({
         id: 'no-plant',
-        message: 'Place a power plant on grass — lots stay dark without one.',
+        message: 'Place a power plant beside a street — power runs along the streets from it.',
       });
     }
   }
   if (stats.population > 0 && census.unpoweredHouses > 0) {
     out.push({
       id: 'dark-houses',
-      message: 'These houses are dark and will leave — expand the plant radius.',
+      message: stats.powerShort > 0
+        ? `Power plants are at capacity (${stats.powerLoad}/${stats.powerSupply}) — add a plant on the grid or these houses will leave.`
+        : 'These houses are dark and will leave — connect their street to a power plant.',
     });
   }
   if (census.unpoweredStations > 0) {
     out.push({
       id: 'dark-station',
-      message: `${census.unpoweredStations} station${census.unpoweredStations === 1 ? '' : 's'} unpowered — coverage is off until a plant reaches them.`,
+      message: `${census.unpoweredStations} station${census.unpoweredStations === 1 ? '' : 's'} unpowered — coverage is off until a plant's streets reach ${census.unpoweredStations === 1 ? 'it' : 'them'}.`,
+    });
+  }
+  if (census.strandedUtilities > 0) {
+    const one = census.strandedUtilities === 1;
+    out.push({
+      id: 'utility-road',
+      message: `${census.strandedUtilities} plant${one ? ' or tower has' : 's or towers have'} no street — power and water run along streets, so pave one beside ${one ? 'it' : 'them'}.`,
     });
   }
   if (census.strandedStations > 0) {
@@ -260,7 +276,9 @@ function listAdvisories(stats: CityStats, census: Census): Advisory[] {
   if (census.unpoweredCount > 0) {
     out.push({
       id: 'unpowered',
-      message: `${census.unpoweredCount} building${census.unpoweredCount === 1 ? '' : 's'} unpowered — expand the plant radius.`,
+      message: stats.powerShort > 0
+        ? `${census.unpoweredCount} building${census.unpoweredCount === 1 ? '' : 's'} unpowered — plants are at capacity (${stats.powerLoad}/${stats.powerSupply}).`
+        : `${census.unpoweredCount} building${census.unpoweredCount === 1 ? '' : 's'} unpowered — connect their streets to a power plant.`,
     });
   }
   if (census.strugglingCount > 0) {
@@ -323,7 +341,12 @@ function listAdvisories(stats: CityStats, census: Census): Advisory[] {
     census.zonedCount > 0 &&
     stats.waterAverage < 25
   ) {
-    out.push({ id: 'water', message: 'Lots are dry — place a powered water tower.' });
+    out.push({
+      id: 'water',
+      message: stats.waterShort > 0
+        ? `Water towers are running dry (${stats.waterLoad}/${stats.waterSupply}) — add a tower on the mains.`
+        : 'Lots are dry — place a water tower beside a powered street.',
+    });
   }
   if (
     census.hasPlant &&

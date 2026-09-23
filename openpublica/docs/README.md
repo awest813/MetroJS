@@ -90,6 +90,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Smooth terrain: four-triangle tiles that match the height sampler, shared sun-lit normals, graded ground under roads, embankments, building foundations, and an earth skirt around the map
 - [x] Placement: road tools drag straight or L-shaped lines with a live cost/bridge preview (Esc cancels, Shift paints freehand); the cursor turns red where the tool would refuse; buildings face their street; cars curve through turns in their lane
 - [x] Zoning: zone brushes drag rectangles with a live preview; deep areas lay their own streets (S toggles), lots with no street show amber; each month's new buildings follow demand and fill outward from existing ones
+- [x] Utilities run along the streets: a plant beside a street powers every street joined to it (400 load each, nearest lots first), and powered water towers feed mains the same way; hover a plant or tower to see its network, and the HUD shows power load against capacity
 
 Follow [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md) for optional GLB/SSAO. Untextured PBR, sky dome, `CityView` rebuild-on-load, city-health, mayor Score/advisory, highways, water, zoning plats/downtown, building degradation, opening coach, and per-service upkeep/coverage preview are in the HUD.
 

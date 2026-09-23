@@ -135,14 +135,14 @@ export class WalkabilitySystem {
     }
 
     // 4. Civic service building proximity bonus.
-    //    Power plants (powerRadius > 0) are excluded — they are noisy facilities,
+    //    Power plants (powerCapacity > 0) are excluded — they are noisy facilities,
     //    not pedestrian-friendly destinations.
     const sr  = SERVICE_WALK_RADIUS;
     const sr2 = sr * sr;
 
     for (const instance of buildings.values()) {
       const def = defs.get(instance.defId);
-      if (!def?.isService || def.powerRadius) continue;
+      if (!def?.isService || def.powerCapacity) continue;
 
       for (let dy = -sr; dy <= sr; dy++) {
         for (let dx = -sr; dx <= sr; dx++) {

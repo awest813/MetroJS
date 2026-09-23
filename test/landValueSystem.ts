@@ -76,6 +76,8 @@ describe('LandValueSystem', () => {
       const sim = CitySim.createCity(24, 24);
       sim.stats.money = 100_000;
       sim.placeServiceBuilding(8, 8, 'small_power_plant', 0);
+      // Mains serve lots: zone the one beside the tower (the plant powers the tower next to it).
+      sim.setZone(8, 10, ZoneType.Residential);
       tickOneMonth(sim);
       const before = sim.getTile(8, 10)!.landValue;
       sim.placeServiceBuilding(8, 9, 'small_water_tower', 0);

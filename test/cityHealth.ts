@@ -21,7 +21,7 @@ function emptyStats() {
     monthlyIncome: 0, monthlyExpenses: 0, serviceExpenses: 0,
     projectedIncome: 0, projectedExpenses: 0, bankruptcyWarning: false,
     happiness: 100, walkability: 0, transitAccess: 0, pollutionAverage: 0,
-    crimeAverage: 0, fireAverage: 0, waterAverage: 0, approval: 100, advisory: '',
+    crimeAverage: 0, fireAverage: 0, waterAverage: 0, powerSupply: 0, powerLoad: 0, powerShort: 0, waterSupply: 0, waterLoad: 0, waterShort: 0, approval: 100, advisory: '',
   };
 }
 
@@ -239,7 +239,7 @@ describe('WaterCoverageSystem', () => {
     expect(sim.stats.waterAverage).toBe(0);
   });
 
-  it('should water zoned lots inside a powered tower radius', () => {
+  it('should water zoned lots beside a powered tower', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
     sim.placeServiceBuilding(12, 12, 'small_power_plant', 0);
@@ -259,7 +259,24 @@ describe('WaterCoverageSystem', () => {
     expect(sim.stats.waterAverage).toBe(100);
     sim.bulldoze(12, 14);
     expect(sim.stats.waterAverage).toBe(0);
-    expect(sim.getTile(12, 14)!.watered).toBe(true);
+    // Mains serve lots; bare ground is not one.
+    expect(sim.getTile(12, 14)!.watered).toBe(false);
+  });
+
+  it('should run mains along the streets a powered tower touches', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    sim.batch(() => {
+      for (let x = 0; x < 24; x++) sim.placeRoad(x, 5, RoadType.Street);
+      sim.setZone(22, 6, ZoneType.Residential);
+      sim.setZone(12, 12, ZoneType.Residential);
+    });
+    sim.placeServiceBuilding(0, 6, 'small_power_plant', 0);
+    sim.placeServiceBuilding(1, 6, 'small_water_tower', 0);
+    expect(sim.getTile(1, 6)!.powered).toBe(true);
+    expect(sim.getTile(22, 6)!.watered).toBe(true);   // far along the street
+    expect(sim.getTile(12, 12)!.watered).toBe(false); // off the mains
+    expect(sim.stats.waterSupply).toBe(600);
   });
 });
 

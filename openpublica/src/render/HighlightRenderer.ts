@@ -144,6 +144,17 @@ export class HighlightRenderer {
    * `flatY` returns a height for tiles that should sit flat (bridge decks,
    * water); other tiles follow the terrain.
    */
+  /** Tint tiles one colour each on the reach mesh, e.g. a utility network and its short lots. */
+  showTints(
+    tints: ReadonlyArray<TileTint>,
+    heights: HeightField,
+    flatY: (x: number, y: number) => number | null,
+  ): void {
+    this._cover.isVisible = false;
+    this._fill(this._reach, tints, heights, flatY);
+    this._reachMat.emissiveColor = new Color3(0.12, 0.12, 0.12);
+  }
+
   showReach(
     tiles: ReadonlyArray<{ x: number; y: number; coverage: number }>,
     rgb: { r: number; g: number; b: number },

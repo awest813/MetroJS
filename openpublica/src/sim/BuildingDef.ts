@@ -26,11 +26,10 @@ export interface BuildingDef {
    */
   readonly isService?: boolean;
   /**
-   * Radius (in tiles) within which this building provides power.
-   * Only meaningful for power-generating service buildings.
-   * Omit or set to 0 for non-generating buildings.
+   * Load this plant can carry: the residents plus jobs of the lots it serves
+   * along the streets its lot touches. Omit for buildings that draw power.
    */
-  readonly powerRadius?: number;
+  readonly powerCapacity?: number;
   /**
    * Radius (in tiles) within which this building increases land value.
    * Only meaningful for park / green-space service buildings.
@@ -67,10 +66,11 @@ export interface BuildingDef {
    */
   readonly fireRadius?: number;
   /**
-   * Radius (in tiles) of water mains. Only while the tower tile is powered.
-   * Writes `tile.watered`; does not change growth formulas.
+   * Load this tower's mains can carry along the streets its lot touches
+   * (residents plus jobs). Only while the tower itself has power. Writes
+   * `tile.watered`; does not change growth formulas.
    */
-  readonly waterRadius?: number;
+  readonly waterCapacity?: number;
   /**
    * Monthly operating cost while this service building exists.
    * EconomySystem sums these instead of a flat per-service fee.

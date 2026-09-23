@@ -1,6 +1,8 @@
 import { CitySim } from '../openpublica/src/sim/CitySim';
 import { RoadType, ZoneType } from '../openpublica/src/sim/CityTile';
 import { MONTH_SECONDS } from '../openpublica/src/data/constants';
+import { CityMap } from '../openpublica/src/sim/CityMap';
+import { GRID_SERVED, GRID_SHORT, distributeAlongStreets } from '../openpublica/src/sim/utilityGrid';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -17,24 +19,43 @@ function tickOneMonth(sim: CitySim): void {
 // ── PowerSystem ───────────────────────────────────────────────────────────────
 
 describe('PowerSystem', () => {
-  describe('coverage radius', () => {
-    it('should mark tiles powered within the plant radius', () => {
+  describe('street grid', () => {
+    it('should power lots along every street joined to a plant', () => {
       const sim = makeSim();
-      // small_power_plant has powerRadius=8 — place it at (8,8).
-      sim.placeServiceBuilding(8, 8, 'small_power_plant', 0);
+      for (let x = 0; x < 16; x++) sim.placeRoad(x, 8, RoadType.Street);
+      sim.setZone(15, 9, ZoneType.Residential);
+      sim.setZone(3, 3, ZoneType.Residential);
+      sim.placeServiceBuilding(0, 9, 'small_power_plant', 0);
 
-      // The plant tile itself and tiles within radius 8 should be powered.
-      expect(sim.getTile(8, 8)?.powered).toBe(true);
-      expect(sim.getTile(8, 0)?.powered).toBe(true);  // distance = 8 (boundary)
-      expect(sim.getTile(0, 8)?.powered).toBe(true);  // distance = 8 (boundary)
+      expect(sim.getTile(0, 9)?.powered).toBe(true);    // the plant
+      expect(sim.getTile(15, 8)?.powered).toBe(true);   // the line runs to the end of the street
+      expect(sim.getTile(15, 9)?.powered).toBe(true);   // 15 tiles away, but on the street
+      expect(sim.getTile(3, 3)?.powered).toBe(false);   // near, but no street reaches it
     });
 
-    it('should leave tiles outside the radius unpowered', () => {
+    it('should leave a street the plant does not touch dark', () => {
       const sim = makeSim();
-      // Place plant at (0,0) with radius 8. Tile (9,9) is at distance ~12.7.
-      sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+      for (let x = 0; x < 16; x++) sim.placeRoad(x, 4, RoadType.Street);
+      for (let x = 0; x < 16; x++) sim.placeRoad(x, 10, RoadType.Street);
+      sim.setZone(8, 11, ZoneType.Residential);
+      sim.placeServiceBuilding(8, 5, 'small_power_plant', 0);
+      expect(sim.getTile(8, 4)?.powered).toBe(true);
+      expect(sim.getTile(8, 10)?.powered).toBe(false);
+      expect(sim.getTile(8, 11)?.powered).toBe(false);
+      // Joining the streets joins the grid.
+      for (let y = 5; y < 10; y++) sim.placeRoad(0, y, RoadType.Street);
+      expect(sim.getTile(8, 11)?.powered).toBe(true);
+    });
 
-      expect(sim.getTile(15, 15)?.powered).toBe(false);
+    it('should cut power at once when the plant is bulldozed', () => {
+      const sim = makeSim();
+      for (let x = 0; x < 16; x++) sim.placeRoad(x, 8, RoadType.Street);
+      sim.setZone(12, 9, ZoneType.Residential);
+      sim.placeServiceBuilding(2, 9, 'small_power_plant', 0);
+      expect(sim.getTile(12, 9)?.powered).toBe(true);
+      sim.bulldoze(2, 9);
+      expect(sim.getTile(12, 9)?.powered).toBe(false);
+      expect(sim.getTile(2, 8)?.powered).toBe(false);
     });
 
     it('should start with all tiles unpowered before any plant is placed', () => {
@@ -42,6 +63,58 @@ describe('PowerSystem', () => {
       let anyPowered = false;
       sim.map.forEach((tile) => { if (tile.powered) anyPowered = true; });
       expect(anyPowered).toBe(false);
+    });
+  });
+
+  describe('capacity', () => {
+    it('should serve the nearest lots first and leave the far end dark', () => {
+      const map = new CityMap(12, 3);
+      for (let x = 0; x < 12; x++) map.getTile(x, 1)!.roadType = RoadType.Street;
+      for (let x = 1; x < 12; x++) map.getTile(x, 0)!.zoneType = ZoneType.Residential;
+      const grid = distributeAlongStreets(map, [{ x: 0, y: 0, capacity: 12 }], (t) => (t.zoneType !== ZoneType.None ? 4 : null));
+      const served = (x: number) => grid.state[x] === GRID_SERVED;
+      expect([1, 2, 3].every(served)).toBe(true);
+      expect(grid.state[4]).toBe(GRID_SHORT);
+      expect(grid.networks[0]).toMatchObject({ supply: 12, load: 12, served: 3 });
+      expect(grid.networks[0].shortfall).toBe(8);
+    });
+
+    it('should pool plants on one network and keep separate networks apart', () => {
+      const map = new CityMap(12, 3);
+      for (let x = 0; x < 5; x++) map.getTile(x, 1)!.roadType = RoadType.Street;
+      for (let x = 7; x < 12; x++) map.getTile(x, 1)!.roadType = RoadType.Street;
+      const sources = [
+        { x: 0, y: 0, capacity: 10 },
+        { x: 4, y: 0, capacity: 10 },
+        { x: 11, y: 0, capacity: 5 },
+      ];
+      const grid = distributeAlongStreets(map, sources, () => null);
+      expect(grid.networks.map((n) => n.supply)).toEqual([20, 5]);
+      expect(grid.networkOf[1 * 12 + 2]).toBe(grid.networkOf[0]);
+      expect(grid.networkOf[1 * 12 + 9]).not.toBe(grid.networkOf[0]);
+    });
+
+    it('should report load and supply, and buildings a full grid cannot serve', () => {
+      const sim = CitySim.createCity(64, 4);
+      sim.stats.money = 1_000_000;
+      sim.batch(() => {
+        for (let x = 0; x < 64; x++) sim.placeRoad(x, 1, RoadType.Street);
+      });
+      for (let x = 1; x < 64; x++) {
+        for (const y of [0, 2]) {
+          sim.growth.buildings.set(`${x},${y}`, { defId: 'rowhouse', x, y });
+          sim.getTile(x, y)!.zoneType = ZoneType.Residential;
+          sim.getTile(x, y)!.buildingId = 'rowhouse';
+        }
+      }
+      sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+      // 126 rowhouses at 8 load each want 1,008; the plant carries 400.
+      expect(sim.stats.powerSupply).toBe(400);
+      expect(sim.stats.powerLoad).toBe(400);
+      expect(sim.stats.powerShort).toBe(126 - 50);
+      expect(sim.getTile(1, 0)!.powered).toBe(true);
+      expect(sim.getTile(63, 2)!.powered).toBe(false);
+      expect(sim.stats.advisory).toMatch(/at capacity \(400\/400\)/);
     });
   });
 
@@ -90,22 +163,6 @@ describe('PowerSystem', () => {
       tickOneMonth(sim);
 
       expect(count).toBeGreaterThanOrEqual(1);
-    });
-  });
-
-  describe('multiple plants', () => {
-    it('should stack coverage from two power plants', () => {
-      const sim = CitySim.createCity(32, 32);
-      sim.stats.money = 100_000;
-      // Plant at (0,0) covers tiles up to (8,0).
-      // Plant at (16,16) covers tiles near center.
-      sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
-      sim.placeServiceBuilding(16, 16, 'small_power_plant', 0);
-
-      // Tile (16,16) should be covered by the second plant.
-      expect(sim.getTile(16, 16)?.powered).toBe(true);
-      // Tile (0,0) should still be covered by the first plant.
-      expect(sim.getTile(0, 0)?.powered).toBe(true);
     });
   });
 });

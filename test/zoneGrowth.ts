@@ -94,7 +94,8 @@ describe('monthly zoning', () => {
     sim.stats.money = 100_000;
     sim.placeServiceBuilding(2, 8, 'small_power_plant', 0);
     sim.placeServiceBuilding(8, 5, 'small_park', 0);
-    sim.placeRoad(8, 8, RoadType.Street);
+    // The street from the plant carries its power to the house.
+    for (let x = 3; x <= 8; x++) sim.placeRoad(x, 8, RoadType.Street);
     sim.setZone(8, 7, ZoneType.Residential);
     sim.getTile(8, 7)!.buildingId = 'small_house';
     sim.growth.buildings.set('8,7', { defId: 'small_house', x: 8, y: 7 });
@@ -119,7 +120,7 @@ describe('monthly zoning', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
     sim.placeServiceBuilding(4, 4, 'small_power_plant', 0);
-    sim.placeRoad(4, 10, RoadType.Street);
+    for (let y = 5; y <= 10; y++) sim.placeRoad(4, y, RoadType.Street);
     sim.setZone(5, 10, ZoneType.Residential);
     sim.placeRoad(20, 20, RoadType.Street);
     sim.setZone(21, 20, ZoneType.Residential);

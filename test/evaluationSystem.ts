@@ -6,6 +6,12 @@ function tickOneMonth(sim: CitySim): void {
   sim.tick(MONTH_SECONDS);
 }
 
+/** A plant on a one-tile street, so its power has somewhere to go. */
+function placeConnectedPlant(sim: CitySim, x: number, y: number): void {
+  sim.placeServiceBuilding(x, y, 'small_power_plant', 0);
+  sim.placeRoad(x, y + 1, RoadType.Street);
+}
+
 describe('EvaluationSystem', () => {
   it('should start a blank city at full approval with a plant advisory', () => {
     const sim = CitySim.createCity(8, 8);
@@ -26,7 +32,7 @@ describe('EvaluationSystem', () => {
     sim.setZone(2, 3, ZoneType.Residential);
     sim.evaluate();
     expect(sim.stats.approval).toBe(88);
-    expect(sim.stats.advisory).toMatch(/lots stay dark/i);
+    expect(sim.stats.advisory).toMatch(/place a power plant beside a street/i);
   });
 
   it('should name orphan lots before the generic plant line', () => {
@@ -59,7 +65,7 @@ describe('EvaluationSystem', () => {
   it('should cut approval for high taxes', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
-    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    placeConnectedPlant(sim, 0, 0);
     sim.stats.pollutionAverage = 0;
     sim.evaluate();
     const baseline = sim.stats.approval;
@@ -80,7 +86,7 @@ describe('EvaluationSystem', () => {
   it('should mention unpowered buildings', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
-    sim.placeServiceBuilding(20, 20, 'small_power_plant', 0);
+    placeConnectedPlant(sim, 20, 20);
     sim.growth.buildings.set('1,1', { defId: 'small_house', x: 1, y: 1 });
     sim.getTile(1, 1)!.buildingId = 'small_house';
     sim.getTile(1, 1)!.powered = false;
@@ -91,7 +97,7 @@ describe('EvaluationSystem', () => {
   it('should mention a smog spike', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
-    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    placeConnectedPlant(sim, 0, 0);
     sim.stats.pollutionAverage = 50;
     sim.evaluate();
     expect(sim.stats.advisory).toMatch(/smog/i);
@@ -100,7 +106,7 @@ describe('EvaluationSystem', () => {
   it('should mention high crime', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
-    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    placeConnectedPlant(sim, 0, 0);
     sim.stats.pollutionAverage = 0;
     sim.stats.crimeAverage = 40;
     sim.evaluate();
@@ -110,7 +116,7 @@ describe('EvaluationSystem', () => {
   it('should mention jammed traffic', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
-    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    placeConnectedPlant(sim, 0, 0);
     sim.stats.pollutionAverage = 0;
     for (let x = 10; x < 14; x++) {
       sim.placeRoad(x, 10, RoadType.Street);
@@ -125,7 +131,7 @@ describe('EvaluationSystem', () => {
   it('should mention dry lots only after people live in the city', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
-    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    placeConnectedPlant(sim, 0, 0);
     sim.stats.pollutionAverage = 0;
     sim.placeRoad(10, 10, RoadType.Street);
     sim.setZone(10, 11, ZoneType.Residential);
@@ -146,7 +152,7 @@ describe('EvaluationSystem', () => {
   it('should mention thin fire coverage only after people live in the city', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
-    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    placeConnectedPlant(sim, 0, 0);
     sim.stats.pollutionAverage = 0;
     sim.placeRoad(10, 10, RoadType.Street);
     sim.setZone(10, 11, ZoneType.Residential);
@@ -161,7 +167,7 @@ describe('EvaluationSystem', () => {
   it('should tell shop-only cities to zone housing', () => {
     const sim = CitySim.createCity(16, 16);
     sim.stats.money = 100_000;
-    sim.placeServiceBuilding(8, 8, 'small_power_plant', 0);
+    placeConnectedPlant(sim, 8, 8);
     sim.placeRoad(4, 4, RoadType.Street);
     sim.setZone(4, 5, ZoneType.Commercial);
     sim.stats.pollutionAverage = 0;
@@ -172,7 +178,7 @@ describe('EvaluationSystem', () => {
   it('should mention emptying buildings when lots are struggling', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
-    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    placeConnectedPlant(sim, 0, 0);
     sim.stats.pollutionAverage = 0;
     sim.placeRoad(10, 10, RoadType.Street);
     sim.getTile(10, 11)!.zoneType = ZoneType.Residential;
@@ -187,7 +193,7 @@ describe('EvaluationSystem', () => {
   it('should warn when a station sits outside the plant radius', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
-    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    placeConnectedPlant(sim, 0, 0);
     sim.placeServiceBuilding(20, 20, 'small_police_station', 0);
     sim.stats.pollutionAverage = 0;
     sim.evaluate();
@@ -198,7 +204,7 @@ describe('EvaluationSystem', () => {
   it('should keep waiting for growth after people arrive when jobs are keeping up', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
-    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    placeConnectedPlant(sim, 0, 0);
     sim.stats.pollutionAverage = 0;
     sim.placeRoad(10, 10, RoadType.Street);
     sim.setZone(10, 11, ZoneType.Residential);
@@ -211,7 +217,7 @@ describe('EvaluationSystem', () => {
   it('should warn that dark houses will leave once people live there', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
-    sim.placeServiceBuilding(0, 0, 'small_power_plant', 0);
+    placeConnectedPlant(sim, 0, 0);
     sim.stats.pollutionAverage = 0;
     sim.placeRoad(20, 20, RoadType.Street);
     sim.getTile(20, 21)!.zoneType = ZoneType.Residential;
@@ -233,5 +239,16 @@ describe('EvaluationSystem', () => {
     tickOneMonth(sim);
     expect(sim.stats.approval).toBeGreaterThanOrEqual(0);
     expect(sim.stats.approval).toBeLessThanOrEqual(100);
+  });
+
+  it('should say when a plant has no street for its power to follow', () => {
+    const sim = CitySim.createCity(16, 16);
+    sim.stats.money = 100_000;
+    sim.placeServiceBuilding(8, 8, 'small_power_plant', 0);
+    expect(sim.stats.advisory).toMatch(/no street — power and water run along streets/);
+    expect(sim.stats.powerSupply).toBe(0);
+    sim.placeRoad(8, 9, RoadType.Street);
+    expect(sim.stats.advisory).not.toMatch(/no street/);
+    expect(sim.stats.powerSupply).toBe(400);
   });
 });

@@ -94,6 +94,18 @@ export interface CityStats {
    * Percent of zoned tiles that are watered [0–100].
    */
   waterAverage: number;
+  /** Capacity of every plant feeding a street network (residents plus jobs it can carry). */
+  powerSupply: number;
+  /** Load drawn by the lots those networks serve. */
+  powerLoad: number;
+  /** Buildings a power network reaches but cannot serve: its plants are at capacity. */
+  powerShort: number;
+  /** Capacity of every powered tower feeding water mains. */
+  waterSupply: number;
+  /** Load drawn by the lots the mains serve. */
+  waterLoad: number;
+  /** Buildings the mains reach but cannot serve: the towers run dry. */
+  waterShort: number;
   /**
    * Mayor approval [0–100] from EvaluationSystem. Starts at 100.
    */
@@ -187,8 +199,8 @@ export class CitySim {
 
   /** Nesting depth of {@link batch}; edits inside defer their refresh. */
   private _batchDepth = 0;
-  /** Strongest refresh an edit asked for while batched. */
-  private _pendingRefresh: 'none' | 'network' | 'full' = 'none';
+  /** An edit inside a batch is waiting for its refresh. */
+  private _pendingRefresh = false;
 
   private constructor(map: CityMap, terrainSeed: number) {
     this.map          = map;
@@ -231,6 +243,12 @@ export class CitySim {
       crimeAverage:      0,
       fireAverage:       0,
       waterAverage:      0,
+      powerSupply:       0,
+      powerLoad:         0,
+      powerShort:        0,
+      waterSupply:       0,
+      waterLoad:         0,
+      waterShort:        0,
       approval:          100,
       advisory:          '',
     };
@@ -269,7 +287,7 @@ export class CitySim {
     if (tile.buildingId !== null) return;
     if (zoneType !== ZoneType.None && tile.roadType !== RoadType.None) return;
     tile.zoneType = zoneType;
-    this._afterEdit('network');
+    this._afterEdit();
   }
 
   /**
@@ -294,7 +312,7 @@ export class CitySim {
     const tile = this.map.getTile(x, y)!;
     tile.roadType = roadType;
     tile.zoneType = ZoneType.None;
-    this._afterEdit('network');
+    this._afterEdit();
     return true;
   }
 
@@ -304,7 +322,7 @@ export class CitySim {
     if (!tile) return;
     this.growth.removeAt(x, y);
     tile.clearOccupancy();
-    this._afterEdit('full');
+    this._afterEdit();
   }
 
   /** True when {@link placeServiceBuilding} would succeed here right now. */
@@ -332,7 +350,7 @@ export class CitySim {
     tile.buildingId = defId;
     this.growth.buildings.set(tileKey(x, y), { defId, x, y });
 
-    this._afterEdit('full');
+    this._afterEdit();
     return true;
   }
 
@@ -391,33 +409,21 @@ export class CitySim {
       return edits();
     } finally {
       this._batchDepth -= 1;
-      if (this._batchDepth === 0) {
-        const pending = this._pendingRefresh;
-        this._pendingRefresh = 'none';
-        if (pending !== 'none') this._refreshAfterEdit(pending);
+      if (this._batchDepth === 0 && this._pendingRefresh) {
+        this._pendingRefresh = false;
+        this._refreshAfterEdit();
       }
     }
   }
 
-  /** Zone and road edits refresh the network; buildings also move power. */
-  private _afterEdit(kind: 'network' | 'full'): void {
-    if (this._batchDepth === 0) {
-      this._refreshAfterEdit(kind);
-    } else if (kind === 'full' || this._pendingRefresh === 'none') {
-      this._pendingRefresh = kind;
-    }
+  /** Every edit can move power: roads carry it, lots draw it, plants feed it. */
+  private _afterEdit(): void {
+    if (this._batchDepth === 0) this._refreshAfterEdit();
+    else this._pendingRefresh = true;
   }
 
-  private _refreshAfterEdit(kind: 'network' | 'full'): void {
-    if (kind === 'full') this.refreshDerivedState({ applyCrimeHappiness: true, notify: true });
-    else this._refreshNetwork();
-  }
-
-  /** Traffic, smog, happiness, and land value after zone/road edits. */
-  private _refreshNetwork(): void {
-    this._syncPublishedState(true, true);
-    if (this.onLandValueChanged) this.onLandValueChanged();
-    this._notifyTrafficOverlays();
+  private _refreshAfterEdit(): void {
+    this.refreshDerivedState({ applyCrimeHappiness: true, notify: true });
   }
 
   /**
@@ -464,6 +470,12 @@ export class CitySim {
    * Safe to call after tax changes or placement; does not advance the clock.
    */
   evaluate(): void {
+    this.stats.powerSupply = this.power.summary.supply;
+    this.stats.powerLoad = this.power.summary.load;
+    this.stats.powerShort = this.power.summary.shortBuildings;
+    this.stats.waterSupply = this.water.summary.supply;
+    this.stats.waterLoad = this.water.summary.load;
+    this.stats.waterShort = this.water.summary.shortBuildings;
     this.evaluation.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
   }
 

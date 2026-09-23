@@ -46,8 +46,14 @@ describe('EconomySystem income', () => {
     }
 
     // Power them all so the full population is counted (not UNPOWERED_FACTOR × 0.75).
-    // Place power plant at (5,5) — outside the 5×5 house grid but within radius 8 of all houses.
+    // These houses have no street for power lines to reach; this test is about
+    // taxes, so the plant (and its upkeep) stays and the houses get power directly.
     sim.placeServiceBuilding(5, 5, 'small_power_plant', 0);
+    const distribute = sim.power.tick.bind(sim.power);
+    sim.power.tick = (map, buildings, defs) => {
+      distribute(map, buildings, defs);
+      map.forEach((tile) => { if (tile.buildingId === 'small_house') tile.powered = true; });
+    };
 
     tickOneMonth(sim);
 

@@ -95,7 +95,7 @@ describe('PollutionSystem', () => {
         industrialDemand: 0, resTaxRate: 9, comTaxRate: 9, indTaxRate: 9,
         monthlyIncome: 0, monthlyExpenses: 0, serviceExpenses: 0,
         projectedIncome: 0, projectedExpenses: 0, bankruptcyWarning: false,
-        happiness: 100, walkability: 0, transitAccess: 0, pollutionAverage: 0, crimeAverage: 0, fireAverage: 0, waterAverage: 0, approval: 100, advisory: '',
+        happiness: 100, walkability: 0, transitAccess: 0, pollutionAverage: 0, crimeAverage: 0, fireAverage: 0, waterAverage: 0, powerSupply: 0, powerLoad: 0, powerShort: 0, waterSupply: 0, waterLoad: 0, waterShort: 0, approval: 100, advisory: '',
       };
 
       system.tick(map, new Map(), new Map(), stats);

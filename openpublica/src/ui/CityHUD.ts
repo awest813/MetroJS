@@ -17,6 +17,7 @@ export class CityHUD {
   private readonly _crime:         HTMLElement;
   private readonly _fire:          HTMLElement;
   private readonly _water:         HTMLElement;
+  private readonly _power:         HTMLElement;
   private readonly _approval:      HTMLElement;
   private readonly _advisory:      HTMLElement;
   private readonly _resFill: HTMLElement;
@@ -32,6 +33,7 @@ export class CityHUD {
         <span class="hud-item" id="hud-money" title="Treasury">$0</span>
         <span class="hud-item" id="hud-pop" title="Population. Dark means those residents have no power and may leave.">Pop 0</span>
         <span class="hud-item" id="hud-jobs" title="Jobs">Jobs 0</span>
+        <span class="hud-item" id="hud-power" title="Power drawn from plants on the street grid, of what they can carry">Power none</span>
         <span class="hud-item" id="hud-date" title="Calendar">Jan 2000</span>
         <span class="hud-item hud-muted" id="hud-happiness" title="Happiness">Happy 100</span>
         <span class="hud-item hud-muted" id="hud-walkability" title="Walkability">Walk 0</span>
@@ -79,6 +81,7 @@ export class CityHUD {
     this._crime         = root.querySelector('#hud-crime')!;
     this._fire          = root.querySelector('#hud-fire')!;
     this._water         = root.querySelector('#hud-water')!;
+    this._power         = root.querySelector('#hud-power')!;
     this._approval      = root.querySelector('#hud-approval')!;
     this._advisory      = root.querySelector('#hud-advisory')!;
     this._resFill  = root.querySelector('#hud-res-fill')!;
@@ -104,6 +107,15 @@ export class CityHUD {
     this._crime.textContent         = `Crime ${stats.crimeAverage}`;
     this._fire.textContent          = `Fire ${stats.fireAverage}`;
     this._water.textContent         = `Water ${stats.waterAverage}`;
+    this._water.title = stats.waterSupply > 0
+      ? `Water mains carry ${stats.waterLoad} of ${stats.waterSupply}; ${stats.waterAverage}% of zoned lots are watered`
+      : 'Percent of zoned lots that are watered';
+    this._power.textContent = stats.powerSupply > 0 ? `Power ${stats.powerLoad}/${stats.powerSupply}` : 'Power none';
+    const strained = stats.powerShort > 0 || (stats.powerSupply > 0 && stats.powerLoad >= 0.9 * stats.powerSupply);
+    this._power.classList.toggle('hud-money-warning', strained);
+    this._power.title = stats.powerShort > 0
+      ? `Plants are at capacity: ${stats.powerShort} building${stats.powerShort === 1 ? '' : 's'} on the grid get no power`
+      : 'Power drawn from plants on the street grid, of what they can carry';
     this._approval.textContent      = `Score ${stats.approval}`;
     const alert = stats.advisory.trim().length > 0;
     this._advisory.textContent = alert ? stats.advisory : 'No mayor alerts.';

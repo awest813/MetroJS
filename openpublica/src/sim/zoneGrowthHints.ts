@@ -178,7 +178,7 @@ export function formatGrowthHint(
     if (tile.neglectMonths >= 2) {
       return 'struggling — restore power, demand, or road access';
     }
-    if (!tile.powered) return 'unpowered — place a power plant nearby';
+    if (!tile.powered) return 'unpowered — connect its street to a power plant, or add one if the grid is full';
     return null;
   }
   if (tile.zoneType === ZoneType.None) return null;
@@ -214,7 +214,7 @@ export function formatGrowthHint(
   const pace = monthlyGrowthBudget(demand, stats.population, stats.jobs);
   const fill = `up to ${pace} new ${pace === 1 ? 'building' : 'buildings'} a month at this demand`;
   if (!tile.powered) {
-    return `waiting to grow, ${fill} (will run underpowered until a plant covers it)`;
+    return `waiting to grow, ${fill} (will run underpowered until its street joins a power grid)`;
   }
   return `waiting to grow, ${fill}`;
 }

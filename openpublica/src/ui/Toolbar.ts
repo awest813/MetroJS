@@ -20,11 +20,11 @@ const TOOL_TITLES: Readonly<Record<string, string>> = {
   zoneIndustrialLight: 'Factory lots — $5. Drag a rectangle (S toggles streets) (key N). I stays inspect',
   zoneMixedUse: 'Housing and shops on one lot — $5. Drag a rectangle (S toggles streets) (key U). M stays mute',
   zoneClear: 'Remove zoning — drag a rectangle. Buildings must be bulldozed first',
-  placePowerPlant: 'Power plant — $500, $80/mo. Place on grass. Disc shows power radius (key G)',
+  placePowerPlant: 'Power plant — $500, $80/mo. Place beside a street: power runs along every street joined to it, up to 400 load (about 100 houses). Smoggy, so keep it away from homes (key G)',
   placePark: 'Park — $200, $20/mo. Raises nearby land value (key K)',
   placePoliceStation: 'Police — $400, $60/mo. Needs power and a street; patrols reach lots along the roads (key O)',
   placeFireStation: 'Fire — $400, $60/mo. Needs power and a street; engines reach lots along the roads (key F)',
-  placeWaterTower: 'Water tower — $350, $40/mo. Coverage only while powered (key W)',
+  placeWaterTower: 'Water tower — $350, $40/mo. Place beside a powered street: mains run along the streets, up to 600 load (key W)',
 };
 
 const TOOL_KEYS: Readonly<Record<string, string>> = {

@@ -39,15 +39,26 @@ import { PlannedDragInput, RoadLineMode, ZoneAreaMode } from './plannedDrag';
 import { planRoadLine } from '../tools/roadLine';
 import { formatAreaResult } from '../tools/zoneArea';
 import {
-  POWER_PLANT_SERVICE,
   createServiceTools,
   formatServiceHint,
   serviceRadius,
   serviceSpecForDef,
   serviceSpecForTool,
+  type NetworkInfo,
   type ServiceSpec,
 } from '../tools/serviceCatalog';
 import { stationHasRoad } from '../sim/roadDispatch';
+import type { BuildingDef } from '../sim/BuildingDef';
+import {
+  GRID_LINE,
+  GRID_SHORT,
+  networkReachFrom,
+  networkTilesAt,
+  type UtilityGrid,
+} from '../sim/utilityGrid';
+
+/** Lots a utility network reaches but cannot serve. */
+const SHORT_TINT = { r: 0.95, g: 0.25, b: 0.2 };
 
 /**
  * Top-level application coordinator.
@@ -196,31 +207,55 @@ export class App {
       if (plannedDrag.handleKey(event.key)) event.preventDefault();
     });
 
+    /** What a service just placed needs or does, kept past the spend line on release. */
+    let placementNote: string | null = null;
     view.picker.onDragEnd(() => {
       if (!plannedDrag.finish()) {
         const stroke = toolController.resetDrag();
         const line = formatStrokeStatus(toolController.activeTool.label, stroke);
-        if (line) statusEl.textContent = line;
+        if (line) {
+          const note = placementNote ? ` ${placementNote.charAt(0).toUpperCase()}${placementNote.slice(1)}.` : '';
+          statusEl.textContent = `${line}${note}`;
+        }
       }
+      placementNote = null;
       refreshHover();
     });
 
-    const nearestPlant = (coord: { x: number; y: number } | null): { x: number; y: number } | null => {
-      let best: { x: number; y: number; dist: number } | null = null;
-      for (const instance of sim.growth.buildings.values()) {
-        const def = sim.growth.defs.get(instance.defId);
-        if (!def?.powerRadius) continue;
-        const dist = coord
-          ? (instance.x - coord.x) ** 2 + (instance.y - coord.y) ** 2
-          : 0;
-        if (!best || dist < best.dist) best = { x: instance.x, y: instance.y, dist };
-      }
-      return best;
+    /** The power or water distribution a plant or tower belongs to. */
+    const utilityGrid = (def: BuildingDef | undefined): UtilityGrid | null => {
+      if (def?.powerCapacity) return sim.power.grid;
+      if (def?.waterCapacity) return sim.water.grid;
+      return null;
+    };
+    const networkAt = (def: BuildingDef | undefined, x: number, y: number): NetworkInfo | null => {
+      const grid = utilityGrid(def);
+      if (!grid) return null;
+      const id = grid.networkOf[y * sim.map.width + x];
+      return id >= 0 ? grid.networks[id] : null;
     };
 
-    /** Disc for radius services; street-following tiles for police and fire. */
-    const showServiceReach = (coord: { x: number; y: number }, spec: ServiceSpec): void => {
-      const radius = serviceRadius(sim.growth.defs.get(spec.defId));
+    /**
+     * Plants and towers: the streets and lots their network feeds (short lots
+     * in red), or, while placing one, the streets it would join. Parks show a
+     * disc; police and fire the lots their crews reach by road.
+     */
+    const showServiceReach = (coord: { x: number; y: number }, spec: ServiceSpec, placing: boolean): void => {
+      const def = sim.growth.defs.get(spec.defId);
+      if (spec.coverage === 'power' || spec.coverage === 'water') {
+        const grid = placing ? null : utilityGrid(def);
+        const tiles = grid
+          ? networkTilesAt(sim.map, grid, coord.x, coord.y)
+          : [coord, ...networkReachFrom(sim.map, coord.x, coord.y)].map((t) => ({ ...t, state: GRID_LINE }));
+        view.previewTints(tiles.map((t) => ({
+          x: t.x,
+          y: t.y,
+          rgb: t.state === GRID_SHORT ? SHORT_TINT : spec.preview,
+          alpha: t.state === GRID_LINE ? 0.55 : t.state === GRID_SHORT ? 0.5 : 0.32,
+        })));
+        return;
+      }
+      const radius = serviceRadius(def);
       if (spec.dispatch) {
         view.previewDispatch(coord.x, coord.y, radius, spec.preview);
       } else {
@@ -232,7 +267,7 @@ export class App {
       const tool = toolController.activeTool;
       const toolSpec = coord ? serviceSpecForTool(tool.name) : undefined;
       if (coord && toolSpec) {
-        showServiceReach(coord, toolSpec);
+        showServiceReach(coord, toolSpec, true);
         return;
       }
       if (coord) {
@@ -240,20 +275,9 @@ export class App {
         const defId = hover?.buildingId ?? undefined;
         const spec = defId ? serviceSpecForDef(defId) : undefined;
         if (spec) {
-          showServiceReach(coord, spec);
+          showServiceReach(coord, spec, false);
           return;
         }
-      }
-      const plant = nearestPlant(coord);
-      const plantDef = plant ? sim.growth.defs.get(sim.getTile(plant.x, plant.y)?.buildingId ?? '') : undefined;
-      if (plant && plantDef?.powerRadius) {
-        view.highlight.showCoverage(
-          plant,
-          plantDef.powerRadius,
-          POWER_PLANT_SERVICE.preview,
-          view.surface,
-        );
-        return;
       }
       view.highlight.hideCoverage();
     };
@@ -312,7 +336,7 @@ export class App {
     });
 
     new OverlayBar(overlayEl, [
-      overlaySpec('power-overlay-btn', 'Power', 'Powered vs unpowered tiles', 'power'),
+      overlaySpec('power-overlay-btn', 'Power', 'Power grid: live streets and powered lots; dark buildings show red', 'power'),
       overlaySpec('lv-overlay-btn', 'Value', 'Land value', 'landValue'),
       overlaySpec('traffic-overlay-btn', 'Traffic', 'Traffic pressure', 'traffic'),
       overlaySpec('walkability-overlay-btn', 'Walk', 'Walkability', 'walkability'),
@@ -321,7 +345,7 @@ export class App {
       overlaySpec('density-overlay-btn', 'Crowd', 'Population density', 'density'),
       overlaySpec('crime-overlay-btn', 'Crime', 'Crime from density minus police', 'crime'),
       overlaySpec('fire-overlay-btn', 'Fire', 'Fire coverage from powered stations', 'fire'),
-      overlaySpec('water-overlay-btn', 'Mains', 'Watered lots from powered towers', 'water'),
+      overlaySpec('water-overlay-btn', 'Mains', 'Water mains along the streets from powered towers, and the lots they water', 'water'),
     ]);
 
     const hud = new CityHUD(hudEl);
@@ -402,7 +426,9 @@ export class App {
         inspectDef,
         tile?.powered ?? false,
         stationHasRoad(sim.map, coord.x, coord.y),
+        networkAt(inspectDef, coord.x, coord.y),
       );
+      if (placing && result === 'applied') placementNote = serviceHint;
       const growthHint = tile ? formatGrowthHint(tile, sim.map, sim.stats) : null;
       const hint = [serviceHint, growthHint].filter((part): part is string => Boolean(part)).join(' · ') || null;
       statusEl.textContent = formatInspectStatus(

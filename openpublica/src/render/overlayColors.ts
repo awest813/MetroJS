@@ -43,7 +43,7 @@ const POLLUTION_ALPHA = 0.52;
 
 export function colorForOverlay(mode: OverlayMode, tile: CityTile): OverlayRgba {
   switch (mode) {
-    case 'power':       return colorForPower(tile.powered, tile.buildingId !== null);
+    case 'power':       return colorForPower(tile.powered, tile.buildingId !== null && tile.buildingId !== 'small_park');
     case 'landValue':   return colorForLandValue(tile.landValue);
     case 'traffic':     return colorForTraffic(tile.roadType, tile.trafficPressure);
     case 'walkability': return colorForWalkability(tile.walkability);
@@ -56,9 +56,10 @@ export function colorForOverlay(mode: OverlayMode, tile: CityTile): OverlayRgba 
   }
 }
 
-export function colorForPower(powered: boolean, hasBuilding: boolean): OverlayRgba {
+/** Live lines and powered lots green; buildings that need power and lack it red. Parks need none. */
+export function colorForPower(powered: boolean, needsPower: boolean): OverlayRgba {
   if (powered) return POWERED;
-  if (hasBuilding) return UNPOWERED;
+  if (needsPower) return UNPOWERED;
   return OVERLAY_CLEAR;
 }
 

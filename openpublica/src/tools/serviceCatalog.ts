@@ -93,32 +93,55 @@ export function serviceSpecForDef(defId: string): ServiceSpec | undefined {
   return BY_DEF.get(defId);
 }
 
+/** Reach of a disc or dispatch service (parks, police, fire); utilities run along streets instead. */
 export function serviceRadius(def: BuildingDef | undefined): number {
   if (!def) return 0;
-  return def.powerRadius
-    || def.policeRadius
+  return def.policeRadius
     || def.fireRadius
-    || def.waterRadius
     || def.parkRadius
     || 0;
 }
 
+/** Supply and use of the utility network a plant or tower feeds. */
+export interface NetworkInfo {
+  readonly supply: number;
+  readonly load: number;
+  readonly served: number;
+  readonly shortfall: number;
+}
+
+function formatNetwork(kind: 'power' | 'water', network: NetworkInfo | null | undefined): string {
+  if (!network) return `${kind} grid: nothing connected yet`;
+  const source = kind === 'power' ? 'plant' : 'tower';
+  const lots = `${network.served} lot${network.served === 1 ? '' : 's'}`;
+  const short = network.shortfall > 0 ? ` · ${network.shortfall} short — add a ${source} on this grid` : '';
+  return `${kind} grid ${network.load}/${network.supply} load · feeds ${lots}${short}`;
+}
+
 /**
  * Short status for a service lot. Police and fire also need a street
- * (`hasRoad`) because their crews drive out along the roads.
+ * (`hasRoad`) because their crews drive out along the roads; plants and
+ * towers need one because power lines and water mains run along them.
  */
 export function formatServiceHint(
   def: BuildingDef | undefined,
   powered: boolean,
   hasRoad = true,
+  network?: NetworkInfo | null,
 ): string | null {
-  const radius = serviceRadius(def);
-  if (!def || radius <= 0) return null;
-  if (def.powerRadius) return `power radius ${radius}`;
-  if (def.parkRadius) return `park radius ${radius}`;
-  if (def.waterRadius) {
-    return powered ? `water radius ${radius}` : 'dark — water coverage off until powered';
+  if (!def) return null;
+  if (def.powerCapacity) {
+    if (!hasRoad) return 'no street — power runs along streets, so pave one beside this plant';
+    return formatNetwork('power', network);
   }
+  if (def.waterCapacity) {
+    if (!hasRoad) return 'no street — water mains run along streets, so pave one beside this tower';
+    if (!powered) return 'dark — the tower pumps once a powered street reaches it';
+    return formatNetwork('water', network);
+  }
+  const radius = serviceRadius(def);
+  if (radius <= 0) return null;
+  if (def.parkRadius) return `park radius ${radius}`;
   const kind = def.policeRadius ? 'police' : 'fire';
   if (!hasRoad) return `no street — ${kind} crews can't drive out until one touches this lot`;
   if (!powered) return `dark — ${kind} coverage off until powered`;
