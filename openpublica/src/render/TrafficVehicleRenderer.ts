@@ -17,6 +17,7 @@ import { deckBaseHeight, edgeDeckHeight } from './roadDeck';
 import {
   BASE_CAR_SPEED,
   BASE_TROLLEY_SPEED,
+  advanceWithGaps,
   buildRoadGraph,
   buildTrolleyGraph,
   edgeExists,
@@ -141,6 +142,12 @@ export class TrafficVehicleRenderer {
     this._rehome(this._cars, this._graph);
     this._rehome(this._trolleys, this._trolleyGraph);
     this.syncDensity(map);
+  }
+
+  /** Re-read deck heights after the ground under some roads was re-graded. */
+  refreshDecks(map: CityMap): void {
+    this._map = map;
+    this._cacheDecks(map);
   }
 
   syncDensity(map: CityMap): void {
@@ -294,6 +301,7 @@ export class TrafficVehicleRenderer {
   }
 
   private _stepActors(pool: Actor[], graph: RoadGraph, dt: number): void {
+    const moving: Actor[] = [];
     for (const actor of pool) {
       if (!actor.root.isEnabled()) continue;
       if (!edgeExists(graph, actor.from, actor.to)) {
@@ -302,7 +310,12 @@ export class TrafficVehicleRenderer {
         }
         continue;
       }
-      actor.t += (actor.speed * dt) / TILE_SIZE;
+      moving.push(actor);
+    }
+    // Queue behind the vehicle ahead instead of driving through it.
+    const nextT = advanceWithGaps(moving, moving.map((a) => (a.speed * dt) / TILE_SIZE));
+    moving.forEach((actor, i) => {
+      actor.t = nextT[i];
       let guard = 0;
       while (actor.t >= 1 && guard++ < 8) {
         actor.t -= 1;
@@ -318,7 +331,7 @@ export class TrafficVehicleRenderer {
         actor.speed = this._speedFor(actor);
       }
       this._pose(actor);
-    }
+    });
   }
 
   private _pose(actor: Actor): void {

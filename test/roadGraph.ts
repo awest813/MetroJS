@@ -1,6 +1,8 @@
 import { CityMap } from '../openpublica/src/sim/CityMap';
 import { RoadType, TerrainType } from '../openpublica/src/sim/CityTile';
 import {
+  FOLLOW_GAP,
+  advanceWithGaps,
   BASE_CAR_SPEED,
   HALF_SPEED_PRESSURE,
   HIGHWAY_SPEED_FACTOR,
@@ -120,5 +122,29 @@ describe('roadGraph', () => {
     const graph = buildRoadGraph(map);
     expect(edgeExists(graph, nodeKey(2, 2), nodeKey(3, 2))).toBe(true);
     expect(edgeExists(graph, nodeKey(3, 2), nodeKey(4, 2))).toBe(true);
+  });
+
+  it('should queue cars behind the one ahead instead of stacking them', () => {
+    const a = { from: nodeKey(0, 0), to: nodeKey(1, 0), lane: 1, t: 0.5 };
+    const b = { from: nodeKey(0, 0), to: nodeKey(1, 0), lane: 1, t: 0.4 };
+    const other = { from: nodeKey(0, 0), to: nodeKey(1, 0), lane: -1, t: 0.4 };
+    const next = advanceWithGaps([a, b, other], [0.05, 0.3, 0.3]);
+    expect(next[0]).toBeCloseTo(0.55);
+    // b would pass a; it waits FOLLOW_GAP behind instead.
+    expect(next[1]).toBeCloseTo(Math.max(0.4, 0.55 - FOLLOW_GAP));
+    // The opposite lane is not held up.
+    expect(next[2]).toBeCloseTo(0.7);
+  });
+
+  it('should separate two cars spawned on the same spot without reversing', () => {
+    const a = { from: nodeKey(0, 0), to: nodeKey(1, 0), lane: 1, t: 0.3 };
+    const b = { from: nodeKey(0, 0), to: nodeKey(1, 0), lane: 1, t: 0.3 };
+    let movers = [a, b];
+    for (let i = 0; i < 10; i++) {
+      const next = advanceWithGaps(movers, [0.05, 0.05]);
+      expect(next[1]).toBeGreaterThanOrEqual(movers[1].t);
+      movers = movers.map((m, k) => ({ ...m, t: next[k] }));
+    }
+    expect(movers[0].t - movers[1].t).toBeGreaterThanOrEqual(FOLLOW_GAP - 1e-9);
   });
 });

@@ -133,6 +133,27 @@ tile corners, and every corner touching water was pulled under.
 | F5 Junctions | Where a highway meets a street (or trolley), the wider arm necks down with short curbs so decks meet flush. |
 | F6 Waterfront | Dry lots touching water get +8 land value, two tiles back +4. |
 
+### Gap G — Terrain surface **shipped**
+
+A third audit measured how objects meet the ground. Tiles were two triangles
+on a fixed diagonal while everything was placed at the corners' average, so
+things floated or sank by up to 0.16; the per-tile normals all pointed down,
+so the sun never lit the ground and the tile grid showed; hills poked through
+road decks on 5% of road tiles (up to 0.21); and the downhill side of 5% of
+buildings floated up to 0.1.
+
+| Slice | What shipped |
+|---|---|
+| G1 Tile fans | Each tile is four triangles around a centre at the corners' average; `HeightField.sample` follows the same surface, so roads, buildings, trees, and cars sit on the ground drawn. Overlay and reach tints use the same fans. |
+| G2 Normals | Shared analytic normals per corner and centre: hills shade with the sun and the grid is gone. `TERRAIN_ALBEDO_SCALE` keeps flat ground near the old tone. |
+| G3 Grading | Corners touched by land roads sit at the mean natural level of those roads (never shoreline corners); `regrade` runs on paint and bulldoze and re-seats terrain, roads, bridges, overlay, trees, buildings, and car decks nearby. Shore roads ride their dry corners over an earth embankment. With a street grid on four seeds no deck is under the ground. |
+| G4 Foundations | Buildings on slopes stand on a stone plinth down past the lowest ground in their footprint. |
+| G5 Edge | An earth wall (a blue cut through water) closes the map edge. |
+| G6 Details | Corner street trees take the side with no road arm; cars keep a gap behind the car ahead in their lane instead of stacking. |
+
+Hill noise was measured too: dropping the finest octave changed tile
+bumpiness by about 3%, so hills are unchanged.
+
 ---
 
 ## 4. Explicitly still out of scope (Phase I)
@@ -174,3 +195,4 @@ GLB (C4) and SSAO (C5) stay optional. C3 skirt is optional.
 - Services: hover a plant/park/tower to see its coverage disc, or a police/fire tool over a lot to see the streets it reaches; Budget lists civic and road upkeep; water raises land value on covered lots.
 - Roads: drag a street straight across a river (status names the bridge tiles), drag one across a highway (the highway stays), and watch Traffic drop on a jammed street after a parallel street is joined up.
 - Water: from an angled camera, hover the edge of a bridge deck (the cursor sits on the deck); beach lots show dry ground to the water's edge; Value shows the waterfront premium.
+- Terrain: drag a street across a hillside (the ground levels under it, no grass through the deck); hills shade with the sun at Dawn/Dusk; tilt the camera low at the map edge to see the skirt.

@@ -214,6 +214,43 @@ export function edgeSpeedTilesPerSec(
   return free * Math.max(MIN_SPEED_SHARE, share);
 }
 
+/** Least spacing, in tiles, between two vehicles on the same edge and lane. */
+export const FOLLOW_GAP = 0.34;
+
+export interface Mover {
+  readonly from: NodeKey;
+  readonly to: NodeKey;
+  readonly lane: number;
+  readonly t: number;
+}
+
+/**
+ * Where each mover would be after advancing `steps[i]` along its edge, held at
+ * least {@link FOLLOW_GAP} behind the vehicle ahead in the same lane so cars
+ * queue instead of driving through each other. Nobody reverses. Values may
+ * pass 1 (the caller rolls those onto the next edge).
+ */
+export function advanceWithGaps(movers: readonly Mover[], steps: readonly number[], gap = FOLLOW_GAP): number[] {
+  const next = movers.map((m, i) => m.t + Math.max(0, steps[i]));
+  const lanes = new Map<string, number[]>();
+  movers.forEach((m, i) => {
+    const key = `${m.from}>${m.to}:${m.lane}`;
+    const list = lanes.get(key);
+    if (list) list.push(i);
+    else lanes.set(key, [i]);
+  });
+  for (const list of lanes.values()) {
+    if (list.length < 2) continue;
+    list.sort((a, b) => movers[b].t - movers[a].t || a - b);
+    for (let k = 1; k < list.length; k++) {
+      const ahead = next[list[k - 1]];
+      const i = list[k];
+      next[i] = Math.max(movers[i].t, Math.min(next[i], ahead - gap));
+    }
+  }
+  return next;
+}
+
 /** True when both ends of the edge are highway tiles. */
 export function edgeIsHighway(map: CityMap, from: NodeKey, to: NodeKey): boolean {
   const a = parseNodeKey(from);

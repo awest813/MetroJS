@@ -145,6 +145,7 @@ export class CityView {
     const tile = sim.getTile(coord.x, coord.y);
     if (!tile) return;
     this.terrain.updateCityTile(tile);
+    this._regradeAround(sim, coord);
     this.roads.updateAround(sim.map, coord);
     this.overlay.updateTiles(sim.map, deckDirtyTiles(sim.map, coord.x, coord.y));
     this.vegetation.updateAround(sim.map, coord);
@@ -161,6 +162,36 @@ export class CityView {
     }
     this.refreshPowerVisuals(sim);
     this.onRedraw();
+  }
+
+  /**
+   * A road appeared or went away: grade the ground under it and move
+   * everything that stands on the tiles whose corners shifted.
+   */
+  private _regradeAround(sim: CitySim, coord: TileCoord): void {
+    const moved = this.heights.regrade(sim.map, coord.x, coord.y, coord.x, coord.y);
+    if (moved.length === 0) return;
+    const map = sim.map;
+    // Road seams average neighbouring decks, and bridge spans ramp to their
+    // abutments, so re-seat one ring further plus any span touching it.
+    const touched = new Map<string, TileCoord>();
+    for (const t of moved) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          for (const d of deckDirtyTiles(map, t.x + dx, t.y + dy)) touched.set(`${d.x},${d.y}`, d);
+        }
+      }
+    }
+    const around = Array.from(touched.values());
+    this.terrain.refreshHeights(moved);
+    this.roads.rebuildTiles(map, around);
+    this.overlay.updateTiles(map, around);
+    this.vegetation.updateTiles(map, moved);
+    this.buildings.reseat(moved);
+    this.traffic.refreshDecks(map);
+    if (moved.some((t) => map.getTile(t.x, t.y)?.buildingId === 'small_power_plant')) {
+      this.smoke.rebuild(map, this.heights);
+    }
   }
 
   /** Returns true when at least one kit was added (growth chime). */

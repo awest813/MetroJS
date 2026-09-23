@@ -82,6 +82,11 @@ export class VegetationRenderer {
     this._rebuildTile(map, coord.x, coord.y);
   }
 
+  /** Re-plant these tiles, e.g. after the ground under them was re-graded. */
+  updateTiles(map: CityMap, coords: ReadonlyArray<TileCoord>): void {
+    for (const coord of coords) this._rebuildTile(map, coord.x, coord.y);
+  }
+
   updateAround(map: CityMap, coord: TileCoord): void {
     this._rebuildTile(map, coord.x, coord.y);
     this._rebuildTile(map, coord.x + 1, coord.y);
@@ -153,7 +158,7 @@ export class VegetationRenderer {
       const heading = roadHeading(nbrs);
       const slot = streetTreeSlot(
         x, y, tile.roadType, tile.trafficPressure, heading,
-        connectedCardinals(nbrs).length,
+        connectedCardinals(nbrs).length, nbrs,
       );
       if (slot) return [slot];
     }

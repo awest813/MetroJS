@@ -27,7 +27,8 @@ import {
   type KitPart,
   type KitPalette,
 } from './buildingVisuals';
-import { vertexColorPbr } from './pbrSurfaces';
+import { coloredPbr, vertexColorPbr } from './pbrSurfaces';
+import { foundationFor } from './foundation';
 
 type KitVariant = 'zone' | 'service' | 'civic' | 'fire' | 'water' | 'warning';
 
@@ -40,6 +41,8 @@ export interface BuildingPickData {
 
 interface PlacedBuilding {
   instance: InstancedMesh;
+  /** Stone plinth on a sloped lot; null when the lot is flat. */
+  foundation: InstancedMesh | null;
   defId: string;
   zoneType: ZoneType;
   variant: KitVariant;
@@ -60,6 +63,7 @@ export class BuildingRenderer {
   private readonly _sources:  Map<string, Mesh> = new Map();
   private readonly _kitMat:   PBRMaterial;
   private readonly _warnMat:  PBRMaterial;
+  private readonly _plinth:   Mesh;
   private _selectedKey: string | null = null;
   private _heights: HeightField | null = null;
 
@@ -70,6 +74,12 @@ export class BuildingRenderer {
     this._kitMat = this._makeVertexMat('bld-kit');
     this._warnMat = this._makeVertexMat('bld-kit-warning');
     this._warnMat.emissiveColor = new Color3(0.28, 0.0, 0.0);
+
+    this._plinth = MeshBuilder.CreateBox('bld-foundation-src', { size: 1 }, scene);
+    this._plinth.material = coloredPbr('bld-foundation', scene, new Color3(0.52, 0.49, 0.44), 0.94);
+    this._plinth.isVisible = false;
+    this._plinth.isPickable = false;
+    this._shadows?.addShadowCaster(this._plinth);
 
     const bbr = scene.getBoundingBoxRenderer();
     bbr.frontColor = new Color3(1.0, 0.95, 0.1);
@@ -95,7 +105,19 @@ export class BuildingRenderer {
 
     if (this._selectedKey === key) this._selectedKey = null;
     placed.instance.dispose();
+    placed.foundation?.dispose();
     this._placed.delete(key);
+  }
+
+  /** Move buildings on these tiles to the ground after it was re-graded. */
+  reseat(coords: ReadonlyArray<{ x: number; y: number }>): void {
+    for (const coord of coords) {
+      const placed = this._placed.get(_tileKey(coord.x, coord.y));
+      if (!placed) continue;
+      placed.instance.position.y = this._floorY(coord.x, coord.y);
+      placed.foundation?.dispose();
+      placed.foundation = this._foundation(placed.defId, coord.x, coord.y);
+    }
   }
 
   selectBuilding(x: number, y: number): BuildingPickData | null {
@@ -130,6 +152,7 @@ export class BuildingRenderer {
     const pick = placed.instance.metadata as BuildingPickData;
     const selected = this._selectedKey === key;
     placed.instance.dispose();
+    placed.foundation?.dispose();
     this._placed.delete(key);
     this._spawn({ defId: placed.defId, x: pick.x, y: pick.y }, placed.zoneType, next);
     if (selected) this.selectBuilding(pick.x, pick.y);
@@ -144,10 +167,9 @@ export class BuildingRenderer {
     const source = this._sourceFor(instance.defId, zoneType, variant);
     const mesh = source.createInstance(`building-${key}`);
 
-    const groundY = this._heights?.footing(instance.x, instance.y) ?? 0;
     mesh.position = new Vector3(
       instance.x * TILE_SIZE + TILE_SIZE / 2,
-      groundY,
+      this._floorY(instance.x, instance.y),
       instance.y * TILE_SIZE + TILE_SIZE / 2,
     );
 
@@ -156,7 +178,28 @@ export class BuildingRenderer {
     mesh.useVertexColors = true;
     mesh.receiveShadows = true;
 
-    this._placed.set(key, { instance: mesh, defId: instance.defId, zoneType, variant });
+    const foundation = this._foundation(instance.defId, instance.x, instance.y);
+    this._placed.set(key, { instance: mesh, foundation, defId: instance.defId, zoneType, variant });
+  }
+
+  private _floorY(x: number, y: number): number {
+    return this._heights?.footing(x, y) ?? 0;
+  }
+
+  /** Plinth from the floor down past the lowest ground in the footprint. */
+  private _foundation(defId: string, x: number, y: number): InstancedMesh | null {
+    const heights = this._heights;
+    if (!heights) return null;
+    const cx = x * TILE_SIZE + TILE_SIZE / 2;
+    const cz = y * TILE_SIZE + TILE_SIZE / 2;
+    const shape = BUILDING_SHAPES[defId] ?? DEFAULT_SHAPE;
+    const spec = foundationFor(shape, this._floorY(x, y), (dx, dz) => heights.sample(cx + dx, cz + dz));
+    if (!spec) return null;
+    const plinth = this._plinth.createInstance(`bld-foundation-${x},${y}`);
+    plinth.position = new Vector3(cx, (spec.top + spec.bottom) / 2, cz);
+    plinth.scaling = new Vector3(spec.width, spec.top - spec.bottom, spec.depth);
+    plinth.isPickable = false;
+    return plinth;
   }
 
   private _sourceFor(

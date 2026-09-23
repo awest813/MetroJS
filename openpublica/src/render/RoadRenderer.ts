@@ -13,10 +13,11 @@ import { RoadType } from '../sim/CityTile';
 import type { TileCoord } from '../data/types';
 import { TILE_SIZE } from '../data/constants';
 import type { HeightField } from '../sim/HeightField';
-import { isBridgeAt, roadNeighbors, roadProfile } from '../sim/roadConnections';
+import { isBridgeAt, roadNeighbors, roadProfile, type RoadNeighbors } from '../sim/roadConnections';
 import {
   ARM_SPAN,
   CARDINAL_VEC,
+  CURB_WIDTH,
   GIRDER_DEPTH,
   roadPieces,
   type Cardinal,
@@ -32,8 +33,14 @@ export const ROAD_DECK_LIFT = 0.03;
 /** Pieces that sit on top of the deck surface rather than on its base. */
 const ON_DECK: ReadonlySet<RoadPieceKind> = new Set(['dash', 'rail', 'tie', 'crosswalk']);
 
+/** A road deck this far above the lowest ground in its tile gets an embankment. */
+export const EMBANKMENT_MIN_GAP = 0.035;
+
+/** Embankments run this deep below the lowest ground so no gap shows. */
+const EMBANKMENT_SINK = 0.04;
+
 /** Pieces stretched along a sloped arm so seams stay closed. */
-const STRETCH: ReadonlySet<RoadPieceKind> = new Set(['arm', 'rail', 'curb', 'railing', 'girder']);
+const STRETCH: ReadonlySet<RoadPieceKind> = new Set(['arm', 'rail', 'curb', 'railing', 'girder', 'berm']);
 
 /**
  * Extruded, slope-aware streets, trolley avenues, and bridges. Shared 1×1
@@ -44,7 +51,7 @@ export class RoadRenderer {
   private readonly _scene: Scene;
   private readonly _shadows: ShadowGenerator | null;
   private readonly _roots = new Map<string, TransformNode>();
-  private readonly _src: Record<Exclude<RoadPieceKind, 'pad' | 'arm'>, Mesh>;
+  private readonly _src: Record<Exclude<RoadPieceKind, 'pad' | 'arm'> | 'berm', Mesh>;
   private readonly _decks: Record<RoadType, Mesh>;
   private _heights: HeightField | null = null;
   private _seq = 0;
@@ -82,6 +89,7 @@ export class RoadRenderer {
       railing: this._unit('road-src-railing', railing),
       girder: this._unit('road-src-girder', concrete),
       pier: this._unit('road-src-pier', concrete),
+      berm: this._unit('road-src-berm', this._mat('road-berm', new Color3(0.46, 0.42, 0.35), 0.95)),
     };
   }
 
@@ -100,9 +108,12 @@ export class RoadRenderer {
 
   /** Rebuild the painted tile, its neighbours, and any bridge span they touch. */
   updateAround(map: CityMap, coord: TileCoord): void {
-    for (const tile of deckDirtyTiles(map, coord.x, coord.y)) {
-      this._rebuildTile(map, tile.x, tile.y);
-    }
+    this.rebuildTiles(map, deckDirtyTiles(map, coord.x, coord.y));
+  }
+
+  /** Rebuild these tiles (roads only; other tiles are skipped). */
+  rebuildTiles(map: CityMap, coords: ReadonlyArray<TileCoord>): void {
+    for (const tile of coords) this._rebuildTile(map, tile.x, tile.y);
   }
 
   private _deck(map: CityMap, x: number, y: number): number {
@@ -155,6 +166,56 @@ export class RoadRenderer {
         this._spawn(root, piece, cx, cz, h0, profile.thickness, seams, deckSrc);
       }
     }
+    if (!bridge) this._spawnEmbankment(root, neighbors, profile.width, cx, cz, h0, seams);
+  }
+
+  /**
+   * A land road raised over sloping ground (a shore road riding its dry side,
+   * or a deck over a dip) stands on an earth embankment under the pad and
+   * each arm, down past the lowest ground in the tile.
+   */
+  private _spawnEmbankment(
+    root: TransformNode,
+    neighbors: RoadNeighbors,
+    deckWidth: number,
+    cx: number,
+    cz: number,
+    h0: number,
+    seams: Record<Cardinal, number>,
+  ): void {
+    const heights = this._heights;
+    if (!heights) return;
+    let lowest = Infinity;
+    for (const ox of [-0.4, 0, 0.4]) {
+      for (const oz of [-0.4, 0, 0.4]) lowest = Math.min(lowest, heights.sample(cx + ox, cz + oz));
+    }
+    const drop = h0 - lowest;
+    if (!(drop > EMBANKMENT_MIN_GAP)) return;
+    const depth = drop + EMBANKMENT_SINK;
+    const w = deckWidth + CURB_WIDTH * 2;
+    this._instance(
+      root,
+      this._src.berm,
+      'berm',
+      new Vector3(cx, h0 - depth / 2, cz),
+      new Vector3(w, depth, w),
+      Vector3.Zero(),
+    );
+    for (const dir of ['n', 'e', 's', 'w'] as const) {
+      if (!neighbors[dir]) continue;
+      const { dx, dz } = CARDINAL_VEC[dir];
+      const eastWest = dir === 'e' || dir === 'w';
+      this._spawn(root, {
+        kind: 'berm',
+        ox: dx * (ARM_SPAN / 2),
+        oz: dz * (ARM_SPAN / 2),
+        sx: eastWest ? ARM_SPAN : w,
+        sy: depth,
+        sz: eastWest ? w : ARM_SPAN,
+        rotY: 0,
+        slope: dir,
+      }, cx, cz, h0, 0, seams, this._src.berm);
+    }
   }
 
   private _spawn(
@@ -175,7 +236,7 @@ export class RoadRenderer {
 
     let lift = piece.sy / 2;
     if (ON_DECK.has(piece.kind)) lift = deckT + piece.sy / 2 + 0.002;
-    else if (piece.kind === 'girder') lift = -piece.sy / 2;
+    else if (piece.kind === 'girder' || piece.kind === 'berm') lift = -piece.sy / 2;
 
     if (piece.slope) {
       const seam = seams[piece.slope];

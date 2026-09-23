@@ -49,7 +49,9 @@ export type RoadPieceKind =
   | 'railing'
   | 'girder'
   /** Vertical extent is resolved by the renderer (water bed up to the girder). */
-  | 'pier';
+  | 'pier'
+  /** Earth embankment under a raised land road; the renderer sizes it. */
+  | 'berm';
 
 export interface RoadPiece {
   readonly kind: RoadPieceKind;

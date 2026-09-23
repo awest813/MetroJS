@@ -62,4 +62,17 @@ describe('park ground colour', () => {
     expect(kept).toEqual([slots[0]]);
     expect(drySlots(slots, () => 0.06 + TREE_WATER_CLEARANCE, 0.06)).toHaveLength(2);
   });
+
+  it('should keep a corner tree off the road arm', () => {
+    // A north+east corner: heading 0, so trees sit east or west of centre.
+    const arms = { n: true, e: true, s: false, w: false };
+    let seen = 0;
+    for (let i = 0; i < 400; i++) {
+      const slot = streetTreeSlot(i, i * 7, RoadType.Street, 0, 0, 2, arms);
+      if (!slot) continue;
+      seen += 1;
+      expect(slot.dx).toBeLessThan(0);
+    }
+    expect(seen).toBeGreaterThan(0);
+  });
 });

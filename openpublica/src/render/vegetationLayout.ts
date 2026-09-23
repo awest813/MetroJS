@@ -28,6 +28,8 @@ export function parkTreeSlots(x: number, y: number): TreeSlot[] {
 
 /**
  * One curb tree on quiet streets. Highways, trolley, and busy tiles skip.
+ * On a corner the tree takes the side with no road arm, so it never stands
+ * on the street it lines.
  */
 export function streetTreeSlot(
   x: number,
@@ -36,16 +38,23 @@ export function streetTreeSlot(
   trafficPressure: number,
   heading: number,
   neighborCount = 2,
+  arms?: { n: boolean; e: boolean; s: boolean; w: boolean },
 ): TreeSlot | null {
   if (roadType !== RoadType.Street) return null;
   if (trafficPressure >= 6) return null;
   if (neighborCount >= 3) return null;
   const rng = createSeededRng(`openpublica-street-${x}-${y}`);
   if (rng() > 0.42) return null;
-  const side = rng() > 0.5 ? 1 : -1;
+  let side = rng() > 0.5 ? 1 : -1;
   const along = (rng() - 0.5) * 0.3;
   const curb = 0.42;
   const eastWest = Math.abs(Math.abs(heading) - Math.PI / 2) < 0.3;
+  if (arms) {
+    // The side the tree faces: +x/-x for a north-south street, +z/-z otherwise.
+    const armOn = (s: number): boolean => (eastWest ? (s > 0 ? arms.n : arms.s) : (s > 0 ? arms.e : arms.w));
+    if (armOn(side)) side = -side;
+    if (armOn(side)) return null;
+  }
   return {
     dx: eastWest ? along : side * curb,
     dz: eastWest ? side * curb : along,

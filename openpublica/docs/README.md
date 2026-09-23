@@ -87,6 +87,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Police and fire drive the streets (road-step reach, faster on highways); trolley lines of 4+ tiles give transit
 - [x] Bridges: paint a road straight across water (5× build, 3× upkeep) with piers, railings, and level decks
 - [x] Shorelines follow tile edges: every dry tile renders above the water, thin spits/notches are smoothed at generation, and waterfront lots get a land-value premium
+- [x] Smooth terrain: four-triangle tiles that match the height sampler, shared sun-lit normals, graded ground under roads, embankments, building foundations, and an earth skirt around the map
 
 Follow [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md) for optional GLB/SSAO. Untextured PBR, sky dome, `CityView` rebuild-on-load, city-health, mayor Score/advisory, highways, water, zoning plats/downtown, building degradation, opening coach, and per-service upkeep/coverage preview are in the HUD.
 

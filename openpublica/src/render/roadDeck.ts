@@ -7,6 +7,8 @@ import { bridgeSpanAt, isBridgeAt, isLandRoad } from '../sim/roadConnections';
 /** Anything that can report ground height at a tile centre (HeightField does). */
 export interface GroundHeights {
   tileCenter(x: number, y: number): number;
+  /** Mean of the tile's dry corners; lets a shore road ride its embankment. */
+  dryCenter?(x: number, y: number): number;
 }
 
 /** Gap between the water plane and the lowest bridge deck base. */
@@ -24,13 +26,24 @@ export function landFooting(ground: GroundHeights, x: number, y: number): number
 }
 
 /**
+ * Where a land road's deck sits: the graded ground, but on the shore the level
+ * of its dry corners, so the uphill side does not bury the deck.
+ */
+export function landRoadBed(ground: GroundHeights, x: number, y: number): number {
+  const dry = ground.dryCenter ? ground.dryCenter(x, y) : ground.tileCenter(x, y);
+  return Math.max(dry, landFooting(ground, x, y));
+}
+
+/**
  * Base Y of the road deck at (x, y), before the renderer's deck lift.
- * Land roads follow the terrain, kept clear of the water. A bridge runs
+ * Land roads follow the graded terrain, kept clear of the water. A bridge runs
  * level-ish from one land abutment to the other, never lower than
  * {@link BRIDGE_DECK_MIN_Y}. Non-road tiles report their footing.
  */
 export function deckBaseHeight(map: CityMap, ground: GroundHeights, x: number, y: number): number {
-  if (!isBridgeAt(map, x, y)) return landFooting(ground, x, y);
+  if (!isBridgeAt(map, x, y)) {
+    return isLandRoad(map.getTile(x, y)) ? landRoadBed(ground, x, y) : landFooting(ground, x, y);
+  }
   const span = bridgeSpanAt(map, x, y);
   if (!span) return landFooting(ground, x, y);
 
@@ -48,7 +61,7 @@ export function deckBaseHeight(map: CityMap, ground: GroundHeights, x: number, y
 }
 
 function _abutment(map: CityMap, ground: GroundHeights, x: number, y: number): number | null {
-  return isLandRoad(map.getTile(x, y)) ? landFooting(ground, x, y) : null;
+  return isLandRoad(map.getTile(x, y)) ? landRoadBed(ground, x, y) : null;
 }
 
 /**
