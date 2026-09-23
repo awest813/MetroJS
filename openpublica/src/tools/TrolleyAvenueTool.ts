@@ -1,5 +1,5 @@
 // ⚠️  This file must NOT import anything from @babylonjs/core.
-//     Tool logic is renderer-agnostic; the renderer reacts via onTileChanged.
+//     Tool logic is renderer-agnostic; the renderer reacts via onTilesChanged.
 
 import { RoadType } from '../sim/CityTile';
 import { ROAD_COST, RoadTool } from './RoadTool';

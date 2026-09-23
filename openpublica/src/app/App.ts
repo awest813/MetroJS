@@ -1,7 +1,7 @@
 import { createScene } from '../render/SceneSetup';
 import type { OverlayMode } from '../render/overlayColors';
 import { CitySim } from '../sim/CitySim';
-import { RoadType } from '../sim/CityTile';
+import { RoadType, ZoneType } from '../sim/CityTile';
 import { generateTerrain } from '../sim/TerrainGenerator';
 import { HeightField } from '../sim/HeightField';
 import { MAP_SIZE } from '../data/constants';
@@ -35,8 +35,9 @@ import { formatGrowthHint } from '../sim/zoneGrowthHints';
 import { applyDaylight } from '../render/daylight';
 import { CityView } from './CityView';
 import { mountCityMenu } from './cityFile';
-import { RoadLineInput } from './roadLineInput';
+import { PlannedDragInput, RoadLineMode, ZoneAreaMode } from './plannedDrag';
 import { planRoadLine } from '../tools/roadLine';
+import { formatAreaResult } from '../tools/zoneArea';
 import {
   POWER_PLANT_SERVICE,
   createServiceTools,
@@ -127,7 +128,7 @@ export class App {
     };
     applyQuality(readStoredQuality());
 
-    toolController.onTileChanged((coord) => view.syncPaintedTile(sim, coord));
+    toolController.onTilesChanged((coords) => view.syncPaintedTiles(sim, coords));
 
     sim.onGrowth = (changed) => {
       if (view.syncGrowth(sim, changed)) audio.play(GROWTH_VOICE, 'growth');
@@ -160,7 +161,7 @@ export class App {
     });
 
     cameraController.onModeChange(() => redrawLook());
-    const roadLine = new RoadLineInput(sim, view, toolController, statusEl, (tool, summary, path) => {
+    const roadLineMode = new RoadLineMode(sim, toolController, (tool, summary, path) => {
       hud.update(sim.stats, sim.clock);
       budgetPanel.update(sim.stats);
       if (summary.applied === 0) {
@@ -174,12 +175,29 @@ export class App {
       if (voice) audio.playPaint(voice);
       statusEl.textContent = formatStrokeStatus(tool.label, summary) ?? '';
     });
+    const zoneAreaMode = new ZoneAreaMode(sim, toolController, (tool, summary, plan, anchor, target) => {
+      hud.update(sim.stats, sim.clock);
+      budgetPanel.update(sim.stats);
+      if (summary.applied === 0) {
+        audio.play(FAIL_VOICE, 'fail');
+        statusEl.textContent = anchor.x === target.x && anchor.y === target.y
+          ? explainToolFailure(tool.name, anchor, sim)
+          : plan.blocked.length > 0
+            ? formatStrokeStatus(tool.label, summary) ?? 'Nothing new to zone there.'
+            : 'Nothing new to zone there.';
+        return;
+      }
+      const voice = sfxForTool(tool.name);
+      if (voice) audio.playPaint(voice);
+      statusEl.textContent = formatAreaResult(tool.label, summary.spent, plan, tool.zoneType === ZoneType.None);
+    });
+    const plannedDrag = new PlannedDragInput(sim, toolController, view, statusEl, [roadLineMode, zoneAreaMode]);
     window.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && roadLine.cancel()) event.preventDefault();
+      if (plannedDrag.handleKey(event.key)) event.preventDefault();
     });
 
     view.picker.onDragEnd(() => {
-      if (!roadLine.finish()) {
+      if (!plannedDrag.finish()) {
         const stroke = toolController.resetDrag();
         const line = formatStrokeStatus(toolController.activeTool.label, stroke);
         if (line) statusEl.textContent = line;
@@ -251,7 +269,7 @@ export class App {
     let hoverCoord: { x: number; y: number } | null = null;
     /** Re-tint the cursor when the tool or the map changed under a still pointer. */
     const refreshHover = (): void => {
-      if (!hoverCoord || roadLine.busy) return;
+      if (!hoverCoord || plannedDrag.busy) return;
       view.highlight.show(hoverCoord, view.surface, refuses(hoverCoord));
       previewCoverage(hoverCoord);
     };
@@ -347,8 +365,8 @@ export class App {
 
     view.picker.onPick((coord, via, mods) => {
       hoverCoord = coord;
-      if (roadLine.handlePick(coord, via, mods.shift)) {
-        view.highlight.show(coord, view.surface, roadLine.targetBlocked);
+      if (plannedDrag.handlePick(coord, via, mods.shift)) {
+        view.highlight.show(coord, view.surface, plannedDrag.targetBlocked);
         return;
       }
       const result = toolController.applyToTile(coord, sim);

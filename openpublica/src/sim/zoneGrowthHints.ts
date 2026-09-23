@@ -36,6 +36,29 @@ export const STRESS_MONTHS_TO_CHANGE = 4;
  */
 export const POWERED_ROAD_GROWTH_BOOST = 2.5;
 
+/** New buildings one zone type can take in a month at zero demand in an empty city. */
+export const GROWTH_BUDGET_BASE = 4;
+
+/** Extra new buildings per month for each point of demand. */
+export const GROWTH_BUDGET_PER_DEMAND = 0.25;
+
+/** Residents plus jobs that double the monthly budget: a bigger city draws more newcomers. */
+export const GROWTH_BUDGET_CITY_SCALE = 1000;
+
+/** A lot beside a building is this much likelier to fill first, so big zones grow outward. */
+export const NEIGHBOUR_GROWTH_PULL = 8;
+
+/**
+ * How many empty lots of one zone type may fill this month. Demand is how
+ * many newcomers want in, not how fast every zoned lot builds: zoning a
+ * thousand lots should fill them over years, not in one month.
+ */
+export function monthlyGrowthBudget(demand: number, population: number, jobs: number): number {
+  if (demand <= 0) return 0;
+  const base = GROWTH_BUDGET_BASE + demand * GROWTH_BUDGET_PER_DEMAND;
+  return Math.ceil(base * (1 + Math.max(0, population + jobs) / GROWTH_BUDGET_CITY_SCALE));
+}
+
 /** Empty months after abandon before the lot may grow again. */
 export const ABANDON_COOLDOWN_MONTHS = 2;
 
@@ -174,10 +197,12 @@ export function formatGrowthHint(
     return 'no industrial demand — cut industrial tax';
   }
 
+  const pace = monthlyGrowthBudget(demand, stats.population, stats.jobs);
+  const fill = `up to ${pace} new ${pace === 1 ? 'building' : 'buildings'} a month at this demand`;
   if (!tile.powered) {
-    return 'waiting to grow (will run underpowered until a plant covers it)';
+    return `waiting to grow, ${fill} (will run underpowered until a plant covers it)`;
   }
-  return 'waiting to grow';
+  return `waiting to grow, ${fill}`;
 }
 
 /**

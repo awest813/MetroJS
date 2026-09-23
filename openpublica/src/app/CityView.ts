@@ -1,6 +1,6 @@
 import type { Scene, ShadowGenerator } from '@babylonjs/core';
 import type { CitySim } from '../sim/CitySim';
-import { TerrainType } from '../sim/CityTile';
+import { TerrainType, type CityTile } from '../sim/CityTile';
 import { HeightField, WATER_SURFACE_Y } from '../sim/HeightField';
 import { tileKey } from '../sim/ZoneGrowthSystem';
 import { isBridge, roadProfile } from '../sim/roadConnections';
@@ -141,33 +141,48 @@ export class CityView {
   }
 
   /**
-   * Refresh meshes after a tool changed one tile. The traffic graph was
-   * already rebuilt by the sim's onTrafficChanged for the same edit.
+   * Refresh meshes after a tool changed these tiles. The traffic graph was
+   * already rebuilt by the sim's onTrafficChanged for the same edit. Per-tile
+   * work stays local; map-wide refreshes run once for the whole edit.
    */
-  syncPaintedTile(sim: CitySim, coord: TileCoord): void {
-    const tile = sim.getTile(coord.x, coord.y);
-    if (!tile) return;
-    this.terrain.updateCityTile(tile);
-    this._regradeAround(sim, coord);
-    this.roads.updateAround(sim.map, coord);
-    this.overlay.updateTiles(sim.map, deckDirtyTiles(sim.map, coord.x, coord.y));
-    this.vegetation.updateAround(sim.map, coord);
-    if (tile.buildingId === 'small_power_plant' || tile.buildingId === null) {
-      this.smoke.rebuild(sim.map, this.heights);
-    }
-    if (tile.buildingId === null) {
-      this.buildings.removeBuilding(coord.x, coord.y);
-    } else {
-      const instance = sim.growth.buildings.get(tileKey(coord.x, coord.y));
-      if (instance) {
-        this.buildings.addBuilding(instance, tile.zoneType, buildingFacing(sim.map, coord.x, coord.y));
+  syncPaintedTiles(sim: CitySim, coords: readonly TileCoord[]): void {
+    const map = sim.map;
+    const tiles = coords.map((c) => sim.getTile(c.x, c.y)).filter((t): t is CityTile => t !== undefined);
+    if (tiles.length === 0) return;
+    this.terrain.updateCityTiles(tiles);
+    this._regradeAround(sim, tiles);
+
+    const decks = new Map<string, TileCoord>();
+    const around = new Map<string, TileCoord>();
+    const facing = new Map<string, TileCoord>();
+    let smoke = false;
+    for (const tile of tiles) {
+      for (const d of deckDirtyTiles(map, tile.x, tile.y)) decks.set(`${d.x},${d.y}`, d);
+      around.set(`${tile.x},${tile.y}`, tile);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const n = { x: tile.x + dx, y: tile.y + dy };
+        around.set(`${n.x},${n.y}`, n);
+        facing.set(`${n.x},${n.y}`, n);
+      }
+      const drawn = this.buildings.defAt(tile.x, tile.y);
+      if (tile.buildingId === 'small_power_plant' || drawn === 'small_power_plant') smoke = true;
+      if (tile.buildingId === null) {
+        this.buildings.removeBuilding(tile.x, tile.y);
+      } else {
+        const instance = sim.growth.buildings.get(tileKey(tile.x, tile.y));
+        if (instance) {
+          this.buildings.addBuilding(instance, tile.zoneType, buildingFacing(map, tile.x, tile.y));
+        }
       }
     }
+    const deckList = Array.from(decks.values());
+    this.roads.rebuildTiles(map, deckList);
+    this.overlay.updateTiles(map, deckList);
+    this.vegetation.updateTiles(map, Array.from(around.values()));
+    if (smoke) this.smoke.rebuild(map, this.heights);
     // A road paved or cleared beside a building can change which way it faces.
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const x = coord.x + dx;
-      const y = coord.y + dy;
-      if (sim.getTile(x, y)?.buildingId) this.buildings.setFacing(x, y, buildingFacing(sim.map, x, y));
+    for (const n of facing.values()) {
+      if (sim.getTile(n.x, n.y)?.buildingId) this.buildings.setFacing(n.x, n.y, buildingFacing(map, n.x, n.y));
     }
     this.refreshPowerVisuals(sim);
     this.onRedraw();
@@ -177,10 +192,14 @@ export class CityView {
    * A road appeared or went away: grade the ground under it and move
    * everything that stands on the tiles whose corners shifted.
    */
-  private _regradeAround(sim: CitySim, coord: TileCoord): void {
-    const moved = this.heights.regrade(sim.map, coord.x, coord.y, coord.x, coord.y);
-    if (moved.length === 0) return;
+  private _regradeAround(sim: CitySim, coords: readonly TileCoord[]): void {
     const map = sim.map;
+    const byKey = new Map<string, TileCoord>();
+    for (const coord of coords) {
+      for (const t of this.heights.regrade(map, coord.x, coord.y, coord.x, coord.y)) byKey.set(`${t.x},${t.y}`, t);
+    }
+    if (byKey.size === 0) return;
+    const moved = Array.from(byKey.values());
     // Road seams average neighbouring decks, and bridge spans ramp to their
     // abutments, so re-seat one ring further plus any span touching it.
     const touched = new Map<string, TileCoord>();
@@ -206,10 +225,10 @@ export class CityView {
   /** Returns true when at least one kit was added (growth chime). */
   syncGrowth(sim: CitySim, changed: ReadonlyArray<TileCoord>): boolean {
     let grew = false;
+    this.terrain.updateCityTiles(changed);
     for (const coord of changed) {
       const tile = sim.getTile(coord.x, coord.y);
       if (!tile) continue;
-      this.terrain.updateCityTile(tile);
       if (tile.buildingId !== null) {
         const instance = sim.growth.buildings.get(tileKey(coord.x, coord.y));
         if (instance) {

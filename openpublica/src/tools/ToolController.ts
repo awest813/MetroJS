@@ -1,5 +1,5 @@
 // ⚠️  This file must NOT import anything from @babylonjs/core.
-//     Tool logic is renderer-agnostic; the renderer reacts via onTileChanged.
+//     Tool logic is renderer-agnostic; the renderer reacts via onTilesChanged.
 
 import type { Tool } from './Tool';
 import type { TileCoord } from '../data/types';
@@ -28,14 +28,15 @@ export interface StrokeSummary {
  * - Track which tool is active.
  * - Deduplicate drag events (do not re-apply to the same tile within one drag).
  * - Fill skipped tiles on stroke tools so a fast road drag stays connected.
- * - Fire the `onTileChanged` callback when a tile is mutated, so the render
- *   layer can refresh without tools touching the renderer directly.
+ * - Fire the `onTilesChanged` callback with the tiles each call mutated, so
+ *   the render layer can refresh without tools touching the renderer directly.
+ * - Batch each call's edits so the sim refreshes derived state once.
  */
 export class ToolController {
   private _activeTool: Tool;
   private readonly _tools = new Map<string, Tool>();
   private _lastDragCoord: TileCoord | null = null;
-  private _onTileChangedCb: ((coord: TileCoord) => void) | undefined;
+  private _onTilesChangedCb: ((coords: readonly TileCoord[]) => void) | undefined;
   private _strokeSpent = 0;
   private _strokeApplied = 0;
   private _strokeBridged = 0;
@@ -66,11 +67,11 @@ export class ToolController {
   }
 
   /**
-   * Register a callback invoked whenever a tile is mutated by the active tool.
-   * The render layer subscribes here to refresh the affected tile.
+   * Register a callback invoked with the tiles the active tool mutated, once
+   * per apply call. The render layer subscribes here to refresh them.
    */
-  onTileChanged(callback: (coord: TileCoord) => void): void {
-    this._onTileChangedCb = callback;
+  onTilesChanged(callback: (coords: readonly TileCoord[]) => void): void {
+    this._onTilesChangedCb = callback;
   }
 
   /**
@@ -93,25 +94,34 @@ export class ToolController {
         ? strokeTiles(this._lastDragCoord, coord)
         : [coord];
     this._lastDragCoord = coord;
+    return this.applyTiles(tiles, sim) > 0 ? 'applied' : 'unchanged';
+  }
 
+  /**
+   * Apply a tool (the active one by default) to each listed tile, in order, as
+   * one edit: the sim refreshes once and `onTilesChanged` fires once. Counts
+   * toward the current stroke summary. Returns how many tiles changed.
+   */
+  applyTiles(tiles: readonly TileCoord[], sim: CitySim, tool: Tool = this._activeTool): number {
     const before = sim.stats.money;
-    let applied = false;
-    const tool = this._activeTool;
-    for (const tile of tiles) {
-      const water = sim.getTile(tile.x, tile.y)?.terrain === TerrainType.Water;
-      if (tool.apply(tile, sim)) {
-        this._onTileChangedCb?.(tile);
-        applied = true;
-        this._strokeApplied += 1;
-        if (water && isRoadTool(tool)) this._strokeBridged += 1;
-      } else if (isRoadTool(tool)) {
-        const why = tool.blockAt(tile, sim);
-        if (why === 'bridge-turn' || why === 'bridge-branch') this._strokeBridgeBlocked += 1;
-        else if (why === 'funds') this._strokeFunds += 1;
+    const changed: TileCoord[] = [];
+    sim.batch(() => {
+      for (const tile of tiles) {
+        const water = sim.getTile(tile.x, tile.y)?.terrain === TerrainType.Water;
+        if (tool.apply(tile, sim)) {
+          changed.push(tile);
+          this._strokeApplied += 1;
+          if (water && isRoadTool(tool)) this._strokeBridged += 1;
+        } else if (isRoadTool(tool)) {
+          const why = tool.blockAt(tile, sim);
+          if (why === 'bridge-turn' || why === 'bridge-branch') this._strokeBridgeBlocked += 1;
+          else if (why === 'funds') this._strokeFunds += 1;
+        }
       }
-    }
+    });
     this._strokeSpent += Math.max(0, before - sim.stats.money);
-    return applied ? 'applied' : 'unchanged';
+    if (changed.length > 0) this._onTilesChangedCb?.(changed);
+    return changed.length;
   }
 
   /**

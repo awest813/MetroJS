@@ -35,6 +35,11 @@ const BUILDING_COLORS: Record<ZoneType, TileColor> = {
   [ZoneType.MixedUse]:    { r: 0.10, g: 0.50, b: 0.42 },
 };
 
+/** Plat colour of an empty lot in this zone. */
+export function zoneColor(zoneType: ZoneType): TileColor {
+  return ZONE_COLORS[zoneType];
+}
+
 /** Darker lawn so tree canopies read against the ground. */
 const PARK_GROUND: TileColor = { r: 0.12, g: 0.40, b: 0.16 };
 

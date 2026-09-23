@@ -7,7 +7,7 @@ import {
   ShadowGenerator,
 } from '@babylonjs/core';
 import type { CityMap } from '../sim/CityMap';
-import { RoadType, ZoneType, type CityTile } from '../sim/CityTile';
+import { RoadType, ZoneType } from '../sim/CityTile';
 import { averageColors, cityTileColor, isEmptyZonePlat, tileCornerColors } from '../data/cityTileColors';
 import { TILE_SIZE } from '../data/constants';
 import {
@@ -99,17 +99,22 @@ export class TerrainRenderer {
     this._buildSkirt();
   }
 
-  /**
-   * Updates the vertex colors for a single CityTile after it is mutated.
-   */
-  updateCityTile(tile: CityTile): void {
-    if (!this._mesh || !this._map) return;
+  /** Recolour mutated tiles and their neighbours with one buffer upload. */
+  updateCityTiles(tiles: ReadonlyArray<{ x: number; y: number }>): void {
+    if (!this._mesh || !this._map || tiles.length === 0) return;
     const rawColors = this._mesh.getVerticesData(VertexBuffer.ColorKind);
     if (!rawColors) return;
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        const neighbour = this._map.getTile(tile.x + dx, tile.y + dy);
-        if (neighbour) this._writeColors(rawColors, neighbour.x, neighbour.y);
+    const done = new Set<number>();
+    for (const tile of tiles) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const neighbour = this._map.getTile(tile.x + dx, tile.y + dy);
+          if (!neighbour) continue;
+          const index = neighbour.y * this._map.width + neighbour.x;
+          if (done.has(index)) continue;
+          done.add(index);
+          this._writeColors(rawColors, neighbour.x, neighbour.y);
+        }
       }
     }
     this._mesh.updateVerticesData(VertexBuffer.ColorKind, rawColors);

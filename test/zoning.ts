@@ -1,0 +1,283 @@
+import { CitySim } from '../openpublica/src/sim/CitySim';
+import { RoadType, TerrainType, ZoneType } from '../openpublica/src/sim/CityTile';
+import { MONTH_SECONDS } from '../openpublica/src/data/constants';
+import { isLandRoad, ROAD_STEPS } from '../openpublica/src/sim/roadConnections';
+import {
+  GROWTH_BUDGET_BASE,
+  formatGrowthHint,
+  monthlyGrowthBudget,
+} from '../openpublica/src/sim/zoneGrowthHints';
+import { ToolController } from '../openpublica/src/tools/ToolController';
+import { RoadTool, ROAD_COST } from '../openpublica/src/tools/RoadTool';
+import {
+  ZONE_COST,
+  createClearZoneBrush,
+  createResidentialLowBrush,
+} from '../openpublica/src/tools/ZoneBrushTool';
+import {
+  autoStreetLayout,
+  formatAreaPlan,
+  formatAreaResult,
+  planZoneArea,
+  zoneAreaTiles,
+} from '../openpublica/src/tools/zoneArea';
+import type { TileCoord } from '../openpublica/src/data/types';
+
+function makeSim(size = 24, money = 100_000): CitySim {
+  const sim = CitySim.createCity(size, size);
+  sim.stats.money = money;
+  return sim;
+}
+
+function streetRow(sim: CitySim, y: number, x0 = 0, x1 = sim.map.width - 1): void {
+  sim.batch(() => {
+    for (let x = x0; x <= x1; x++) sim.placeRoad(x, y, RoadType.Street);
+  });
+}
+
+/** Road tiles reachable from `start` over land roads. */
+function reachable(sim: CitySim, start: TileCoord): Set<string> {
+  const seen = new Set([`${start.x},${start.y}`]);
+  const stack = [start];
+  while (stack.length > 0) {
+    const { x, y } = stack.pop()!;
+    for (const [dx, dy] of ROAD_STEPS) {
+      const k = `${x + dx},${y + dy}`;
+      if (!seen.has(k) && isLandRoad(sim.getTile(x + dx, y + dy))) {
+        seen.add(k);
+        stack.push({ x: x + dx, y: y + dy });
+      }
+    }
+  }
+  return seen;
+}
+
+describe('batched edits', () => {
+  it('should refresh derived state once and match per-tile edits', () => {
+    const one = makeSim();
+    const many = makeSim();
+    for (const sim of [one, many]) streetRow(sim, 5);
+    let refreshes = 0;
+    many.onLandValueChanged = () => { refreshes += 1; };
+    const lots = zoneAreaTiles({ x: 2, y: 6 }, { x: 12, y: 9 });
+    for (const t of lots) one.setZone(t.x, t.y, ZoneType.Residential);
+    many.batch(() => {
+      for (const t of lots) many.setZone(t.x, t.y, ZoneType.Residential);
+    });
+    expect(refreshes).toBe(1);
+    expect(many.stats.advisory).toBe(one.stats.advisory);
+    many.map.forEach((tile) => {
+      const other = one.getTile(tile.x, tile.y)!;
+      expect(tile.landValue).toBe(other.landValue);
+      expect(tile.trafficPressure).toBe(other.trafficPressure);
+    });
+  });
+
+  it('should report one change list per apply', () => {
+    const sim = makeSim();
+    streetRow(sim, 5);
+    const ctrl = new ToolController(createResidentialLowBrush());
+    const calls: number[] = [];
+    ctrl.onTilesChanged((coords) => calls.push(coords.length));
+    const n = ctrl.applyTiles(zoneAreaTiles({ x: 0, y: 6 }, { x: 9, y: 7 }), sim);
+    expect(n).toBe(20);
+    expect(calls).toEqual([20]);
+    expect(ctrl.resetDrag().spent).toBe(20 * ZONE_COST);
+  });
+
+  it('should apply a named tool without switching the active one', () => {
+    const sim = makeSim();
+    const ctrl = new ToolController(createResidentialLowBrush());
+    ctrl.applyTiles([{ x: 3, y: 3 }, { x: 4, y: 3 }], sim, new RoadTool());
+    expect(sim.getTile(4, 3)!.roadType).toBe(RoadType.Street);
+    expect(ctrl.activeTool.name).toBe('zoneResidentialLow');
+  });
+});
+
+describe('zone areas', () => {
+  it('should cover the rectangle row by row from either corner', () => {
+    expect(zoneAreaTiles({ x: 3, y: 2 }, { x: 2, y: 1 })).toEqual([
+      { x: 2, y: 1 }, { x: 3, y: 1 }, { x: 2, y: 2 }, { x: 3, y: 2 },
+    ]);
+  });
+
+  it('should leave roads and water alone and skip lots with buildings', () => {
+    const sim = makeSim();
+    streetRow(sim, 5);
+    sim.getTile(3, 6)!.terrain = TerrainType.Water;
+    expect(sim.placeServiceBuilding(5, 6, 'small_park', 0)).toBe(true);
+    const plan = planZoneArea(createResidentialLowBrush(), { x: 2, y: 5 }, { x: 6, y: 6 }, sim, true);
+    expect(plan.lots).toHaveLength(3);
+    expect(plan.blocked.map((t) => t.reason)).toEqual(['building']);
+    expect(plan.tiles.some((t) => t.y === 5)).toBe(false);
+    expect(plan.cost).toBe(3 * ZONE_COST);
+  });
+
+  it('should keep lots already zoned and clear them with Dezone', () => {
+    const sim = makeSim();
+    streetRow(sim, 5);
+    sim.setZone(2, 6, ZoneType.Residential);
+    const zone = planZoneArea(createResidentialLowBrush(), { x: 2, y: 6 }, { x: 3, y: 6 }, sim, true);
+    expect(zone.tiles.map((t) => t.verdict)).toEqual(['keep', 'zone']);
+    const clear = planZoneArea(createClearZoneBrush(), { x: 2, y: 6 }, { x: 3, y: 6 }, sim, true);
+    expect(clear.tiles.map((t) => t.verdict)).toEqual(['clear']);
+    expect(clear.cost).toBe(0);
+    expect(formatAreaPlan('Dezone', clear, true, true)).toMatch(/^Dezone: 1 lot cleared · release to clear/);
+  });
+
+  it('should stop at the money, as release would', () => {
+    const sim = makeSim(24, ZONE_COST * 4);
+    streetRow(sim, 5);
+    const plan = planZoneArea(createResidentialLowBrush(), { x: 0, y: 6 }, { x: 9, y: 6 }, sim, true);
+    expect(plan.lots).toHaveLength(4);
+    expect(plan.blocked).toHaveLength(6);
+    expect(plan.blocked.every((t) => t.reason === 'funds')).toBe(true);
+  });
+
+  it('should mark lots with no street beside them', () => {
+    const sim = makeSim();
+    const plan = planZoneArea(createResidentialLowBrush(), { x: 2, y: 2 }, { x: 13, y: 3 }, sim, true);
+    expect(plan.streets).toHaveLength(0);
+    expect(plan.noStreet).toBe(24);
+    expect(plan.streetsHelp).toBe(false);
+    expect(formatAreaPlan('R Zone', plan, true, false)).toBe(
+      "R Zone: 24 lots · $120 · 24 without a street won't grow yet · release to zone · Esc cancels · Shift paints freehand",
+    );
+  });
+});
+
+describe('streets through big zones', () => {
+  it('should give every lot of an open area a street, joined into one network', () => {
+    const sim = makeSim();
+    const a = { x: 2, y: 2 };
+    const b = { x: 13, y: 11 };
+    const streets = autoStreetLayout(sim.map, a, b);
+    expect(streets.length).toBeGreaterThan(0);
+    const plan = planZoneArea(createResidentialLowBrush(), a, b, sim, true);
+    expect(plan.noStreet).toBe(0);
+    expect(plan.cost).toBe(plan.streets.length * ROAD_COST[RoadType.Street] + plan.lots.length * ZONE_COST);
+    const ctrl = new ToolController(createResidentialLowBrush());
+    ctrl.applyTiles(plan.streets, sim, new RoadTool());
+    expect(reachable(sim, plan.streets[0]).size).toBe(plan.streets.length);
+  });
+
+  it('should tie the new streets to the road the area was drawn beside', () => {
+    const sim = makeSim();
+    streetRow(sim, 3);
+    const plan = planZoneArea(createResidentialLowBrush(), { x: 2, y: 4 }, { x: 17, y: 10 }, sim, true);
+    expect(plan.noStreet).toBe(0);
+    new ToolController(createResidentialLowBrush()).applyTiles(plan.streets, sim, new RoadTool());
+    const network = reachable(sim, { x: 0, y: 3 });
+    for (const t of plan.streets) expect(network.has(`${t.x},${t.y}`)).toBe(true);
+  });
+
+  it('should add a back street to a block three lots deep', () => {
+    const sim = makeSim();
+    streetRow(sim, 3);
+    const plan = planZoneArea(createResidentialLowBrush(), { x: 2, y: 4 }, { x: 15, y: 6 }, sim, true);
+    expect(plan.noStreet).toBe(0);
+    expect(plan.streets.filter((t) => t.y === 6)).toHaveLength(14);
+  });
+
+  it('should not pave through a finished street grid or a thin strip', () => {
+    const sim = makeSim();
+    sim.batch(() => {
+      for (let y = 0; y < 24; y++) {
+        for (let x = 0; x < 24; x++) if (x % 4 === 0 || y % 4 === 0) sim.placeRoad(x, y, RoadType.Street);
+      }
+    });
+    expect(autoStreetLayout(sim.map, { x: 1, y: 1 }, { x: 19, y: 15 })).toEqual([]);
+    expect(autoStreetLayout(makeSim().map, { x: 2, y: 4 }, { x: 13, y: 5 })).toEqual([]);
+  });
+
+  it('should let S turn the streets off and say what that leaves', () => {
+    const sim = makeSim();
+    streetRow(sim, 3);
+    const plan = planZoneArea(createResidentialLowBrush(), { x: 2, y: 4 }, { x: 15, y: 6 }, sim, false);
+    expect(plan.streets).toHaveLength(0);
+    expect(plan.noStreet).toBe(28);
+    expect(plan.streetsHelp).toBe(true);
+    expect(formatAreaPlan('R Zone', plan, false, false)).toMatch(/28 without a street won't grow yet · release to zone · S: lay streets/);
+  });
+
+  it('should drop street pieces a lake cuts off from the roads', () => {
+    const sim = makeSim();
+    streetRow(sim, 3);
+    for (let x = 0; x < 24; x++) for (const y of [9, 10]) sim.getTile(x, y)!.terrain = TerrainType.Water;
+    const plan = planZoneArea(createResidentialLowBrush(), { x: 2, y: 4 }, { x: 13, y: 16 }, sim, true);
+    new ToolController(createResidentialLowBrush()).applyTiles(plan.streets, sim, new RoadTool());
+    const network = reachable(sim, { x: 0, y: 3 });
+    expect(plan.streets.length).toBeGreaterThan(0);
+    for (const t of plan.streets) expect(network.has(`${t.x},${t.y}`)).toBe(true);
+    expect(plan.noStreet).toBeGreaterThan(0);
+  });
+
+  it('should never bridge or pave through a building', () => {
+    const sim = makeSim();
+    for (let y = 2; y <= 11; y++) sim.getTile(8, y)!.terrain = TerrainType.Water;
+    expect(sim.placeServiceBuilding(4, 5, 'small_park', 0)).toBe(true);
+    for (const t of autoStreetLayout(sim.map, { x: 2, y: 2 }, { x: 13, y: 11 })) {
+      const tile = sim.getTile(t.x, t.y)!;
+      expect(tile.terrain).not.toBe(TerrainType.Water);
+      expect(tile.buildingId).toBeNull();
+    }
+  });
+
+  it('should report what release built', () => {
+    const sim = makeSim();
+    streetRow(sim, 3);
+    const plan = planZoneArea(createResidentialLowBrush(), { x: 2, y: 4 }, { x: 15, y: 6 }, sim, true);
+    expect(formatAreaResult('R Zone', 290, plan, false)).toBe('R Zone: 26 lots and 16 street tiles for $290.');
+  });
+});
+
+describe('growth pace', () => {
+  it('should scale the monthly budget with demand and city size', () => {
+    expect(monthlyGrowthBudget(0, 0, 0)).toBe(0);
+    expect(monthlyGrowthBudget(40, 0, 0)).toBe(GROWTH_BUDGET_BASE + 10);
+    expect(monthlyGrowthBudget(40, 800, 200)).toBe(2 * (GROWTH_BUDGET_BASE + 10));
+  });
+
+  function withRandom<T>(value: number, run: () => T): T {
+    const original = Math.random;
+    Math.random = () => value;
+    try {
+      return run();
+    } finally {
+      Math.random = original;
+    }
+  }
+
+  it('should fill a huge zone at the budget, not all at once', () => {
+    const sim = makeSim(48);
+    sim.batch(() => {
+      for (let x = 0; x < 48; x += 3) {
+        for (let y = 0; y < 48; y++) sim.placeRoad(x, y, RoadType.Street);
+      }
+      sim.map.forEach((t) => sim.setZone(t.x, t.y, ZoneType.Residential));
+    });
+    const budget = monthlyGrowthBudget(sim.stats.residentialDemand, 0, 0);
+    withRandom(0, () => sim.tick(MONTH_SECONDS));
+    expect(sim.growth.buildings.size).toBe(budget);
+  });
+
+  it('should fill lots beside existing buildings first', () => {
+    const sim = makeSim(32);
+    streetRow(sim, 4);
+    expect(sim.placeServiceBuilding(20, 5, 'small_park', 0)).toBe(true);
+    sim.batch(() => {
+      for (let x = 0; x < 32; x++) if (x !== 20) sim.setZone(x, 5, ZoneType.Residential);
+    });
+    withRandom(0.1, () => sim.tick(MONTH_SECONDS));
+    expect(sim.getTile(19, 5)!.buildingId).not.toBeNull();
+    expect(sim.getTile(21, 5)!.buildingId).not.toBeNull();
+    expect(sim.growth.buildings.size - 1).toBeLessThanOrEqual(monthlyGrowthBudget(40, 0, 0));
+  });
+
+  it('should tell a waiting lot how fast lots fill', () => {
+    const sim = makeSim();
+    streetRow(sim, 5);
+    sim.setZone(3, 6, ZoneType.Residential);
+    expect(formatGrowthHint(sim.getTile(3, 6)!, sim.map, sim.stats)).toMatch(/up to 14 new buildings a month/);
+  });
+});

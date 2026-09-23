@@ -3,7 +3,7 @@
 
 import type { CityMap } from './CityMap';
 import type { CityStats } from './CitySim';
-import { RoadType, ZoneType, TerrainType } from './CityTile';
+import { RoadType, ZoneType, TerrainType, type CityTile } from './CityTile';
 import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 import rawDefs from '../data/buildings.json';
@@ -17,11 +17,13 @@ import { TrafficPressureSystem } from './TrafficPressureSystem';
 import { WalkabilitySystem } from './WalkabilitySystem';
 import { TransitSystem } from './TransitSystem';
 import {
+  NEIGHBOUR_GROWTH_PULL,
   POWERED_ROAD_GROWTH_BOOST,
   STARTER_RESIDENTIAL_DEMAND,
   UNPOWERED_FACTOR,
   demandForZone,
   growthChance,
+  monthlyGrowthBudget,
   nextDevelopmentDef,
   targetBuildingDef,
   tileHasAdjacentRoad,
@@ -283,13 +285,18 @@ export class ZoneGrowthSystem {
     );
   }
 
-  /** Grow empty zoned lots whose zone passes `include`. */
+  /**
+   * Grow empty zoned lots whose zone passes `include`. Each eligible lot rolls
+   * its chance; when more succeed than the zone's monthly budget, lots beside
+   * existing buildings and with better odds are kept first.
+   */
   private _growEmptyLots(
     map: CityMap,
     stats: CityStats,
     changedTiles: Array<{ x: number; y: number }>,
     include: (zone: ZoneType) => boolean,
   ): void {
+    const winners: Array<{ tile: CityTile; def: BuildingDef; rank: number }> = [];
     map.forEach((tile) => {
       if (!include(tile.zoneType)) return;
       if (tile.zoneType === ZoneType.None) return;
@@ -305,16 +312,40 @@ export class ZoneGrowthSystem {
       const mixedBoost = (tile.zoneType === ZoneType.MixedUse &&
         this._hasAdjacentActiveZone(map, tile.x, tile.y)) ? 1.3 : 1.0;
       const poweredBoost = tile.powered ? POWERED_ROAD_GROWTH_BOOST : 1;
-      if (Math.random() > growthChance(tile.landValue, demand, mixedBoost, poweredBoost)) return;
+      const chance = growthChance(tile.landValue, demand, mixedBoost, poweredBoost);
+      if (Math.random() > chance) return;
 
       const bucket = this._defsByZone.get(tile.zoneType);
       const def = bucket ? targetBuildingDef(bucket, tile.landValue, demand) : undefined;
       if (!def) return;
 
+      // Weighted draw without replacement: a higher weight ranks higher on average.
+      const pull = this._hasBuiltNeighbour(map, tile.x, tile.y) ? NEIGHBOUR_GROWTH_PULL : 1;
+      winners.push({ tile, def, rank: Math.random() ** (1 / (chance * pull)) });
+    });
+
+    winners.sort((a, b) => b.rank - a.rank);
+    const used = new Map<ZoneType, number>();
+    for (const { tile, def } of winners) {
+      const zone = tile.zoneType;
+      const count = used.get(zone) ?? 0;
+      const budget = monthlyGrowthBudget(demandForZone(zone, stats), stats.population, stats.jobs);
+      if (count >= budget) continue;
+      used.set(zone, count + 1);
       this.buildings.set(tileKey(tile.x, tile.y), { defId: def.id, x: tile.x, y: tile.y });
       tile.buildingId = def.id;
       changedTiles.push({ x: tile.x, y: tile.y });
-    });
+    }
+  }
+
+  /** Any of the eight tiles around (x, y) has a building. */
+  private _hasBuiltNeighbour(map: CityMap, x: number, y: number): boolean {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if ((dx !== 0 || dy !== 0) && map.getTile(x + dx, y + dy)?.buildingId) return true;
+      }
+    }
+    return false;
   }
 
   /** Step a healthy building up one size when land value and demand can carry it. */

@@ -185,6 +185,11 @@ export class CitySim {
    */
   onMonth: (() => void) | null = null;
 
+  /** Nesting depth of {@link batch}; edits inside defer their refresh. */
+  private _batchDepth = 0;
+  /** Strongest refresh an edit asked for while batched. */
+  private _pendingRefresh: 'none' | 'network' | 'full' = 'none';
+
   private constructor(map: CityMap, terrainSeed: number) {
     this.map          = map;
     this.terrainSeed  = terrainSeed;
@@ -264,7 +269,7 @@ export class CitySim {
     if (tile.buildingId !== null) return;
     if (zoneType !== ZoneType.None && tile.roadType !== RoadType.None) return;
     tile.zoneType = zoneType;
-    this._refreshNetwork();
+    this._afterEdit('network');
   }
 
   /**
@@ -289,7 +294,7 @@ export class CitySim {
     const tile = this.map.getTile(x, y)!;
     tile.roadType = roadType;
     tile.zoneType = ZoneType.None;
-    this._refreshNetwork();
+    this._afterEdit('network');
     return true;
   }
 
@@ -299,7 +304,7 @@ export class CitySim {
     if (!tile) return;
     this.growth.removeAt(x, y);
     tile.clearOccupancy();
-    this.refreshDerivedState({ applyCrimeHappiness: true, notify: true });
+    this._afterEdit('full');
   }
 
   /** True when {@link placeServiceBuilding} would succeed here right now. */
@@ -332,7 +337,7 @@ export class CitySim {
     tile.buildingId = defId;
     this.growth.buildings.set(tileKey(x, y), { defId, x, y });
 
-    this.refreshDerivedState({ applyCrimeHappiness: true, notify: true });
+    this._afterEdit('full');
     return true;
   }
 
@@ -378,6 +383,39 @@ export class CitySim {
     if (this.onPowerChanged) this.onPowerChanged();
     if (this.onLandValueChanged) this.onLandValueChanged();
     this._notifyTrafficOverlays();
+  }
+
+  /**
+   * Run several edits and refresh derived state once at the end, instead of
+   * once per tile: a 400-lot zone paints in one pass. Every refresh recomputes
+   * from the map, so the result matches refreshing after each edit.
+   */
+  batch<T>(edits: () => T): T {
+    this._batchDepth += 1;
+    try {
+      return edits();
+    } finally {
+      this._batchDepth -= 1;
+      if (this._batchDepth === 0) {
+        const pending = this._pendingRefresh;
+        this._pendingRefresh = 'none';
+        if (pending !== 'none') this._refreshAfterEdit(pending);
+      }
+    }
+  }
+
+  /** Zone and road edits refresh the network; buildings also move power. */
+  private _afterEdit(kind: 'network' | 'full'): void {
+    if (this._batchDepth === 0) {
+      this._refreshAfterEdit(kind);
+    } else if (kind === 'full' || this._pendingRefresh === 'none') {
+      this._pendingRefresh = kind;
+    }
+  }
+
+  private _refreshAfterEdit(kind: 'network' | 'full'): void {
+    if (kind === 'full') this.refreshDerivedState({ applyCrimeHappiness: true, notify: true });
+    else this._refreshNetwork();
   }
 
   /** Traffic, smog, happiness, and land value after zone/road edits. */

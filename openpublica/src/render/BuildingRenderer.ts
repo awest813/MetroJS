@@ -102,6 +102,11 @@ export class BuildingRenderer {
     this._spawn(instance, zoneType, kitKindForDef(instance.defId), facing);
   }
 
+  /** Def id of the building drawn on (x, y), or null. */
+  defAt(x: number, y: number): string | null {
+    return this._placed.get(_tileKey(x, y))?.defId ?? null;
+  }
+
   /** Turn an existing building after the roads beside it changed. */
   setFacing(x: number, y: number, facing: number): void {
     const placed = this._placed.get(_tileKey(x, y));

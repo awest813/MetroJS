@@ -44,6 +44,16 @@ export class ZoneBrushTool implements Tool {
     this.label     = ZONE_LABELS[zoneType];
   }
 
+  /** The zone this brush paints (None for Dezone). */
+  get zoneType(): ZoneType {
+    return this._zoneType;
+  }
+
+  /** Price per lot: zoning costs, clearing is free. */
+  get cost(): number {
+    return this._zoneType === ZoneType.None ? 0 : ZONE_COST;
+  }
+
   canApply(coord: TileCoord, sim: CitySim): boolean {
     const tile = sim.getTile(coord.x, coord.y);
     if (!tile) return false;
@@ -58,20 +68,21 @@ export class ZoneBrushTool implements Tool {
     if (this._zoneType !== ZoneType.None && tile.roadType !== RoadType.None) {
       return false;
     }
-    return sim.canAfford(this._cost());
+    return sim.canAfford(this.cost);
   }
 
   apply(coord: TileCoord, sim: CitySim): boolean {
     if (!this.canApply(coord, sim)) return false;
-    const cost = this._cost();
+    const cost = this.cost;
     if (cost > 0 && !sim.deductMoney(cost)) return false;
     sim.setZone(coord.x, coord.y, this._zoneType);
     return true;
   }
+}
 
-  private _cost(): number {
-    return this._zoneType === ZoneType.None ? 0 : ZONE_COST;
-  }
+/** True for the R/C/I/Mixed brushes and Dezone. */
+export function isZoneBrush(tool: Tool): tool is ZoneBrushTool {
+  return tool instanceof ZoneBrushTool;
 }
 
 // ── Convenience factories ─────────────────────────────────────────────────────

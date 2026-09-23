@@ -56,13 +56,13 @@ describe('ToolController', () => {
   });
 
   describe('applyToTile', () => {
-    it('should call the active tool and fire onTileChanged on mutation', () => {
+    it('should call the active tool and fire onTilesChanged on mutation', () => {
       const road = new RoadTool();
       const ctrl = new ToolController(road);
       const sim  = makeSim();
 
       const changed: typeof ORIGIN[] = [];
-      ctrl.onTileChanged((coord) => changed.push(coord));
+      ctrl.onTilesChanged((coords) => changed.push(...coords));
 
       ctrl.applyToTile(TILE_A, sim);
 
@@ -70,13 +70,13 @@ describe('ToolController', () => {
       expect(changed[0]).toEqual(TILE_A);
     });
 
-    it('should NOT fire onTileChanged when the tool returns false', () => {
+    it('should NOT fire onTilesChanged when the tool returns false', () => {
       const inspect = new InspectTool();
       const ctrl    = new ToolController(inspect);
       const sim     = makeSim();
 
       const changed: typeof ORIGIN[] = [];
-      ctrl.onTileChanged((coord) => changed.push(coord));
+      ctrl.onTilesChanged((coords) => changed.push(...coords));
 
       ctrl.applyToTile(TILE_A, sim);
 
@@ -89,7 +89,7 @@ describe('ToolController', () => {
       const sim  = makeSim();
 
       const changed: typeof ORIGIN[] = [];
-      ctrl.onTileChanged((coord) => changed.push(coord));
+      ctrl.onTilesChanged((coords) => changed.push(...coords));
 
       ctrl.applyToTile(TILE_A, sim);
       ctrl.applyToTile(TILE_A, sim); // same tile — should be suppressed
@@ -115,7 +115,7 @@ describe('ToolController', () => {
       const sim  = makeSim();
 
       const changed: typeof ORIGIN[] = [];
-      ctrl.onTileChanged((coord) => changed.push(coord));
+      ctrl.onTilesChanged((coords) => changed.push(...coords));
 
       ctrl.applyToTile(TILE_A, sim);
       ctrl.applyToTile(TILE_B, sim);
@@ -131,7 +131,7 @@ describe('ToolController', () => {
       const sim  = makeSim();
 
       const changed: typeof ORIGIN[] = [];
-      ctrl.onTileChanged((coord) => changed.push(coord));
+      ctrl.onTilesChanged((coords) => changed.push(...coords));
 
       expect(ctrl.applyToTile({ x: 1, y: 2 }, sim)).toBe('applied');
       expect(ctrl.applyToTile({ x: 1, y: 5 }, sim)).toBe('applied');
@@ -242,7 +242,7 @@ describe('ToolController', () => {
       const sim  = makeSim();
 
       const changed: typeof ORIGIN[] = [];
-      ctrl.onTileChanged((coord) => changed.push(coord));
+      ctrl.onTilesChanged((coords) => changed.push(...coords));
 
       ctrl.setActiveTool('zoneResidentialLow');
       ctrl.applyToTile(TILE_A, sim);
