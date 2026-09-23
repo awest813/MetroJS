@@ -71,4 +71,22 @@ describe('roadLayout', () => {
     expect(pier.sz).toBeGreaterThan(pier.sx);
     expect(countByKind(land, 'pier')).toBe(0);
   });
+
+  it('should neck a highway arm down to a street so the decks meet flush', () => {
+    const street = roadProfile(RoadType.Street).width;
+    const highway = roadProfile(RoadType.Highway).width;
+    const ew = { n: false, e: true, s: false, w: true };
+    const plain = roadPieces(RoadType.Highway, ew);
+    const necked = roadPieces(RoadType.Highway, ew, false, { e: street, w: highway });
+
+    const east = necked.find((p) => p.kind === 'arm' && p.slope === 'e')!;
+    const west = necked.find((p) => p.kind === 'arm' && p.slope === 'w')!;
+    expect(east.sz).toBeCloseTo(street);
+    expect(west.sz).toBeCloseTo(highway);
+    // Two extra curbs close the wide pad either side of the narrow arm.
+    expect(countByKind(necked, 'curb')).toBe(countByKind(plain, 'curb') + 2);
+    // A street never widens toward a highway; the highway does the necking.
+    const streetSide = roadPieces(RoadType.Street, ew, false, { e: highway });
+    expect(streetSide.find((p) => p.kind === 'arm' && p.slope === 'e')!.sz).toBeCloseTo(street);
+  });
 });

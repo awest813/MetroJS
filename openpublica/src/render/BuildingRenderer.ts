@@ -144,7 +144,7 @@ export class BuildingRenderer {
     const source = this._sourceFor(instance.defId, zoneType, variant);
     const mesh = source.createInstance(`building-${key}`);
 
-    const groundY = this._heights?.tileCenter(instance.x, instance.y) ?? 0;
+    const groundY = this._heights?.footing(instance.x, instance.y) ?? 0;
     mesh.position = new Vector3(
       instance.x * TILE_SIZE + TILE_SIZE / 2,
       groundY,

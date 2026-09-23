@@ -42,7 +42,7 @@ export class SmokeRenderer {
     this._disposeAll();
     map.forEach((tile) => {
       if (tile.buildingId !== 'small_power_plant') return;
-      const groundY = this._heights?.tileCenter(tile.x, tile.y) ?? 0;
+      const groundY = this._heights?.footing(tile.x, tile.y) ?? 0;
       const ox = tile.x * TILE_SIZE + TILE_SIZE / 2;
       const oz = tile.y * TILE_SIZE + TILE_SIZE / 2;
       for (const stack of POWER_PLANT_SMOKE) {

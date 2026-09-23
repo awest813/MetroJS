@@ -2,12 +2,14 @@
 
 import { TerrainType } from './CityTile';
 import type { CityMap } from './CityMap';
+import { smoothShoreline } from './shoreline';
 
 export const DEFAULT_TERRAIN_SEED = 2026;
 
 /**
  * Paints grass / dirt / water onto a CityMap. Deterministic for a given seed.
- * Does not touch zones, roads, or buildings.
+ * Does not touch zones, roads, or buildings. Thin spits and notches are
+ * smoothed away so every dry tile renders above the water.
  */
 export function generateTerrain(map: CityMap, seed: number = DEFAULT_TERRAIN_SEED): void {
   const lakes = [
@@ -24,6 +26,8 @@ export function generateTerrain(map: CityMap, seed: number = DEFAULT_TERRAIN_SEE
       tile.terrain = TerrainType.Water;
     }
   });
+
+  smoothShoreline(map);
 
   map.forEach((tile) => {
     if (tile.terrain === TerrainType.Water) return;

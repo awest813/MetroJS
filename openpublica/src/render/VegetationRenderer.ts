@@ -11,10 +11,10 @@ import type { CityMap } from '../sim/CityMap';
 import { RoadType, TerrainType } from '../sim/CityTile';
 import type { TileCoord } from '../data/types';
 import { TILE_SIZE } from '../data/constants';
-import type { HeightField } from '../sim/HeightField';
+import { WATER_SURFACE_Y, type HeightField } from '../sim/HeightField';
 import { roadHeading, roadNeighbors } from '../sim/roadConnections';
 import { connectedCardinals } from './roadLayout';
-import { parkTreeSlots, streetTreeSlot, type TreeSlot } from './vegetationLayout';
+import { drySlots, parkTreeSlots, streetTreeSlot, type TreeSlot } from './vegetationLayout';
 import { coloredPbr } from './pbrSurfaces';
 
 interface PlantedTile {
@@ -102,18 +102,21 @@ export class VegetationRenderer {
 
   private _rebuildTile(map: CityMap, x: number, y: number, force = true): void {
     const key = `${x},${y}`;
-    const slots = this._slotsFor(map, x, y);
+    const ox = x * TILE_SIZE + TILE_SIZE / 2;
+    const oz = y * TILE_SIZE + TILE_SIZE / 2;
+    const heights = this._heights;
+    const groundAt = (slot: TreeSlot): number =>
+      heights ? heights.sample(ox + slot.dx, oz + slot.dz) : 0;
+    const slots = drySlots(this._slotsFor(map, x, y), groundAt, WATER_SURFACE_Y);
     const sig = slots.map((s) => `${s.dx.toFixed(3)}:${s.dz.toFixed(3)}:${s.scale.toFixed(3)}`).join('|');
     if (!force && (this._tiles.get(key)?.sig ?? '') === sig) return;
     this._clear(key);
     if (slots.length === 0) return;
 
-    const groundY = this._heights?.tileCenter(x, y) ?? 0;
-    const ox = x * TILE_SIZE + TILE_SIZE / 2;
-    const oz = y * TILE_SIZE + TILE_SIZE / 2;
     const meshes: InstancedMesh[] = [];
 
     for (const slot of slots) {
+      const groundY = groundAt(slot);
       const trunk = this._trunkSrc.createInstance(`veg-t-${this._seq++}`);
       const canopy = this._canopySrc.createInstance(`veg-c-${this._seq++}`);
       const canopy2 = this._canopySrc.createInstance(`veg-c2-${this._seq++}`);

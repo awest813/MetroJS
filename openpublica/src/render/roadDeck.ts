@@ -1,7 +1,7 @@
 // Render-only deck heights. No Babylon — Jest can load this file.
 
 import type { CityMap } from '../sim/CityMap';
-import { WATER_SURFACE_Y } from '../sim/HeightField';
+import { FOOTING_CLEARANCE, WATER_SURFACE_Y } from '../sim/HeightField';
 import { bridgeSpanAt, isBridgeAt, isLandRoad } from '../sim/roadConnections';
 
 /** Anything that can report ground height at a tile centre (HeightField does). */
@@ -16,15 +16,23 @@ export const BRIDGE_CLEARANCE = 0.2;
 export const BRIDGE_DECK_MIN_Y = WATER_SURFACE_Y + BRIDGE_CLEARANCE;
 
 /**
+ * Where a land road (or anything else on a dry tile) stands: the tile centre,
+ * but never within FOOTING_CLEARANCE of the water. Matches HeightField.footing.
+ */
+export function landFooting(ground: GroundHeights, x: number, y: number): number {
+  return Math.max(ground.tileCenter(x, y), WATER_SURFACE_Y + FOOTING_CLEARANCE);
+}
+
+/**
  * Base Y of the road deck at (x, y), before the renderer's deck lift.
- * Land roads follow the terrain. A bridge runs level-ish from one land
- * abutment to the other, never lower than {@link BRIDGE_DECK_MIN_Y}.
- * Non-road tiles report the ground.
+ * Land roads follow the terrain, kept clear of the water. A bridge runs
+ * level-ish from one land abutment to the other, never lower than
+ * {@link BRIDGE_DECK_MIN_Y}. Non-road tiles report their footing.
  */
 export function deckBaseHeight(map: CityMap, ground: GroundHeights, x: number, y: number): number {
-  if (!isBridgeAt(map, x, y)) return ground.tileCenter(x, y);
+  if (!isBridgeAt(map, x, y)) return landFooting(ground, x, y);
   const span = bridgeSpanAt(map, x, y);
-  if (!span) return ground.tileCenter(x, y);
+  if (!span) return landFooting(ground, x, y);
 
   const before = _abutment(map, ground, span.before.x, span.before.y);
   const after = _abutment(map, ground, span.after.x, span.after.y);
@@ -40,7 +48,7 @@ export function deckBaseHeight(map: CityMap, ground: GroundHeights, x: number, y
 }
 
 function _abutment(map: CityMap, ground: GroundHeights, x: number, y: number): number | null {
-  return isLandRoad(map.getTile(x, y)) ? ground.tileCenter(x, y) : null;
+  return isLandRoad(map.getTile(x, y)) ? landFooting(ground, x, y) : null;
 }
 
 /**

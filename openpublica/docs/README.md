@@ -86,6 +86,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Network traffic: trips leave by a lot's street and split across connected roads; highways carry double
 - [x] Police and fire drive the streets (road-step reach, faster on highways); trolley lines of 4+ tiles give transit
 - [x] Bridges: paint a road straight across water (5× build, 3× upkeep) with piers, railings, and level decks
+- [x] Shorelines follow tile edges: every dry tile renders above the water, thin spits/notches are smoothed at generation, and waterfront lots get a land-value premium
 
 Follow [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md) for optional GLB/SSAO. Untextured PBR, sky dome, `CityView` rebuild-on-load, city-health, mayor Score/advisory, highways, water, zoning plats/downtown, building degradation, opening coach, and per-service upkeep/coverage preview are in the HUD.
 

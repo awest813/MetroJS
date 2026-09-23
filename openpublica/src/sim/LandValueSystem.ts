@@ -4,6 +4,7 @@
 import type { CityMap } from './CityMap';
 import { ZoneType } from './CityTile';
 import { hasRoadFrontage } from './roadConnections';
+import { waterfrontDistance } from './shoreline';
 import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 
@@ -53,6 +54,12 @@ const ROAD_BONUS = 8;
 /** Modest lot bonus for watered tiles. Does not change demand formulas. */
 export const WATERED_LAND_VALUE_BONUS = 8;
 
+/** Lots touching a lake or river (including diagonally) are worth this much more. */
+export const WATERFRONT_BONUS = 8;
+
+/** Lots two tiles from the water get this smaller view premium. */
+export const NEAR_WATER_BONUS = 4;
+
 /**
  * Multiplier applied to `tile.pollution` when computing the land value penalty.
  * Kept low because pollution is populated by future systems and may reach large values.
@@ -90,6 +97,8 @@ const DOWNTOWN_BONUS = 16;
  * - **Road access**: tiles adjacent to at least one road tile receive a small
  *   flat bonus.
  * - **Watered lots**: powered water-tower coverage adds a small lot bonus.
+ * - **Waterfront**: dry lots beside a lake or river, or one tile back, get a
+ *   small premium.
  * - **Downtown**: once enough houses exist, commercial and mixed lots near
  *   the residential centroid get a decaying land-value boost (shops want to
  *   sit next to people). Does not change demand formulas.
@@ -203,6 +212,9 @@ export class LandValueSystem {
       if (tile.watered) {
         tile.landValue += WATERED_LAND_VALUE_BONUS;
       }
+      const shore = waterfrontDistance(map, tile.x, tile.y);
+      if (shore === 1) tile.landValue += WATERFRONT_BONUS;
+      else if (shore === 2) tile.landValue += NEAR_WATER_BONUS;
 
       // Pollution and traffic penalties (populated by other future systems).
       tile.landValue -= Math.round(tile.pollution       * POLLUTION_PENALTY_MULTIPLIER);

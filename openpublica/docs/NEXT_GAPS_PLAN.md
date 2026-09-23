@@ -117,6 +117,22 @@ mouse. This slice names the traffic, transit, and service fields it changes.
 fire station across an unbridged river covers nothing there until a bridge is
 built.
 
+### Gap F — Water edges **shipped**
+
+A second audit measured the shoreline: about 90 tiles per map that the sim
+calls dry land had their centres under the water plane (down to -0.48), so
+players zoned, paved, and built on what looked like lake. Heights only exist at
+tile corners, and every corner touching water was pulled under.
+
+| Slice | What shipped |
+|---|---|
+| F1 Corner shaping | `shoreline.ts`: a corner's height steps with how many of its four tiles are water (1 → low beach above water, 2 → the waterline, 3 → shallows, 4 → bed), so the shore follows tile edges. |
+| F2 Thin features | `smoothShoreline` at generation: one-tile spits, isthmuses, points with water on two sides and most diagonals, and one-tile notches are removed. Over 200 seeds every dry centre is ≥ 0.087 (surface 0.06) and every water centre ≤ -0.11; water area is unchanged within a few percent. Saves keep their terrain. |
+| F3 Footing | `HeightField.footing`: roads, buildings, trees, smoke, and the cursor stand at least 0.04 above the water, covering thin spits in older saves. Trees sample the ground under each trunk and skip spots in the water. |
+| F4 Picking | A ray that hits water or terrain under a bridge is marched back against deck heights, so clicks and hovers land on the deck the player sees. |
+| F5 Junctions | Where a highway meets a street (or trolley), the wider arm necks down with short curbs so decks meet flush. |
+| F6 Waterfront | Dry lots touching water get +8 land value, two tiles back +4. |
+
 ---
 
 ## 4. Explicitly still out of scope (Phase I)
@@ -157,3 +173,4 @@ GLB (C4) and SSAO (C5) stay optional. C3 skirt is optional.
 - First minutes: Road is selected; HUD coach steps street → lots → plant; fire/water nags wait until population 40.
 - Services: hover a plant/park/tower to see its coverage disc, or a police/fire tool over a lot to see the streets it reaches; Budget lists civic and road upkeep; water raises land value on covered lots.
 - Roads: drag a street straight across a river (status names the bridge tiles), drag one across a highway (the highway stays), and watch Traffic drop on a jammed street after a parallel street is joined up.
+- Water: from an angled camera, hover the edge of a bridge deck (the cursor sits on the deck); beach lots show dry ground to the water's edge; Value shows the waterfront premium.

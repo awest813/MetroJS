@@ -81,8 +81,17 @@ export function countByKind(pieces: readonly RoadPiece[], kind: RoadPieceKind): 
 /**
  * Kit pieces for one road tile, centred on the tile.
  * With `bridge`, curbs become railings and the deck gets girders and a pier.
+ *
+ * `neighborWidths` gives the deck width of each connected neighbour. Where it
+ * is narrower (a highway meeting a street), this tile's arm necks down to it
+ * and short curbs close the pad edge, so the two decks meet flush at the seam.
  */
-export function roadPieces(type: RoadType, neighbors: RoadNeighbors, bridge = false): RoadPiece[] {
+export function roadPieces(
+  type: RoadType,
+  neighbors: RoadNeighbors,
+  bridge = false,
+  neighborWidths: Partial<Record<Cardinal, number>> = {},
+): RoadPiece[] {
   const profile = roadProfile(type);
   const pieces: RoadPiece[] = [];
   const dirs = connectedCardinals(neighbors);
@@ -96,27 +105,42 @@ export function roadPieces(type: RoadType, neighbors: RoadNeighbors, bridge = fa
 
   pieces.push({ kind: 'pad', ox: 0, oz: 0, sx: w, sy: thick, sz: w, rotY: 0 });
 
+  const armWidth = (dir: Cardinal): number => Math.min(w, neighborWidths[dir] ?? w);
+
   for (const dir of dirs) {
     const { dx, dz } = CARDINAL_VEC[dir];
     const eastWest = dir === 'e' || dir === 'w';
+    const armW = armWidth(dir);
     pieces.push({
       kind: 'arm',
       ox: dx * (ARM_SPAN / 2),
       oz: dz * (ARM_SPAN / 2),
-      sx: eastWest ? ARM_SPAN : w,
+      sx: eastWest ? ARM_SPAN : armW,
       sy: thick,
-      sz: eastWest ? w : ARM_SPAN,
+      sz: eastWest ? armW : ARM_SPAN,
       rotY: 0,
       slope: dir,
     });
 
-    const side = w / 2 + edgeW / 2;
-    if (eastWest) {
-      pieces.push(piece(edge, dx * (ARM_SPAN / 2), dz * (ARM_SPAN / 2) + side, ARM_SPAN, edgeH, edgeW, dir));
-      pieces.push(piece(edge, dx * (ARM_SPAN / 2), dz * (ARM_SPAN / 2) - side, ARM_SPAN, edgeH, edgeW, dir));
-    } else {
-      pieces.push(piece(edge, dx * (ARM_SPAN / 2) + side, dz * (ARM_SPAN / 2), edgeW, edgeH, ARM_SPAN, dir));
-      pieces.push(piece(edge, dx * (ARM_SPAN / 2) - side, dz * (ARM_SPAN / 2), edgeW, edgeH, ARM_SPAN, dir));
+    // Edges run beside the arm; a necked arm's edges start at the pad edge.
+    const start = armW < w ? w / 2 : 0;
+    const length = ARM_SPAN - start;
+    const mid = start + length / 2;
+    const side = armW / 2 + edgeW / 2;
+    for (const sign of [1, -1]) {
+      if (eastWest) pieces.push(piece(edge, dx * mid, sign * side, length, edgeH, edgeW, dir));
+      else pieces.push(piece(edge, sign * side, dz * mid, edgeW, edgeH, length, dir));
+    }
+    if (armW < w) {
+      // Close the pad edge on both sides of the narrower arm.
+      const inner = armW / 2 + edgeW;
+      const outer = w / 2 + edgeW;
+      const at = w / 2 + edgeW / 2;
+      for (const sign of [1, -1]) {
+        const across = sign * (inner + outer) / 2;
+        if (eastWest) pieces.push(piece(edge, dx * at, across, edgeW, edgeH, outer - inner, dir));
+        else pieces.push(piece(edge, across, dz * at, outer - inner, edgeH, edgeW, dir));
+      }
     }
   }
 
@@ -140,7 +164,7 @@ export function roadPieces(type: RoadType, neighbors: RoadNeighbors, bridge = fa
     }
   }
 
-  if (bridge) addBridgeKit(pieces, dirs, w);
+  if (bridge) addBridgeKit(pieces, dirs, w, armWidth);
 
   if (trolley) addTrolleyKit(pieces, dirs, isolated, w);
   else addStreetKit(pieces, type, dirs, isolated, isFourWay(neighbors));
@@ -161,19 +185,25 @@ function piece(
 }
 
 /** Girders under the pad and each arm, plus one pier wall across the span. */
-function addBridgeKit(pieces: RoadPiece[], dirs: Cardinal[], deckWidth: number): void {
+function addBridgeKit(
+  pieces: RoadPiece[],
+  dirs: Cardinal[],
+  deckWidth: number,
+  armWidth: (dir: Cardinal) => number,
+): void {
   const gw = deckWidth + 0.02;
   pieces.push(piece('girder', 0, 0, gw, GIRDER_DEPTH, gw));
   for (const dir of dirs) {
     const { dx, dz } = CARDINAL_VEC[dir];
     const eastWest = dir === 'e' || dir === 'w';
+    const aw = armWidth(dir) + 0.02;
     pieces.push(piece(
       'girder',
       dx * (ARM_SPAN / 2),
       dz * (ARM_SPAN / 2),
-      eastWest ? ARM_SPAN : gw,
+      eastWest ? ARM_SPAN : aw,
       GIRDER_DEPTH,
-      eastWest ? gw : ARM_SPAN,
+      eastWest ? aw : ARM_SPAN,
       dir,
     ));
   }

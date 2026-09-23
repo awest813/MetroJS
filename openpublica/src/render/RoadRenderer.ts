@@ -137,10 +137,18 @@ export class RoadRenderer {
     const root = new TransformNode(`road-${key}`, this._scene);
     this._roots.set(key, root);
 
+    const widths: Partial<Record<Cardinal, number>> = {};
+    for (const dir of ['n', 'e', 's', 'w'] as const) {
+      if (!neighbors[dir]) continue;
+      const { dx, dz } = CARDINAL_VEC[dir];
+      const next = map.getTile(x + dx, y + dz);
+      if (next) widths[dir] = roadProfile(next.roadType).width;
+    }
+
     const bridge = isBridgeAt(map, x, y);
     const bed = this._heights?.tileCenter(x, y) ?? h0 - 1;
     const deckSrc = this._decks[tile.roadType];
-    for (const piece of roadPieces(tile.roadType, neighbors, bridge)) {
+    for (const piece of roadPieces(tile.roadType, neighbors, bridge, widths)) {
       if (piece.kind === 'pier') {
         this._spawnPier(root, piece, cx, cz, bed, h0 - GIRDER_DEPTH);
       } else {

@@ -1,21 +1,22 @@
 // ⚠️  This file must NOT import anything from @babylonjs/core.
 
-import { TerrainType } from './CityTile';
 import type { CityMap } from './CityMap';
 import { DEFAULT_TERRAIN_SEED } from './TerrainGenerator';
+import { LAND_BASE_Y, WATER_SURFACE_Y, cornerWetness, shoreCornerHeight } from './shoreline';
 import { TILE_SIZE } from '../data/constants';
 import { createSeededNoise2D } from '../math/seededNoise';
 
 type Noise2 = (x: number, y: number) => number;
 
-/** World Y of the water surface plane. Land stays above this. */
-export const WATER_SURFACE_Y = 0.06;
+export { WATER_BED_Y, WATER_SURFACE_Y } from './shoreline';
 
-/** World Y of lake / river beds. */
-export const WATER_BED_Y = -0.62;
-
-const LAND_BASE_Y = 0.20;
 const HILL_AMPLITUDE = 0.70;
+
+/**
+ * Least gap between the water plane and anything standing on a dry tile
+ * (road deck base, building, tree). Only bites on old maps with thin spits.
+ */
+export const FOOTING_CLEARANCE = 0.04;
 
 /**
  * Corner-sampled height map derived from terrain types plus seeded simplex FBM
@@ -73,6 +74,14 @@ export class HeightField {
   tileCenter(tx: number, ty: number): number {
     return this.sample((tx + 0.5) * TILE_SIZE, (ty + 0.5) * TILE_SIZE);
   }
+
+  /**
+   * Where things stand on a dry tile: its centre, but never within
+   * {@link FOOTING_CLEARANCE} of the water plane.
+   */
+  footing(tx: number, ty: number): number {
+    return Math.max(this.tileCenter(tx, ty), WATER_SURFACE_Y + FOOTING_CLEARANCE);
+  }
 }
 
 /**
@@ -100,29 +109,8 @@ export function writeSlopedQuad(
 }
 
 function _cornerHeight(map: CityMap, cx: number, cy: number, noise2D: Noise2): number {
-  const wet = _waterWeight(map, cx, cy);
   const land = LAND_BASE_Y + HILL_AMPLITUDE * _fbm(cx, cy, noise2D);
-  if (wet <= 0) return land;
-  const shore = WATER_SURFACE_Y - 0.12;
-  return shore + (WATER_BED_Y - shore) * wet;
-}
-
-function _waterWeight(map: CityMap, cx: number, cy: number): number {
-  const tiles = [
-    map.getTile(cx - 1, cy - 1),
-    map.getTile(cx, cy - 1),
-    map.getTile(cx - 1, cy),
-    map.getTile(cx, cy),
-  ];
-  let water = 0;
-  let count = 0;
-  for (const tile of tiles) {
-    if (!tile) continue;
-    count += 1;
-    if (tile.terrain === TerrainType.Water) water += 1;
-  }
-  if (count === 0) return 0;
-  return water / count;
+  return shoreCornerHeight(cornerWetness(map, cx, cy), land);
 }
 
 function _fbm(x: number, y: number, noise2D: Noise2): number {

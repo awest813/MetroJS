@@ -53,6 +53,22 @@ export function streetTreeSlot(
   };
 }
 
+/** Trees keep at least this much dry ground above the water plane. */
+export const TREE_WATER_CLEARANCE = 0.05;
+
+/**
+ * Trees whose own spot is dry. `groundAt` is the terrain height under each
+ * slot (offsets are from the tile centre), so a curb tree on a beach street
+ * or a park tree at the waterline is skipped instead of standing in the lake.
+ */
+export function drySlots(
+  slots: readonly TreeSlot[],
+  groundAt: (slot: TreeSlot) => number,
+  waterY: number,
+): TreeSlot[] {
+  return slots.filter((slot) => groundAt(slot) >= waterY + TREE_WATER_CLEARANCE);
+}
+
 export const POWER_PLANT_SMOKE: ReadonlyArray<{ x: number; y: number; z: number }> = [
   { x: -0.16, y: 0.78, z: 0.08 },
   { x: 0.18, y: 0.70, z: 0.08 },

@@ -69,6 +69,7 @@ export class CityView {
     this.smoke.rebuild(sim.map, heights);
     this.highlight = new HighlightRenderer(scene);
     this.picker = new TilePicker(scene, camera);
+    this.picker.setDeckTop((x, y) => (isBridge(this._sim.getTile(x, y)) ? this.surfaceY(x, y) : null));
   }
 
   /** Top of whatever the player sees at (x, y). */
@@ -78,9 +79,10 @@ export class CityView {
       return deckBaseHeight(this._sim.map, this.heights, x, y) +
         ROAD_DECK_LIFT + roadProfile(tile.roadType).thickness;
     }
-    const ground = this.heights.tileCenter(x, y);
-    if (tile?.terrain === TerrainType.Water) return Math.max(ground, WATER_SURFACE_Y);
-    return ground;
+    if (tile?.terrain === TerrainType.Water) {
+      return Math.max(this.heights.tileCenter(x, y), WATER_SURFACE_Y);
+    }
+    return this.heights.footing(x, y);
   }
 
   /** Paint the tiles a police/fire station on (x, y) would reach by road. */

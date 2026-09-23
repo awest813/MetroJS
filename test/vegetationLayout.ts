@@ -1,5 +1,11 @@
 import { RoadType } from '../openpublica/src/sim/CityTile';
-import { parkTreeSlots, streetTreeSlot, POWER_PLANT_SMOKE } from '../openpublica/src/render/vegetationLayout';
+import {
+  TREE_WATER_CLEARANCE,
+  drySlots,
+  parkTreeSlots,
+  streetTreeSlot,
+  POWER_PLANT_SMOKE,
+} from '../openpublica/src/render/vegetationLayout';
 import { cityTileColor } from '../openpublica/src/data/cityTileColors';
 import { CityTile, TerrainType, ZoneType } from '../openpublica/src/sim/CityTile';
 
@@ -43,5 +49,17 @@ describe('park ground colour', () => {
     const gc = cityTileColor(grass);
     expect(pc.g).toBeGreaterThan(pc.r);
     expect(pc.g / (pc.r + 0.001)).toBeGreaterThan(gc.g / (gc.r + 0.001));
+  });
+
+  it('should keep trees out of the water at the shoreline', () => {
+    const slots = [
+      { dx: -0.3, dz: 0, scale: 1 },
+      { dx: 0.3, dz: 0, scale: 1 },
+    ];
+    // Ground falls toward the east bank: the east tree would stand in the lake.
+    const ground = (slot: { dx: number }): number => (slot.dx < 0 ? 0.3 : 0.05);
+    const kept = drySlots(slots, ground, 0.06);
+    expect(kept).toEqual([slots[0]]);
+    expect(drySlots(slots, () => 0.06 + TREE_WATER_CLEARANCE, 0.06)).toHaveLength(2);
   });
 });

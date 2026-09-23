@@ -1,8 +1,10 @@
 import { CityMap } from '../openpublica/src/sim/CityMap';
 import { RoadType, TerrainType } from '../openpublica/src/sim/CityTile';
+import { FOOTING_CLEARANCE, WATER_SURFACE_Y } from '../openpublica/src/sim/HeightField';
 import {
   BRIDGE_DECK_MIN_Y,
   deckBaseHeight,
+  landFooting,
   deckDirtyTiles,
   edgeDeckHeight,
   type GroundHeights,
@@ -77,5 +79,14 @@ describe('roadDeck', () => {
     expect(edgeDeckHeight(0.2, 0.6, 0)).toBeCloseTo(0.2);
     expect(edgeDeckHeight(0.2, 0.6, 0.5)).toBeCloseTo(0.4);
     expect(edgeDeckHeight(0.2, 0.6, 1)).toBeCloseTo(0.6);
+  });
+
+  it('should keep a land road on a sunk tile clear of the water', () => {
+    const { map, ground } = riverMap();
+    pave(map, 0, 1, 1);
+    const g = ground(() => -0.2);
+    expect(deckBaseHeight(map, g, 1, 1)).toBeCloseTo(WATER_SURFACE_Y + FOOTING_CLEARANCE);
+    expect(landFooting(g, 1, 1)).toBeCloseTo(WATER_SURFACE_Y + FOOTING_CLEARANCE);
+    expect(landFooting(ground(() => 0.5), 1, 1)).toBe(0.5);
   });
 });
