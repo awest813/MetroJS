@@ -217,6 +217,8 @@ export function formatGrowthHint(
   tile: CityTile,
   map: CityMap,
   stats: CityStats,
+  /** The lot's power grid has no room for another building (`CitySim.gridFullAt`). */
+  gridFull = false,
 ): string | null {
   if (tile.terrain === TerrainType.Water) return null;
   if (tile.buildingId !== null) {
@@ -256,6 +258,8 @@ export function formatGrowthHint(
   const hostile = lotTooHostile(tile);
   if (hostile === 'smog') return 'too smoggy to settle — move plants and factories away or add parks';
   if (hostile === 'crime') return 'too much crime to settle — a police station nearby would help';
+
+  if (gridFull) return 'waiting for power — its grid is full, so add a plant on these streets';
 
   const pace = monthlyGrowthBudget(demand, stats.population, stats.jobs);
   const fill = `up to ${pace} new ${pace === 1 ? 'building' : 'buildings'} a month at this demand`;

@@ -167,9 +167,9 @@ const troubled: TestCity = {
 const sprawl: TestCity = {
   id: 'sprawl',
   title: 'Sprawl',
-  summary: 'Sprawl: a highway strip across the map with cul-de-sacs; power runs short toward the far end until a second plant, and a third follows the factories.',
+  summary: 'Sprawl: a highway strip across the map with cul-de-sacs; growth waits at the grid\'s capacity until a second plant, and a third follows the factories.',
   covers: [
-    'one long network: lots nearest the plant are served first, the far end goes dark',
+    'one long network at capacity: new lots wait for power instead of darkening the far end',
     'a second plant at the far end fixing the shortfall, and a third as the industrial park grows into factories',
     'highway traffic and low walkability, no transit',
     'dead-end streets, a shopping strip, and factories across the highway',

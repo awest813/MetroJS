@@ -14,6 +14,7 @@ import { PowerSystem } from './PowerSystem';
 import { PollutionSystem } from './PollutionSystem';
 import { LandValueSystem } from './LandValueSystem';
 import { TrafficPressureSystem } from './TrafficPressureSystem';
+import { PowerRoom } from './powerRoom';
 import { WalkabilitySystem } from './WalkabilitySystem';
 import { TransitSystem } from './TransitSystem';
 import {
@@ -28,6 +29,7 @@ import {
   nextDevelopmentDef,
   targetBuildingDef,
   lotTier,
+  rankedZoneDefs,
   tileHasAdjacentRoad,
   zoneBuildingIsStressed,
   zoneStress,
@@ -243,7 +245,9 @@ export class ZoneGrowthSystem {
     this._landValue.tick(map, this.buildings, this.defs);
 
     this._updateResidentialDemand(stats);
-    this._growEmptyLots(map, stats, changedTiles, (zone) =>
+    // Growth only goes up where its power grid can carry it (see PowerRoom).
+    const homesRoom = new PowerRoom(this._power.grid, map, this._power.loadFactor);
+    this._growEmptyLots(map, stats, changedTiles, homesRoom, (zone) =>
       zone === ZoneType.Residential || zone === ZoneType.MixedUse,
     );
 
@@ -253,10 +257,12 @@ export class ZoneGrowthSystem {
     this._recalcStats(stats, map);
     this._updateJobDemand(stats);
 
-    this._growEmptyLots(map, stats, changedTiles, (zone) =>
+    const jobsRoom = new PowerRoom(this._power.grid, map, this._power.loadFactor);
+    this._growEmptyLots(map, stats, changedTiles, jobsRoom, (zone) =>
       zone === ZoneType.Commercial || zone === ZoneType.Industrial || zone === ZoneType.MixedUse,
     );
-    this._densifyBuildings(map, stats, changedTiles);
+    this._densifyBuildings(map, stats, changedTiles, jobsRoom);
+    stats.powerHeld = homesRoom.held + jobsRoom.held;
 
     this._power.tick(map, this.buildings, this.defs);
     this._degradeBuildings(map, stats, changedTiles);
@@ -331,6 +337,7 @@ export class ZoneGrowthSystem {
     map: CityMap,
     stats: CityStats,
     changedTiles: Array<{ x: number; y: number }>,
+    room: PowerRoom,
     include: (zone: ZoneType) => boolean,
   ): void {
     const winners: Array<{ tile: CityTile; def: BuildingDef; rank: number }> = [];
@@ -369,11 +376,23 @@ export class ZoneGrowthSystem {
       const count = used.get(zone) ?? 0;
       const budget = monthlyGrowthBudget(demandForZone(zone, stats), stats.population, stats.jobs);
       if (count >= budget) continue;
+      const load = def.population + def.jobs;
+      if (!room.fits(tile, load)) {
+        room.held += 1;
+        continue;
+      }
+      room.take(tile, load);
       used.set(zone, count + 1);
       this.buildings.set(tileKey(tile.x, tile.y), { defId: def.id, x: tile.x, y: tile.y });
       tile.buildingId = def.id;
       changedTiles.push({ x: tile.x, y: tile.y });
     }
+  }
+
+  /** Residents plus jobs of the smallest building a zone grows (0 when it grows none). */
+  smallestLoad(zone: ZoneType): number {
+    const smallest = rankedZoneDefs(this._defsByZone.get(zone) ?? [])[0];
+    return smallest ? smallest.population + smallest.jobs : 0;
   }
 
   /** Any of the eight tiles around (x, y) has a building. */
@@ -391,6 +410,7 @@ export class ZoneGrowthSystem {
     map: CityMap,
     stats: CityStats,
     changedTiles: Array<{ x: number; y: number }>,
+    room: PowerRoom,
   ): void {
     map.forEach((tile) => {
       if (tile.buildingId === null) return;
@@ -406,6 +426,12 @@ export class ZoneGrowthSystem {
         : undefined;
       if (!next) return;
       if (this.random() > growthChance(tile.landValue, demand, 1, POWERED_ROAD_GROWTH_BOOST)) return;
+      const extra = next.population + next.jobs - current.population - current.jobs;
+      if (!room.fits(tile, extra)) {
+        room.held += 1;
+        return;
+      }
+      room.take(tile, extra);
 
       this.buildings.set(tileKey(tile.x, tile.y), { defId: next.id, x: tile.x, y: tile.y });
       tile.buildingId = next.id;

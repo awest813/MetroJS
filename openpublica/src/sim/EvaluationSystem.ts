@@ -335,6 +335,13 @@ function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherFore
         : `${census.unpoweredCount} building${census.unpoweredCount === 1 ? '' : 's'} unpowered — connect their streets to a power plant.`,
     });
   }
+  const held = stats.powerHeld ?? 0;
+  if (held > 0 && census.unpoweredCount === 0) {
+    out.push({
+      id: 'grid-full',
+      message: `The power grid is full — ${held} new building${held === 1 ? '' : 's'} waited for power last month. Add a plant on the grid.`,
+    });
+  }
   if (forecast && stats.powerShort === 0 && stats.powerSupply > 0 && forecast.powerLoadRatio > 1) {
     const load = Math.round(stats.powerLoad * forecast.powerLoadRatio);
     if (load > stats.powerSupply) {

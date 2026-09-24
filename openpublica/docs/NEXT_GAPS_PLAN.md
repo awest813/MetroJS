@@ -15,7 +15,7 @@ checked against five scripted test cities (Gap N). The first audit's four
 open items (city health, honest feedback, PBR/sky, the `App.ts` split) have
 all shipped. What is left (section 5) is depth, not missing systems:
 
-1. **Growth past the grid**: a city keeps growing once its plants are at capacity, so the newest lots go dark and leave, and the next ones grow dark in turn.
+1. **Buildings never shrink**: an office block or works keeps its size after the land value or demand that grew it is gone.
 2. **Presentation** extras stay optional (GLB kits, SSAO).
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
@@ -276,9 +276,9 @@ from the New confirm; `test/testCities.ts` builds each and checks it.
 |---|---|---|---|
 | `hamlet` | 11, $10,000, 2 years | The first hours: a crossroads, shops, a few factories, one plant past town, woods all round | 140 people, 120 jobs (its workshops grown into factories), power 260/400, treasury $17k |
 | `riverside` | 2026, $40,000, 2½ years | A street bridge and a highway bridge; the plants are all on the north bank and light the far one across the bridge; shore lots, a bridgehead park, a far-bank tower, factories across the lake | 460 people, 468 jobs (works along the highway), both banks lit by three north-bank plants, waterfront valued above inland, the south bank's commuters on the street bridge |
-| `metro` | 7, $120,000, 4 years in 3 phases | Zone areas with looped auto streets, a highway, a trolley line crossing it at grade, downtown, mixed use, industry, six plants, four towers, police, fire, parks, a downtown of office blocks | 1,070 people, 981 jobs, power 2075/2400, one 36-tile trolley line, 5 dead ends (all scripted road ends) |
+| `metro` | 7, $120,000, 4 years in 3 phases | Zone areas with looped auto streets, a highway, a trolley line crossing it at grade, downtown, mixed use, industry, six plants, four towers, police, fire, parks, a downtown of office blocks | 901 people, 870 jobs, power 1795/2400 (growth waited for each new plant), one 36-tile trolley line, 5 dead ends (all scripted road ends) |
 | `troubled` | 101, $30,000, 3 years | Blocks four lots deep, a plant among the houses, factories next door, no police, a tower with no street, a police station on a dark street, taxes raised to 16/14/14 | 150 lots with no road, power 399/400 with dark houses, approval 0 |
-| `sprawl` | 314, $60,000, 3½ years | A highway across the map with cul-de-sacs, a shopping strip, an industrial park; one plant at the west end until month 30, a second at the far end, a third at month 36 as the park turns into factories | Before the second plant the dark lots are the far (east) ones; after the third all are lit, then the city grows into it (616 people, power 1198/1200) |
+| `sprawl` | 314, $60,000, 3½ years | A highway across the map with cul-de-sacs, a shopping strip, an industrial park; one plant at the west end until month 30, a second at the far end, a third at month 36 as the park turns into factories | With one plant, growth waits at the grid's capacity (population steady at about 220, nothing dark); each new plant lets it grow on (604 people, power 1198/1200) |
 
 Building them turned up six sim faults, now fixed:
 
@@ -490,6 +490,33 @@ cost $240 → $168; roads at 80% cut $1,519 → $1,215.
 **Exit:** Borrow in Budget and the treasury rises $10,000 with a $500/mo
 repayment line; cut Safety and the police preview shrinks.
 
+### Gap X — Growth within the grid **shipped**
+
+A city kept growing after its plants were at capacity. Power goes nearest
+first, so each new building took power from the far end: those lots went
+dark, their buildings left, and the lots grew dark again. Sprawl's
+population swung 344 → 157 → 543 around its second plant, and Metro spent
+2,843 building-months dark.
+
+| Slice | What shipped |
+|---|---|
+| X1 Power room | `PowerRoom`: each month's growth passes start from the last distribution, with each grid's spare supply. A new building, or a bigger one, only goes up where its grid can carry the extra load (weather included), and nowhere on a grid that already leaves a building dark. Lots no plant reaches still fill slowly, dark, as the opening coach expects. With load kept within supply, nearest-first distribution serves everyone, so growth never darkens a built lot. |
+| X2 Telling the player | Inspect on a waiting lot: "waiting for power — its grid is full, so add a plant on these streets" (`CitySim.gridFullAt`). Advisory: "The power grid is full — N new buildings waited for power last month. Add a plant on the grid." (`stats.powerHeld`). |
+
+| City | Dark building-months (peak) before | After |
+|---|---|---|
+| Metro | 2,843 (198) | 62 (19) |
+| Sprawl | 2,088 (114) | 61 (17) |
+| Troubled | 471 (35) | 39 (8) — its plant sits among built houses, by design |
+
+What dark months remain are weather: a heatwave or snow raises every lot's
+load past the grid for a month, which the forecast advisory warns about.
+Metro now ends at 901 people instead of 1,070: it grows as fast as its plants
+allow instead of overshooting them.
+
+**Exit:** In `?city=sprawl`, Inspect an empty lot at the end: it is waiting
+for power, and no house on the strip is dark.
+
 ---
 
 ## 4. Explicitly still out of scope (Phase I)
@@ -511,10 +538,9 @@ Unchanged from the 3D plan:
 The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped. Next, each found by
 the test cities or the audits and small enough for one PR:
 
-1. **Grow within the grid.** A city keeps growing when its plants are at capacity: Sprawl grows into each new plant within months, then its newest lots go dark and leave (population 344 → 157 → 543 around its second plant). Hold new growth on a network whose supply is used up, as the lot hint already tells the player.
-2. **Buildings that shrink with land value.** An office block keeps its size after its own traffic wears the land value down. Let the top tier step down when value stays under its bar (and works when demand stays low).
-3. **Faster scenario tests.** The five test cities add about 20 s to Jest. Build each once per run (already cached per file) and consider a separate job for the long builds.
-4. **GLB kits (C4) and SSAO (C5)** stay optional; SSAO only after a filled-city frame-time check on High quality.
+1. **Buildings that shrink.** An office block keeps its size after its own traffic wears the land value down, and a works after industrial demand falls. Let the top tiers step down one size when value or demand stays under their bar for several months, freeing the power, traffic, and smog they carry.
+2. **Faster scenario tests.** The five test cities add about 20 s to Jest. Build each once per run (already cached per file) and consider a separate job for the long builds.
+3. **GLB kits (C4) and SSAO (C5)** stay optional; SSAO only after a filled-city frame-time check on High quality.
 
 ---
 
@@ -529,6 +555,7 @@ the test cities or the audits and small enough for one PR:
 - Roads: drag a street straight across a river (status names the bridge tiles), drag one across a highway (the highway stays), and watch Traffic drop on a jammed street after a parallel street is joined up. Drag a highway over a street (the preview charges $15 a tile for the upgrade).
 - Transit: in `?city=metro`, trolleys cross the highway at (44, 18) on rails set into it; Inspect there says level crossing and shows transit 100. Zone a big area in the open and its streets close into loops.
 - Commutes: in `?city=riverside` open Traffic and find the street bridge carrying the south bank's commuters; lay a long street between a row of houses and a block of shops and it reads busy along its whole length.
+- Growth and power: in `?city=sprawl` Inspect an empty lot at the end and it is waiting for power, with no house dark.
 - Industry and budget: in `?city=riverside` the highway's industrial strip is works and factories. In Budget, Borrow $10k adds $10,000 and a $500/mo repayment row; Safety at 70% shrinks a police station's placement preview; Roads at 80% cut road upkeep and raise Traffic.
 - Water: from an angled camera, hover the edge of a bridge deck (the cursor sits on the deck); beach lots show dry ground to the water's edge; Value shows the waterfront premium.
 - Terrain: drag a street across a hillside (the ground levels under it, no grass through the deck); hills shade with the sun at Dawn/Dusk; tilt the camera low at the map edge to see the skirt.

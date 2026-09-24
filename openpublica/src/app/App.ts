@@ -488,7 +488,7 @@ export class App {
         sim.levers.safetyFunding,
       );
       if (placing && result === 'applied') placementNote = serviceHint;
-      const growthHint = tile ? formatGrowthHint(tile, sim.map, sim.stats) : null;
+      const growthHint = tile ? formatGrowthHint(tile, sim.map, sim.stats, sim.gridFullAt(tile.x, tile.y)) : null;
       const woods = tile && isWooded(tile, groveStrengths(sim.terrainSeed, sim.map.width, sim.map.height), sim.map.width)
         ? 'woods — lots beside them are worth more; zoning or paving clears them'
         : null;

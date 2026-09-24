@@ -228,25 +228,27 @@ describe('troubled', () => {
 });
 
 describe('sprawl', () => {
-  it('should run short toward the far end until more plants come, then light it all', () => {
-    let beforeSecondPlant: { dark: number[]; lit: number[] } | null = null;
-    let afterThirdPlant = -1;
-    let month = 0;
+  it('should wait at the grid\'s capacity until more plants come, without houses going dark and leaving', () => {
+    const months: Array<{ population: number; load: number; supply: number; held: number; dark: number }> = [];
     const { sim } = testCityById('sprawl')!.build((s) => {
-      month += 1;
-      if (month === 38) afterThirdPlant = darkBuildings(s).length;
-      if (month !== 30) return;
-      beforeSecondPlant = {
-        dark: darkBuildings(s).map((t) => t.x),
-        lit: tiles(s, (t) => isZoneBuilding(t) && t.powered).map((t) => t.x),
-      };
+      months.push({
+        population: s.stats.population,
+        load: s.stats.powerLoad,
+        supply: s.stats.powerSupply,
+        held: s.stats.powerHeld ?? 0,
+        dark: darkBuildings(s).length,
+      });
     });
-    const before = beforeSecondPlant!;
-    expect(before.dark.length).toBeGreaterThan(0);
-    // The plant is at the west end: lots nearest it are served first.
-    expect(mean(before.dark)).toBeGreaterThan(mean(before.lit));
+    // Months 24–30, one plant: at capacity, lots waiting for power, and no churn.
+    const onePlant = months.slice(23, 30);
+    expect(onePlant.every((m) => m.supply === 400 && m.load >= 0.95 * m.supply)).toBe(true);
+    expect(onePlant.some((m) => m.held > 0)).toBe(true);
+    const pops = onePlant.map((m) => m.population);
+    expect(Math.max(...pops) - Math.min(...pops)).toBeLessThanOrEqual(0.1 * Math.max(...pops));
+    // The second plant lets growth go on.
+    expect(months[35].population).toBeGreaterThan(months[29].population);
     // Two months after the third plant every lot is lit; the city then grows into the new supply.
-    expect(afterThirdPlant).toBe(0);
+    expect(months[37].dark).toBe(0);
     expect(sim.stats.powerSupply).toBe(1200);
     expect(sim.stats.powerLoad).toBeGreaterThan(800);
   });

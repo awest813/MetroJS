@@ -20,6 +20,7 @@ import { EvaluationSystem } from './EvaluationSystem';
 import { tileKey } from './ZoneGrowthSystem';
 import { STARTER_RESIDENTIAL_DEMAND } from './zoneGrowthHints';
 import { STARTING_MONEY, tallyBudget, type BudgetLevers, type BudgetTally } from './EconomySystem';
+import { PowerRoom } from './powerRoom';
 import {
   BOND_AMOUNT,
   MAX_BONDS,
@@ -112,6 +113,11 @@ export interface CityStats {
   powerLoad: number;
   /** Buildings a power network reaches but cannot serve: its plants are at capacity. */
   powerShort: number;
+  /**
+   * Buildings that would have grown last month but were held back because
+   * their power grid had no room (see `PowerRoom`). Optional: 0 when absent.
+   */
+  powerHeld?: number;
   /** Capacity of every powered tower feeding water mains. */
   waterSupply: number;
   /** Load drawn by the lots the mains serve. */
@@ -555,6 +561,18 @@ export class CitySim {
     this.stats.serviceExpenses = tally.serviceExpenses;
     this.stats.projectedIncome = tally.income;
     this.stats.projectedExpenses = tally.expenses;
+  }
+
+  /**
+   * True when the empty zoned lot at (x, y) is on a power grid with no room
+   * for even the smallest building its zone grows, so its growth waits for
+   * another plant (see `PowerRoom`).
+   */
+  gridFullAt(x: number, y: number): boolean {
+    const tile = this.getTile(x, y);
+    if (!tile || tile.zoneType === ZoneType.None || tile.buildingId !== null) return false;
+    const room = new PowerRoom(this.power.grid, this.map, this.power.loadFactor);
+    return !room.fits(tile, this.growth.smallestLoad(tile.zoneType));
   }
 
   /** The budget levers beyond taxes: police and fire funding, road funding, and bonds. */
