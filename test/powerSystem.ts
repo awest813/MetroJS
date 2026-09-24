@@ -96,6 +96,7 @@ describe('PowerSystem', () => {
 
     it('should report load and supply, and buildings a full grid cannot serve', () => {
       const sim = CitySim.createCity(64, 4);
+      sim.pinWeather('clear');
       sim.stats.money = 1_000_000;
       sim.batch(() => {
         for (let x = 0; x < 64; x++) sim.placeRoad(x, 1, RoadType.Street);

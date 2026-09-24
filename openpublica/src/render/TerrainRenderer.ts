@@ -83,7 +83,8 @@ export class TerrainRenderer {
     vertexData.colors    = colors;
     vertexData.indices   = indices;
 
-    if (this._mesh) this._mesh.dispose();
+    // Its material goes too, or every reload leaves a terrain material behind.
+    if (this._mesh) this._mesh.dispose(false, true);
 
     const mesh = new Mesh(TERRAIN_MESH_NAME, this._scene);
     vertexData.applyToMesh(mesh, true);

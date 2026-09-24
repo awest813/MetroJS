@@ -382,6 +382,14 @@ input:focus-visible {
   font-size: 12px;
 }
 
+.hud-weather-costly {
+  color: #f0c070;
+}
+
+#hud-date {
+  font-variant-numeric: tabular-nums;
+}
+
 .hud-money-warning {
   color: var(--danger);
   font-weight: 600;
@@ -528,6 +536,23 @@ input:focus-visible {
   color: var(--danger);
 }
 
+.budget-row-total {
+  margin-top: 2px;
+  padding-top: 4px;
+  border-top: 1px solid #1e2e3e;
+  font-weight: 600;
+}
+
+.budget-runway {
+  margin: 4px 0 0;
+  padding: 4px 6px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #f0c8a0;
+  background: rgba(160, 64, 32, 0.22);
+  border-radius: 4px;
+}
+
 .budget-divider {
   height: 1px;
   background: #1e2e3e;
@@ -544,12 +569,37 @@ input:focus-visible {
 .tax-label {
   font-size: 11px;
   color: var(--muted);
-  width: 52px;
+  width: 28px;
   flex-shrink: 0;
+}
+
+.tax-head {
+  display: grid;
+  grid-template-columns: 1fr 28px 42px;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.tax-head span + span {
+  text-align: right;
+}
+
+.tax-take {
+  font-size: 11px;
+  color: var(--ok);
+  width: 42px;
+  text-align: right;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .tax-slider {
   flex: 1;
+  min-width: 0;
   -webkit-appearance: none;
   appearance: none;
   height: 4px;

@@ -10,6 +10,13 @@ function tickOneMonth(sim: CitySim): void {
   sim.tick(MONTH_SECONDS);
 }
 
+/** A city whose months all have clear weather, so upkeep and loads are the base rates. */
+function clearCity(width: number, height: number): CitySim {
+  const sim = CitySim.createCity(width, height);
+  sim.pinWeather('clear');
+  return sim;
+}
+
 // ── STARTING_MONEY ────────────────────────────────────────────────────────────
 
 describe('STARTING_MONEY', () => {
@@ -57,12 +64,13 @@ describe('EconomySystem income', () => {
 
     tickOneMonth(sim);
 
-    // income_res = 100 × 10 × 0.5 = 500; road-maintenance is 0 (no road tiles).
-    expect(sim.stats.monthlyIncome).toBe(500);
+    // income_res = 100 × 10 × 0.3 = 300; road-maintenance is 0 (no road tiles).
+    expect(sim.stats.monthlyIncome).toBe(300);
+    expect(sim.budget.resIncome).toBe(300);
   });
 
   it('should generate road-maintenance expenses per street tile', () => {
-    const sim = CitySim.createCity(8, 8);
+    const sim = clearCity(8, 8);
     // 4 street tiles
     sim.placeRoad(0, 0, RoadType.Street);
     sim.placeRoad(1, 0, RoadType.Street);
@@ -72,25 +80,25 @@ describe('EconomySystem income', () => {
 
     tickOneMonth(sim);
 
-    // 4 tiles × $2/tile = $8
-    expect(sim.stats.monthlyExpenses).toBe(8);
+    // 4 tiles × $3/tile = $12
+    expect(sim.stats.monthlyExpenses).toBe(12);
   });
 
   it('should project next-month upkeep when streets are paved before the first bill', () => {
-    const sim = CitySim.createCity(8, 8);
+    const sim = clearCity(8, 8);
     sim.placeRoad(0, 0, RoadType.Street);
     sim.placeRoad(1, 0, RoadType.Street);
     sim.placeRoad(2, 0, RoadType.Street);
     sim.placeRoad(3, 0, RoadType.Street);
     expect(sim.stats.monthlyExpenses).toBe(0);
-    expect(sim.stats.projectedExpenses).toBe(8);
+    expect(sim.stats.projectedExpenses).toBe(12);
     tickOneMonth(sim);
-    expect(sim.stats.monthlyExpenses).toBe(8);
-    expect(sim.stats.projectedExpenses).toBe(8);
+    expect(sim.stats.monthlyExpenses).toBe(12);
+    expect(sim.stats.projectedExpenses).toBe(12);
   });
 
   it('should charge higher maintenance for trolley avenue tiles', () => {
-    const sim = CitySim.createCity(8, 8);
+    const sim = clearCity(8, 8);
     // 2 trolley tiles + 1 street
     sim.placeRoad(0, 0, RoadType.TrolleyAvenue);
     sim.placeRoad(1, 0, RoadType.TrolleyAvenue);
@@ -99,18 +107,18 @@ describe('EconomySystem income', () => {
 
     tickOneMonth(sim);
 
-    // 2 × $5 + 1 × $2 = $12
-    expect(sim.stats.monthlyExpenses).toBe(12);
+    // 2 × $8 + 1 × $3 = $19
+    expect(sim.stats.monthlyExpenses).toBe(19);
   });
 
   it('should charge highway tiles more than streets and less than trolley', () => {
-    const sim = CitySim.createCity(8, 8);
+    const sim = clearCity(8, 8);
     sim.placeRoad(0, 0, RoadType.Highway);
     sim.placeRoad(1, 0, RoadType.Highway);
     sim.stats.population = 0;
     tickOneMonth(sim);
-    // 2 × $4 = $8
-    expect(sim.stats.monthlyExpenses).toBe(8);
+    // 2 × $6 = $12
+    expect(sim.stats.monthlyExpenses).toBe(12);
   });
 
   it('should charge each service building its own monthly cost', () => {
@@ -144,7 +152,7 @@ describe('EconomySystem income', () => {
         sim.placeRoad(x, y, RoadType.Street);
       }
     }
-    // 64 streets × $2 = $128 expenses, income = 0 → net -$128 per month.
+    // 64 streets × $3 = $192 expenses, income = 0 → net -$192 per month.
     // Drain money manually to trigger the warning on the first tick.
     sim.stats.money = 50;
 
@@ -184,8 +192,9 @@ describe('EconomySystem MixedUse job income', () => {
 
     tickOneMonth(sim);
 
-    // 2 commercial jobs × 10% × 0.4 = $8
-    expect(sim.stats.monthlyIncome).toBe(8);
+    // 2 commercial jobs × 10% × 0.25 = $5
+    expect(sim.stats.monthlyIncome).toBe(5);
+    expect(sim.budget.comIncome).toBe(5);
   });
 });
 
@@ -229,5 +238,29 @@ describe('EconomySystem tax rate sensitivity', () => {
     sim.placeServiceBuilding(4, 4, 'small_power_plant', 0);
     tickOneMonth(sim);
     expect(sim.stats.monthlyIncome).toBe(0);
+  });
+});
+
+// ── Weather on the books ──────────────────────────────────────────────────────
+
+describe('EconomySystem weather', () => {
+  function streets(sim: CitySim): void {
+    for (let x = 0; x < 4; x++) sim.placeRoad(x, 0, RoadType.Street);
+  }
+
+  it('should add snow clearing to road upkeep in a snowy month', () => {
+    const snowy = CitySim.createCity(8, 8);
+    snowy.pinWeather('snow');
+    streets(snowy);
+    // 4 streets × $3 = $12, plowing half again.
+    expect(snowy.budget.roadExpenses).toBe(18);
+    expect(snowy.budget.weatherRoadExpenses).toBe(6);
+    tickOneMonth(snowy);
+    expect(snowy.stats.monthlyExpenses).toBe(18);
+
+    const clear = clearCity(8, 8);
+    streets(clear);
+    expect(clear.budget.roadExpenses).toBe(12);
+    expect(clear.budget.weatherRoadExpenses).toBe(0);
   });
 });

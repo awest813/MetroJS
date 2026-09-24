@@ -8,6 +8,9 @@ const MONTH_NAMES = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ] as const;
 
+/** Calendar days per month (the calendar has no leap years). */
+const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const;
+
 /** Starting calendar year for the simulation. */
 const START_YEAR = 2000;
 
@@ -64,5 +67,26 @@ export class SimulationClock {
   /** Current in-game year (starts at START_YEAR). */
   get year(): number {
     return START_YEAR + Math.floor(this.monthsPassed / 12);
+  }
+
+  /** Calendar month, 0 = January. */
+  get monthOfYear(): number {
+    return this.monthsPassed % 12;
+  }
+
+  /** Share of the current month already gone, [0, 1). */
+  get monthProgress(): number {
+    const into = this._totalSeconds - this.monthsPassed * MONTH_SECONDS;
+    return Math.max(0, Math.min(0.999999, into / MONTH_SECONDS));
+  }
+
+  /** Day of the current month, 1-based, spread over the month's real length. */
+  get dayOfMonth(): number {
+    return Math.floor(this.monthProgress * DAYS_IN_MONTH[this.monthOfYear]) + 1;
+  }
+
+  /** e.g. "Jan 12, 2000". */
+  get dateLabel(): string {
+    return `${this.monthName} ${this.dayOfMonth}, ${this.year}`;
   }
 }

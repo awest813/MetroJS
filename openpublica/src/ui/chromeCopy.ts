@@ -26,5 +26,23 @@ export function formatSignedMoney(amount: number): string {
 }
 
 export function formatBudgetNet(income: number, expenses: number): string {
-  return `${formatSignedMoney(income - expenses)}/mo`;
+  const net = income - expenses;
+  return `${net > 0 ? '+' : ''}${formatSignedMoney(net)}/mo`;
 }
+
+/**
+ * How long the treasury lasts at a monthly deficit, or null while the budget
+ * breaks even. In debt, nothing can be built until it is paid down.
+ */
+export function formatRunway(money: number, net: number): string | null {
+  if (money < 0) return 'In debt: nothing can be built until the treasury is back above $0.';
+  if (net >= 0) return null;
+  const months = Math.floor(money / -net);
+  if (months < 1) return 'Money runs out this month at this rate.';
+  if (months >= 24) return null;
+  return `Money runs out in about ${months} month${months === 1 ? '' : 's'} at this rate.`;
+}
+
+/** What a tax slider does, for its tooltip. */
+export const TAX_HINT =
+  'Each point above 9% cuts this zone\'s demand by 2 a month; each point below adds 2.';

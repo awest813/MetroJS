@@ -30,8 +30,8 @@ export function mountCityMenu(
       const status = SaveSystem.load(opts.sim);
       if (status === 'loaded') {
         opts.view.rebuildAll(opts.sim);
-        opts.hud.update(opts.sim.stats, opts.sim.clock);
-        opts.budget.update(opts.sim.stats);
+        opts.hud.update(opts.sim.stats, opts.sim.clock, opts.sim);
+        opts.budget.update(opts.sim.stats, opts.sim.budget);
         opts.budget.syncTaxSliders(opts.sim.stats);
         opts.onLoaded?.();
         opts.statusEl.textContent = 'City loaded.';

@@ -24,7 +24,7 @@ import { CameraBar } from '../ui/CameraBar';
 import { CityHUD } from '../ui/CityHUD';
 import { BudgetPanel } from '../ui/BudgetPanel';
 import { formatInspectStatus } from '../ui/inspectStatus';
-import { SpeedBar, type SimSpeed } from '../ui/SpeedBar';
+import { SpeedBar, simSecondsForFrame, type SimSpeed } from '../ui/SpeedBar';
 import { LookPanel } from '../ui/LookPanel';
 import { SettingsPanel } from '../ui/SettingsPanel';
 import { readStoredQuality, readStoredSun, type QualityLevel } from '../ui/settingsStore';
@@ -32,7 +32,8 @@ import { AudioBus } from '../audio/AudioBus';
 import { BANKRUPT_VOICE, FAIL_VOICE, GROWTH_VOICE, sfxForTool } from '../audio/voices';
 import { explainToolFailure, formatStrokeStatus } from '../tools/toolFeedback';
 import { formatGrowthHint } from '../sim/zoneGrowthHints';
-import { applyDaylight } from '../render/daylight';
+import { WeatherRenderer } from '../render/WeatherRenderer';
+import { parseWeatherKind } from '../sim/weather';
 import { CityView } from './CityView';
 import { mountCityMenu, requestedTestCity } from './cityFile';
 import { PlannedDragInput, RoadLineMode, ZoneAreaMode } from './plannedDrag';
@@ -138,13 +139,22 @@ export class App {
     allTools.slice(1).forEach((t) => toolController.register(t));
 
     const { scene, engine, camera, sun, fill, shadowGenerator, sky } = createScene(canvas);
-    applyDaylight({ scene, sun, fill, sky }, readStoredSun());
     const cameraController = new CameraController(canvas, camera);
     const view = new CityView(scene, cameraController, shadowGenerator, sim, heights);
+    // Sky, fog, sun, and shadows follow the Dawn–Dusk slider under the month's weather.
+    const weatherView = new WeatherRenderer(
+      scene, { scene, sun, fill, sky, shadows: shadowGenerator }, camera, readStoredSun(),
+    );
+    const pinned = parseWeatherKind(new URLSearchParams(window.location.search).get('weather'));
+    if (pinned) sim.pinWeather(pinned);
+    weatherView.setWeather(sim.weather, true);
+    sim.onWeatherChanged = () => weatherView.setWeather(sim.weather);
+    weatherView.onLightning = () => audio.thunder();
 
     const applyQuality = (level: QualityLevel): void => {
       scene.shadowsEnabled = level === 'high';
       view.applyQuality(level, sim);
+      weatherView.setEffects(level === 'high');
     };
     applyQuality(readStoredQuality());
 
@@ -182,8 +192,8 @@ export class App {
 
     cameraController.onModeChange(() => redrawLook());
     const roadLineMode = new RoadLineMode(sim, toolController, (tool, summary, path) => {
-      hud.update(sim.stats, sim.clock);
-      budgetPanel.update(sim.stats);
+      hud.update(sim.stats, sim.clock, sim);
+      budgetPanel.update(sim.stats, sim.budget);
       if (summary.applied === 0) {
         audio.play(FAIL_VOICE, 'fail');
         statusEl.textContent = path.length === 1
@@ -196,8 +206,8 @@ export class App {
       statusEl.textContent = formatStrokeStatus(tool.label, summary) ?? '';
     });
     const zoneAreaMode = new ZoneAreaMode(sim, toolController, (tool, summary, plan, anchor, target) => {
-      hud.update(sim.stats, sim.clock);
-      budgetPanel.update(sim.stats);
+      hud.update(sim.stats, sim.clock, sim);
+      budgetPanel.update(sim.stats, sim.budget);
       if (summary.applied === 0) {
         audio.play(FAIL_VOICE, 'fail');
         statusEl.textContent = anchor.x === target.x && anchor.y === target.y
@@ -358,7 +368,7 @@ export class App {
     ]);
 
     const hud = new CityHUD(hudEl);
-    hud.update(sim.stats, sim.clock);
+    hud.update(sim.stats, sim.clock, sim);
 
     let wasBankrupt = sim.stats.bankruptcyWarning;
     const syncAmbient = (): void => {
@@ -368,10 +378,13 @@ export class App {
     syncAmbient();
 
     scene.onBeforeRenderObservable.add(() => {
-      const dt = engine.getDeltaTime() / 1000;
-      if (simSpeed > 0) {
-        sim.tick(dt * simSpeed);
-        view.traffic.update(dt * simSpeed);
+      weatherView.update(engine.getDeltaTime() / 1000);
+      audio.setRain(weatherView.look.rain);
+      const step = simSecondsForFrame(engine.getDeltaTime(), simSpeed);
+      if (step > 0) {
+        sim.tick(step);
+        view.traffic.update(step);
+        hud.tickClock(sim.clock);
         if (sim.stats.bankruptcyWarning && !wasBankrupt) {
           audio.play(BANKRUPT_VOICE, 'warn');
         }
@@ -380,10 +393,10 @@ export class App {
     });
 
     const budgetPanel = new BudgetPanel(budgetEl);
-    budgetPanel.update(sim.stats);
+    budgetPanel.update(sim.stats, sim.budget);
     sim.onMonth = () => {
-      hud.update(sim.stats, sim.clock);
-      budgetPanel.update(sim.stats);
+      hud.update(sim.stats, sim.clock, sim);
+      budgetPanel.update(sim.stats, sim.budget);
       syncAmbient();
     };
     budgetPanel.onTaxChange((res, com, ind) => {
@@ -392,8 +405,8 @@ export class App {
       sim.stats.indTaxRate = ind;
       sim.previewEconomy();
       sim.evaluate();
-      hud.update(sim.stats, sim.clock);
-      budgetPanel.update(sim.stats);
+      hud.update(sim.stats, sim.clock, sim);
+      budgetPanel.update(sim.stats, sim.budget);
     });
 
     view.picker.onPick((coord, via, mods) => {
@@ -405,8 +418,8 @@ export class App {
       const result = toolController.applyToTile(coord, sim);
       view.highlight.show(coord, view.surface);
       previewCoverage(coord);
-      hud.update(sim.stats, sim.clock);
-      budgetPanel.update(sim.stats);
+      hud.update(sim.stats, sim.clock, sim);
+      budgetPanel.update(sim.stats, sim.budget);
 
       const tile     = sim.getTile(coord.x, coord.y);
       const pickData = view.buildings.selectBuilding(coord.x, coord.y);
@@ -457,19 +470,22 @@ export class App {
       hud,
       budget: budgetPanel,
       statusEl,
-      onLoaded: () => previewCoverage(null),
+      onLoaded: () => {
+        weatherView.setWeather(sim.weather, true);
+        previewCoverage(null);
+      },
     });
     if (testCity) {
       view.rebuildAll(sim);
-      hud.update(sim.stats, sim.clock);
-      budgetPanel.update(sim.stats);
+      hud.update(sim.stats, sim.clock, sim);
+      budgetPanel.update(sim.stats, sim.budget);
       budgetPanel.syncTaxSliders(sim.stats);
       statusEl.textContent = `${testCity.summary} New starts a fresh map.`;
     }
     previewCoverage(null);
     new SettingsPanel(settingsEl, {
       audio,
-      onSun: (day) => applyDaylight({ scene, sun, fill, sky }, day),
+      onSun: (day) => weatherView.setDay(day),
       onQuality: applyQuality,
     });
 

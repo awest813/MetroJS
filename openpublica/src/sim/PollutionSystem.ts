@@ -27,6 +27,9 @@ const POLLUTION_PER_TRAFFIC_PRESSURE = 2;
  * road), including clean lots at 0 — same include-zeros rule as crime/fire.
  */
 export class PollutionSystem {
+  /** Weather multiplier on the month's smog (rain washes it out). */
+  weatherFactor = 1;
+
   tick(
     map: CityMap,
     buildings: ReadonlyMap<string, BuildingInstance>,
@@ -64,7 +67,7 @@ export class PollutionSystem {
     let pollutionTotal = 0;
 
     map.forEach((tile) => {
-      tile.pollution = Math.max(0, Math.min(MAX_POLLUTION, tile.pollution));
+      tile.pollution = Math.max(0, Math.min(MAX_POLLUTION, Math.round(tile.pollution * this.weatherFactor)));
       if (
         tile.zoneType === ZoneType.None &&
         tile.buildingId === null &&

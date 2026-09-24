@@ -19,7 +19,8 @@ import { CrimeSystem } from './CrimeSystem';
 import { EvaluationSystem } from './EvaluationSystem';
 import { tileKey } from './ZoneGrowthSystem';
 import { STARTER_RESIDENTIAL_DEMAND } from './zoneGrowthHints';
-import { tallyBudget } from './EconomySystem';
+import { STARTING_MONEY, tallyBudget, type BudgetTally } from './EconomySystem';
+import { WEATHER_EFFECTS, weatherFor, weatherLabel, weatherOfKind, type Weather, type WeatherKind } from './weather';
 import { DEFAULT_TERRAIN_SEED } from './TerrainGenerator';
 import { composeHappiness } from './happiness';
 import { bridgeProblem, type BridgeProblem } from './roadConnections';
@@ -157,7 +158,26 @@ export class CitySim {
   set terrainSeed(seed: number) {
     this._terrainSeed = seed;
     if (this.landValue) this.landValue.woodsSeed = seed;
+    this._weatherMonth = -1; // the weather follows the seed
   }
+
+  /** This month's weather: fixed by the map seed and the month. */
+  get weather(): Weather {
+    this._syncWeather();
+    return this._weather;
+  }
+
+  /** Next month's weather, for forecasts. */
+  get nextWeather(): Weather {
+    const month = this.clock.monthsPassed + 1;
+    return this._pinnedWeather ? weatherOfKind(this._pinnedWeather, month) : weatherFor(this._terrainSeed, month);
+  }
+
+  /**
+   * The latest budget projection at today's layout and weather: each tax's
+   * take and each upkeep line (not the last bill; see `stats.monthlyIncome`).
+   */
+  budget!: BudgetTally;
 
   /**
    * Called after each monthly growth tick with the list of tiles that received a
@@ -207,6 +227,15 @@ export class CitySim {
    */
   onMonth: (() => void) | null = null;
 
+  /** Called when a new month brings new weather (and on load). */
+  onWeatherChanged: (() => void) | null = null;
+
+  private _weather!: Weather;
+  /** The month whose weather effects are on the systems, or -1. */
+  private _weatherMonth = -1;
+  /** Weather pinned for testing (`?weather=`), or null for the seasons' own. */
+  private _pinnedWeather: WeatherKind | null = null;
+
   /** Nesting depth of {@link batch}; edits inside defer their refresh. */
   private _batchDepth = 0;
   /** An edit inside a batch is waiting for its refresh. */
@@ -234,7 +263,7 @@ export class CitySim {
       population:        0,
       darkPopulation:    0,
       jobs:              0,
-      money:             10_000,
+      money:             STARTING_MONEY,
       residentialDemand: STARTER_RESIDENTIAL_DEMAND,
       commercialDemand:  0,
       industrialDemand:  20, // industrial starts with a modest positive demand
@@ -263,6 +292,8 @@ export class CitySim {
       approval:          100,
       advisory:          '',
     };
+    this._syncWeather();
+    this.previewEconomy();
     this.evaluate();
   }
 
@@ -395,6 +426,7 @@ export class CitySim {
     const notify = opts?.notify ?? true;
     const includeMonthlyOverlays = opts?.includeMonthlyOverlays ?? false;
 
+    if (this._syncWeather() && notify && this.onWeatherChanged) this.onWeatherChanged();
     this.power.tick(this.map, this.growth.buildings, this.growth.defs);
 
     if (includeMonthlyOverlays) {
@@ -487,7 +519,14 @@ export class CitySim {
     this.stats.waterSupply = this.water.summary.supply;
     this.stats.waterLoad = this.water.summary.load;
     this.stats.waterShort = this.water.summary.shortBuildings;
-    this.evaluation.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+    const now = WEATHER_EFFECTS[this.weather.kind];
+    const next = this.nextWeather;
+    const ahead = WEATHER_EFFECTS[next.kind];
+    this.evaluation.tick(this.map, this.growth.buildings, this.growth.defs, this.stats, {
+      label: weatherLabel(next.kind),
+      powerLoadRatio: ahead.powerLoad / now.powerLoad,
+      waterLoadRatio: ahead.waterLoad / now.waterLoad,
+    });
   }
 
   /**
@@ -495,10 +534,43 @@ export class CitySim {
    * Does not overwrite last-billed income/expenses or charge the treasury.
    */
   previewEconomy(): void {
-    const tally = tallyBudget(this.map, this.growth.buildings, this.growth.defs, this.stats);
+    this._syncWeather();
+    const tally = tallyBudget(
+      this.map, this.growth.buildings, this.growth.defs, this.stats, this.growth.economy.roadUpkeepFactor,
+    );
+    this.budget = tally;
     this.stats.serviceExpenses = tally.serviceExpenses;
     this.stats.projectedIncome = tally.income;
     this.stats.projectedExpenses = tally.expenses;
+  }
+
+  /**
+   * Pin every month to one kind of weather, effects and all (a testing aid:
+   * `?weather=snow`), or pass null to return to the seasons.
+   */
+  pinWeather(kind: WeatherKind | null): void {
+    this._pinnedWeather = kind;
+    this._weatherMonth = -1;
+    this.refreshDerivedState({ notify: true });
+  }
+
+  /** Put the current month's weather effects on the systems. True when they changed. */
+  private _syncWeather(): boolean {
+    return this._applyWeather(this.clock.monthsPassed);
+  }
+
+  private _applyWeather(monthIndex: number): boolean {
+    if (monthIndex === this._weatherMonth) return false;
+    this._weatherMonth = monthIndex;
+    this._weather = this._pinnedWeather
+      ? weatherOfKind(this._pinnedWeather, monthIndex)
+      : weatherFor(this._terrainSeed, monthIndex);
+    const effects = WEATHER_EFFECTS[this._weather.kind];
+    this.power.loadFactor = effects.powerLoad;
+    this.water.loadFactor = effects.waterLoad;
+    this.pollution.weatherFactor = effects.smog;
+    this.growth.economy.roadUpkeepFactor = effects.roadUpkeep;
+    return true;
   }
 
   // ── Economy ───────────────────────────────────────────────────────────────
@@ -523,14 +595,23 @@ export class CitySim {
   /** Advance the simulation by deltaSeconds, running growth once per simulated month. */
   tick(deltaSeconds: number): void {
     const changedTiles: Array<{ x: number; y: number }> = [];
+    this._syncWeather();
+    const startMonth = this.clock.monthsPassed;
+    let monthsDone = 0;
     const month = this.growth.tick(
       deltaSeconds,
       this.map,
       this.stats,
       changedTiles,
-      () => this._refreshCityHealth(true),
+      () => {
+        // The next month's weather holds while it runs (catch-up runs several).
+        monthsDone += 1;
+        this._applyWeather(startMonth + monthsDone);
+        this._refreshCityHealth(true);
+      },
     );
     this.clock.tick(month.clockAdvance);
+    this._syncWeather();
 
     if (changedTiles.length > 0 && this.onGrowth) {
       this.onGrowth(changedTiles);
@@ -545,6 +626,7 @@ export class CitySim {
     this.growth.recomputeCensus(this.stats, this.map);
     // Growth used last month's smog. Publish this month's traffic before the HUD.
     this._syncPublishedState(true, true);
+    if (this.onWeatherChanged) this.onWeatherChanged();
     if (this.onMonth) this.onMonth();
     if (this.onPowerChanged) this.onPowerChanged();
     if (this.onLandValueChanged) this.onLandValueChanged();

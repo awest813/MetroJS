@@ -45,7 +45,8 @@ describe('chromeCopy', () => {
   it('should format budget net including a deficit', () => {
     expect(formatSignedMoney(40)).toBe('$40');
     expect(formatSignedMoney(-15)).toBe('-$15');
-    expect(formatBudgetNet(100, 40)).toBe('$60/mo');
+    expect(formatBudgetNet(100, 40)).toBe('+$60/mo');
+    expect(formatBudgetNet(40, 40)).toBe('$0/mo');
     expect(formatBudgetNet(10, 25)).toBe('-$15/mo');
   });
 });

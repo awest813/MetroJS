@@ -255,30 +255,32 @@ describe('CitySim', () => {
 
     it('should catch up multiple due months in one tick', () => {
       const sim = CitySim.createCity(8, 8);
+      sim.pinWeather('clear');
       sim.placeRoad(0, 0, RoadType.Street);
       sim.placeRoad(1, 0, RoadType.Street);
       sim.placeRoad(2, 0, RoadType.Street);
       sim.placeRoad(3, 0, RoadType.Street);
       const start = sim.stats.money;
       sim.tick(MONTH_SECONDS * 2);
-      // 4 streets × $2 × 2 months
-      expect(sim.stats.money).toBe(start - 16);
-      expect(sim.stats.monthlyExpenses).toBe(8);
+      // 4 streets × $3 × 2 months
+      expect(sim.stats.money).toBe(start - 24);
+      expect(sim.stats.monthlyExpenses).toBe(12);
       expect(sim.clock.totalSeconds).toBeCloseTo(MONTH_SECONDS * 2);
     });
 
     it('should not advance the calendar past months that have not run yet', () => {
       const sim = CitySim.createCity(8, 8);
+      sim.pinWeather('clear');
       sim.placeRoad(0, 0, RoadType.Street);
       const start = sim.stats.money;
       sim.tick(MONTH_SECONDS * 10);
-      // 1 street × $2 × 6 catch-up months
-      expect(sim.stats.money).toBe(start - 12);
+      // 1 street × $3 × 6 catch-up months
+      expect(sim.stats.money).toBe(start - 18);
       expect(sim.clock.totalSeconds).toBeCloseTo(MONTH_SECONDS * 6);
       expect(sim.growth.monthAccumulator).toBeCloseTo(MONTH_SECONDS * 4);
 
       sim.tick(0);
-      expect(sim.stats.money).toBe(start - 20);
+      expect(sim.stats.money).toBe(start - 30);
       expect(sim.clock.totalSeconds).toBeCloseTo(MONTH_SECONDS * 10);
       expect(sim.growth.monthAccumulator).toBeCloseTo(0);
     });

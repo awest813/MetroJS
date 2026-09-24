@@ -270,10 +270,10 @@ from the New confirm; `test/testCities.ts` builds each and checks it.
 
 | City | Seed, budget, time | What it shows | Where it ends |
 |---|---|---|---|
-| `hamlet` | 11, $10,000, 2 years | The first hours: a crossroads, shops, a few factories, one plant past town, woods all round | 124 people, 70 jobs, power 194/400, treasury $23k |
-| `riverside` | 2026, $40,000, 2½ years | A street bridge and a highway bridge; the plants are all on the north bank and light the far one across the bridge; shore lots, a bridgehead park, a far-bank tower, factories across the lake | 260 people, both banks lit, waterfront valued above inland |
-| `metro` | 7, $120,000, 4 years in 3 phases | Zone areas with auto streets, a highway, a trolley line, downtown, mixed use, industry, six plants, three towers, police, fire, parks | 948 people, 592 jobs, happiness 91, power 1562/2400 |
-| `troubled` | 101, $30,000, 3 years | Blocks four lots deep, a plant among the houses, factories next door, no police, a tower with no street, a police station on a dark street, taxes raised to 16/14/14 | 150 lots with no road, power 397/400 with dark houses, smog 77, approval 0 |
+| `hamlet` | 11, $10,000, 2 years | The first hours: a crossroads, shops, a few factories, one plant past town, woods all round | 104 people, 70 jobs, power 174/400, treasury $15k |
+| `riverside` | 2026, $40,000, 2½ years | A street bridge and a highway bridge; the plants are all on the north bank and light the far one across the bridge; shore lots, a bridgehead park, a far-bank tower, factories across the lake | 292 people, both banks lit, waterfront valued above inland |
+| `metro` | 7, $120,000, 4 years in 3 phases | Zone areas with auto streets, a highway, a trolley line, downtown, mixed use, industry, six plants, three towers, police, fire, parks | 1,014 people, 601 jobs, power 1637/2400 (a snowy January) |
+| `troubled` | 101, $30,000, 3 years | Blocks four lots deep, a plant among the houses, factories next door, no police, a tower with no street, a police station on a dark street, taxes raised to 16/14/14 | 150 lots with no road, power 399/400 with dark houses, approval 0 |
 | `sprawl` | 314, $60,000, 3½ years | A highway across the map with cul-de-sacs, a shopping strip, an industrial park; one plant at the west end until month 30 | Before the second plant the dark lots are the far (east) ones; after it all are lit; water 597/600 |
 
 Building them turned up six sim faults, now fixed:
@@ -289,6 +289,52 @@ Building them turned up six sim faults, now fixed:
 
 The emptying advisory now names its cause: more homes than jobs, the dark,
 smog, or crime.
+
+### Gap O — Economy **shipped**
+
+A tenth audit ran the five test cities' books month by month. Every one took
+in three to five times its upkeep: the $10,000 hamlet banked $650 a month,
+the troubled town $1,000, and Metro grew from $120k to $250k in four years,
+so money stopped mattering a minute in. The Budget panel mixed last month's
+bill with today's projection under labels like "Last billed" and "Civic now".
+
+| Slice | What shipped |
+|---|---|
+| O1 Rates | Tax take per resident or job at 1% goes 0.5/0.4/0.3 → 0.3/0.25/0.2 (res/com/ind); street, highway, and trolley upkeep 2/4/5 → 3/6/8 a tile (bridges still ×3). Taxes now cover upkeep about 2× in the hamlet, 2× in Sprawl, 1.3× in Metro and Riverside; treasuries grow, slowly. |
+| O2 Budget panel | Taxes, civic upkeep, road upkeep (marked when snow adds plowing), and net for this month at today's city and weather; last month's bill below; a warning with the months left when the net is negative, or that nothing can be built in debt. Each tax row shows its rate and its take; the rows explain what a point of tax does to demand. |
+| O3 Warning | An advisory once a deficit would empty the treasury within a year: "The budget is $192/mo in the red — money runs out in about 5 months." |
+
+### Gap P — Time **shipped**
+
+| Slice | What shipped |
+|---|---|
+| P1 Hidden tabs | A frame counts for at most 0.25 s of sim time. Browsers stop drawing a hidden tab, so the first frame back could span minutes, and the city aged a month for every 30 seconds away, unwatched. |
+| P2 Calendar | The HUD shows the day ("Jan 12, 2004"), ticking through each 30-second month; the speed buttons say how long a month takes at each speed. |
+
+### Gap Q — Weather **shipped**
+
+`sim/weather`: each game month has one spell drawn from its season's odds
+with dice fixed by the map seed and the month, so a city's weather survives a
+reload and a test city builds the same every time. `?weather=<kind>` pins it
+for testing.
+
+| Kind | Season | Effect |
+|---|---|---|
+| Heatwave | summer | Power load +15%, water load +25% |
+| Snow | winter | Road upkeep +50% (plowing), power load +10% |
+| Rain / Storms | spring–autumn | A fifth / a third of the smog washed out |
+| Clear, Cloudy, Fog | all | Looks only |
+
+The HUD shows the weather and temperature (amber when it costs you) with a
+tooltip giving its effect and next month's weather; an advisory warns a month
+ahead when a heatwave would push power or water past capacity. On screen,
+each kind sets the sun, sky, fog, and shadow strength over the Dawn–Dusk
+slider and rolls in over three seconds; rain and snow fall around the camera;
+snow lies on ground, lawns, roofs, and tree tops (a PBR material plugin on
+upward faces) while roads stay plowed, and lingers in freezing months;
+storms flash (not with reduced motion) and thunder; rain hisses. Low quality
+drops the falling rain and snow and the lightning. Reloading no longer leaks
+a terrain material.
 
 ---
 
@@ -338,4 +384,7 @@ GLB (C4) and SSAO (C5) stay optional. C3 skirt is optional.
 - Utilities: place a plant beside a street at the edge of town (the whole joined network previews yellow), watch Power in the HUD, hover the plant to see what it feeds, place one in an empty field (the status asks for a street), and add a water tower beside a powered street.
 - Ground: zone a rectangle over woods (the status says how many wooded tiles it clears; the trees go on release), inspect a grove tile, check the Value map for the woods premium, and look along a waterfront for zone colour in the water (there should be none).
 - UI: at 1280×720 every tool shows in the rail with its key; the HUD stops short of Budget; on a phone the tool strip is one row under the camera bar and minimap.
+- Economy: open `?city=metro`, drag a tax slider and watch its take and the net change; zone an empty map deep into the red and read the months left in Budget.
+- Time: hide the tab for a minute and come back (the date moves on by about a quarter second, not two months); the HUD date counts days.
+- Weather: open `?city=metro&weather=snow`, `rain`, `storm`, `fog`, and `heat` (snow on roofs, plowed roads, amber HUD, Road upkeep (snow) in Budget; rain and storm grey the sky; heat raises Power and water load), then play a year at 4× and watch the seasons turn.
 - Test cities: open `?city=hamlet`, `riverside`, `metro`, `troubled`, and `sprawl` (or New → Or open a test city); each status line says what the city shows, the HUD and advisory match its row in Gap N, and New goes back to a fresh map.

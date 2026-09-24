@@ -1,10 +1,23 @@
 export type SimSpeed = 0 | 1 | 2 | 4;
 
+/**
+ * Longest real frame that counts toward sim time. Browsers stop drawing a
+ * hidden tab, so the first frame back can span minutes; uncapped, the city
+ * aged a month for every 30 seconds away while nobody could see it.
+ */
+export const MAX_FRAME_SECONDS = 0.25;
+
+/** Simulated seconds one rendered frame advances at `speed`. */
+export function simSecondsForFrame(frameMs: number, speed: SimSpeed): number {
+  if (!(frameMs > 0)) return 0;
+  return Math.min(frameMs / 1000, MAX_FRAME_SECONDS) * speed;
+}
+
 const SPEEDS: ReadonlyArray<{ value: SimSpeed; label: string; hint: string }> = [
-  { value: 0, label: 'Pause', hint: 'Freeze the month clock (key P)' },
-  { value: 1, label: '1×', hint: 'Real time: one month per 30 seconds (key [ ] )' },
-  { value: 2, label: '2×', hint: 'Faster months (key [ ] )' },
-  { value: 4, label: '4×', hint: 'Fast-forward' },
+  { value: 0, label: 'Pause', hint: 'Freeze the calendar; you can still build (key P)' },
+  { value: 1, label: '1×', hint: 'A month every 30 seconds (keys [ and ])' },
+  { value: 2, label: '2×', hint: 'A month every 15 seconds (keys [ and ])' },
+  { value: 4, label: '4×', hint: 'A month every 7½ seconds (keys [ and ])' },
 ];
 
 /**

@@ -95,6 +95,9 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Utilities run along the streets: a plant beside a street powers every street joined to it (400 load each, nearest lots first), and powered water towers feed mains the same way; hover a plant or tower to see its network, and the HUD shows power load against capacity
 - [x] Ground: empty zoned lots are tinted plots with lot lines, grown lots sit on lawn, pavement, or work yards, and zone colours stop at the water's edge; seeded woods cover open grass, raise land value beside them, and clear when zoned or paved
 - [x] Rail and menus: tools two to a row with their shortcut keys, every tool reachable at 1280×720, HUD clear of Budget, one-row tool strip on phones
+- [x] Economy: taxes cover upkeep about 1.3–2×; Budget shows this month's taxes, civic and road upkeep, net, last bill, each tax's take, and how long the money lasts in the red
+- [x] Time: the HUD date counts days; a hidden tab no longer ages the city
+- [x] Weather: seeded seasonal weather each month (heatwaves load power and water, snow costs plowing and heating, rain washes smog) with sky, fog, rain, snow cover, lightning, and rain sound; `?weather=<kind>` pins it
 - [x] Test cities: `?city=hamlet|riverside|metro|troubled|sprawl` (or New → Or open a test city) builds a scripted city with the player tools and seeded growth; `test/testCities.ts` checks each
 
 Follow [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md) for optional GLB/SSAO. Untextured PBR, sky dome, `CityView` rebuild-on-load, city-health, mayor Score/advisory, highways, water, zoning plats/downtown, building degradation, opening coach, and per-service upkeep/coverage preview are in the HUD.

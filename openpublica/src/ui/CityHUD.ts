@@ -1,6 +1,27 @@
 import type { CityStats } from '../sim/CitySim';
 import type { SimulationClock } from '../sim/SimulationClock';
+import { describeWeatherEffects, formatWeather, weatherLabel, type Weather } from '../sim/weather';
 import { formatPopulation } from './chromeCopy';
+
+/** Where the HUD reads this month's weather and the forecast (the sim). */
+export interface WeatherSource {
+  readonly weather: Weather;
+  readonly nextWeather: Weather;
+}
+
+/** Weather tooltip: this month, what it does, and next month. */
+export function weatherTooltip(now: Weather, next: Weather): string {
+  const effect = describeWeatherEffects(now.kind);
+  const ahead = next.kind === now.kind ? null : describeWeatherEffects(next.kind);
+  const degrees = `${now.temperature < 0 ? '−' : ''}${Math.abs(now.temperature)}°C`;
+  const nextText = next.kind === now.kind
+    ? `${weatherLabel(next.kind).toLowerCase()} again`
+    : `${weatherLabel(next.kind).toLowerCase()}${ahead ? ` — ${ahead}` : ''}`;
+  return [
+    `${weatherLabel(now.kind)}, ${degrees} this ${now.season} month${effect ? ` — ${effect}` : ''}.`,
+    `Next month: ${nextText}.`,
+  ].join(' ');
+}
 
 /**
  * City HUD — compact vitals plus demand. Never mutates sim internals.
@@ -10,6 +31,8 @@ export class CityHUD {
   private readonly _pop:           HTMLElement;
   private readonly _jobs:          HTMLElement;
   private readonly _date:          HTMLElement;
+  private readonly _weather:       HTMLElement;
+  private _dateText = '';
   private readonly _happiness:     HTMLElement;
   private readonly _walkability:   HTMLElement;
   private readonly _transitAccess: HTMLElement;
@@ -34,7 +57,8 @@ export class CityHUD {
         <span class="hud-item" id="hud-pop" title="Population. Dark means those residents have no power and may leave.">Pop 0</span>
         <span class="hud-item" id="hud-jobs" title="Jobs">Jobs 0</span>
         <span class="hud-item" id="hud-power" title="Power drawn from plants on the street grid, of what they can carry">Power none</span>
-        <span class="hud-item" id="hud-date" title="Calendar">Jan 2000</span>
+        <span class="hud-item" id="hud-date" title="Calendar: a month passes every 30 seconds at 1×">Jan 1, 2000</span>
+        <span class="hud-item" id="hud-weather" title="This month's weather">Clear</span>
         <span class="hud-item hud-muted" id="hud-happiness" title="Happiness">Happy 100</span>
         <span class="hud-item hud-muted" id="hud-walkability" title="Walkability">Walk 0</span>
         <span class="hud-item hud-muted" id="hud-transit" title="Transit access">Transit 0</span>
@@ -74,6 +98,7 @@ export class CityHUD {
     this._pop           = root.querySelector('#hud-pop')!;
     this._jobs          = root.querySelector('#hud-jobs')!;
     this._date          = root.querySelector('#hud-date')!;
+    this._weather       = root.querySelector('#hud-weather')!;
     this._happiness     = root.querySelector('#hud-happiness')!;
     this._walkability   = root.querySelector('#hud-walkability')!;
     this._transitAccess = root.querySelector('#hud-transit')!;
@@ -92,14 +117,29 @@ export class CityHUD {
     this._indLabel = root.querySelector('#hud-ind-label')!;
   }
 
-  update(stats: CityStats, clock: SimulationClock): void {
+  /** Refresh the calendar only; cheap enough to call every frame. */
+  tickClock(clock: SimulationClock): void {
+    const text = clock.dateLabel;
+    if (text === this._dateText) return;
+    this._dateText = text;
+    this._date.textContent = text;
+  }
+
+  update(stats: CityStats, clock: SimulationClock, sky?: WeatherSource): void {
     this._money.textContent = stats.bankruptcyWarning
       ? `$${stats.money.toLocaleString()}  bankrupt`
       : `$${stats.money.toLocaleString()}`;
     this._money.classList.toggle('hud-money-warning', stats.bankruptcyWarning);
     this._pop.textContent  = formatPopulation(stats.population, stats.darkPopulation);
     this._jobs.textContent = `Jobs ${stats.jobs.toLocaleString()}`;
-    this._date.textContent = `${clock.monthName} ${clock.year}`;
+    this.tickClock(clock);
+    if (sky) {
+      const now = sky.weather;
+      this._weather.textContent = formatWeather(now);
+      this._weather.title = weatherTooltip(now, sky.nextWeather);
+      this._weather.dataset.weather = now.kind;
+      this._weather.classList.toggle('hud-weather-costly', now.kind === 'heat' || now.kind === 'snow');
+    }
     this._happiness.textContent     = `Happy ${stats.happiness}`;
     this._walkability.textContent   = `Walk ${stats.walkability}`;
     this._transitAccess.textContent = `Transit ${stats.transitAccess}`;

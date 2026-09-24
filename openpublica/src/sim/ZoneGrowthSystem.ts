@@ -75,7 +75,7 @@ export class ZoneGrowthSystem {
   private _secondsAccumulator = 0;
 
   /** Economy system — runs once per simulated month. */
-  private readonly _economy = new EconomySystem();
+  readonly economy = new EconomySystem();
 
   /** Power system — injected from CitySim so both share the same instance. */
   private readonly _power: PowerSystem;
@@ -226,7 +226,7 @@ export class ZoneGrowthSystem {
     this._degradeBuildings(map, stats, changedTiles);
 
     this._recalcStats(stats, map);
-    this._economy.tick(map, this.buildings, this._defs, stats);
+    this.economy.tick(map, this.buildings, this._defs, stats);
 
     // Traffic pressure is recalculated last so it reflects the freshest
     // building layout and populates tile.trafficPressure / tile.noise.

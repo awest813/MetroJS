@@ -54,6 +54,8 @@ export class PowerSystem {
   /** The last distribution, for previews and hints. */
   grid: UtilityGrid | null = null;
   readonly summary: UtilitySummary = { supply: 0, load: 0, shortBuildings: 0 };
+  /** Weather multiplier on every lot's load (air conditioning, heating). */
+  loadFactor = 1;
 
   tick(
     map: CityMap,
@@ -67,7 +69,11 @@ export class PowerSystem {
       const capacity = defs.get(instance.defId)?.powerCapacity ?? 0;
       if (capacity > 0) sources.push({ x: instance.x, y: instance.y, capacity });
     }
-    const grid = distributeAlongStreets(map, sources, (tile) => utilityLoad(tile, defs));
+    const factor = this.loadFactor;
+    const grid = distributeAlongStreets(map, sources, (tile) => {
+      const load = utilityLoad(tile, defs);
+      return load === null ? null : load * factor;
+    });
     this.grid = grid;
 
     let shortBuildings = 0;
@@ -80,7 +86,7 @@ export class PowerSystem {
     this.summary.supply = grid.networks
       .filter((n) => n.streets > 0 || n.served > 0)
       .reduce((sum, n) => sum + n.supply, 0);
-    this.summary.load = grid.networks.reduce((sum, n) => sum + n.load, 0);
+    this.summary.load = Math.round(grid.networks.reduce((sum, n) => sum + n.load, 0));
     this.summary.shortBuildings = shortBuildings;
   }
 }

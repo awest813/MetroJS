@@ -15,6 +15,9 @@ const POLLUTION_WEIGHT = 0.30;
 /** Crime average subtracted from approval at this weight. */
 const CRIME_WEIGHT = 0.25;
 
+/** Warn about a deficit once the treasury would run dry within this many months. */
+const DEFICIT_WARNING_MONTHS = 12;
+
 /** Approval lost per extreme-traffic road, capped. */
 const TRAFFIC_PER_EXTREME = 2;
 const TRAFFIC_CAP = 25;
@@ -60,11 +63,20 @@ export class EvaluationSystem {
     buildings: ReadonlyMap<string, BuildingInstance>,
     defs: ReadonlyMap<string, BuildingDef>,
     stats: CityStats,
+    forecast?: WeatherForecast,
   ): void {
     const census = survey(map, buildings, defs, stats);
     stats.approval = score(stats, census);
-    stats.advisory = topAdvisory(stats, census);
+    stats.advisory = topAdvisory(stats, census, forecast);
   }
+}
+
+/** Next month's weather, as the load it will put on today's grids. */
+export interface WeatherForecast {
+  readonly label: string;
+  /** Next month's power load over this month's, same buildings. */
+  readonly powerLoadRatio: number;
+  readonly waterLoadRatio: number;
 }
 
 interface Census {
@@ -242,15 +254,25 @@ function emptyingMessage(census: Census): string {
   }
 }
 
-function topAdvisory(stats: CityStats, census: Census): string {
-  const list = listAdvisories(stats, census);
+function topAdvisory(stats: CityStats, census: Census, forecast?: WeatherForecast): string {
+  const list = listAdvisories(stats, census, forecast);
   return list[0]?.message ?? '';
 }
 
-function listAdvisories(stats: CityStats, census: Census): Advisory[] {
+function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherForecast): Advisory[] {
   const out: Advisory[] = [];
   if (stats.bankruptcyWarning) {
     out.push({ id: 'bankrupt', message: 'Treasury is bankrupt — cut spending or raise taxes.' });
+  }
+  const net = stats.projectedIncome - stats.projectedExpenses;
+  if (!stats.bankruptcyWarning && net < 0 && stats.money >= 0) {
+    const months = Math.floor(stats.money / -net);
+    if (months < DEFICIT_WARNING_MONTHS) {
+      out.push({
+        id: 'deficit',
+        message: `The budget is $${(-net).toLocaleString()}/mo in the red — money runs out in about ${Math.max(1, months)} month${months === 1 ? '' : 's'}. Raise taxes or cut upkeep.`,
+      });
+    }
   }
   if (census.lotsNeedRoad > 0) {
     out.push({
@@ -311,6 +333,24 @@ function listAdvisories(stats: CityStats, census: Census): Advisory[] {
         ? `${census.unpoweredCount} building${census.unpoweredCount === 1 ? '' : 's'} unpowered — plants are at capacity (${stats.powerLoad}/${stats.powerSupply}).`
         : `${census.unpoweredCount} building${census.unpoweredCount === 1 ? '' : 's'} unpowered — connect their streets to a power plant.`,
     });
+  }
+  if (forecast && stats.powerShort === 0 && stats.powerSupply > 0 && forecast.powerLoadRatio > 1) {
+    const load = Math.round(stats.powerLoad * forecast.powerLoadRatio);
+    if (load > stats.powerSupply) {
+      out.push({
+        id: 'forecast-power',
+        message: `${forecast.label} next month will push power load to about ${load} of ${stats.powerSupply} — add a plant before it comes.`,
+      });
+    }
+  }
+  if (forecast && stats.waterShort === 0 && stats.waterSupply > 0 && forecast.waterLoadRatio > 1) {
+    const load = Math.round(stats.waterLoad * forecast.waterLoadRatio);
+    if (load > stats.waterSupply) {
+      out.push({
+        id: 'forecast-water',
+        message: `${forecast.label} next month will push water load to about ${load} of ${stats.waterSupply} — add a water tower before it comes.`,
+      });
+    }
   }
   if (census.strugglingCount > 0) {
     out.push({ id: 'abandon', message: emptyingMessage(census) });

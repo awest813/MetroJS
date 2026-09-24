@@ -118,15 +118,15 @@ describe('bridges at the sim layer', () => {
   });
 
   it('should charge bridge upkeep at the multiplier', () => {
-    expect(roadUpkeep(RoadType.Street, false)).toBe(2);
-    expect(roadUpkeep(RoadType.Street, true)).toBe(2 * BRIDGE_UPKEEP_MULTIPLIER);
+    expect(roadUpkeep(RoadType.Street, false)).toBe(3);
+    expect(roadUpkeep(RoadType.Street, true)).toBe(3 * BRIDGE_UPKEEP_MULTIPLIER);
     expect(roadUpkeep(RoadType.None, true)).toBe(0);
 
     const sim = makeSim();
     water(sim, [[5, 5]]);
     street(sim, [[4, 5], [5, 5]]);
     const tally = tallyBudget(sim.map, sim.growth.buildings, sim.growth.defs, sim.stats);
-    expect(tally.roadExpenses).toBe(2 + 2 * BRIDGE_UPKEEP_MULTIPLIER);
+    expect(tally.roadExpenses).toBe(3 + 3 * BRIDGE_UPKEEP_MULTIPLIER);
   });
 
   it('should say "bridge" when inspecting one', () => {

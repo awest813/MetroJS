@@ -27,6 +27,8 @@ export class WaterCoverageSystem {
   /** The last distribution, for previews and hints. */
   grid: UtilityGrid | null = null;
   readonly summary: UtilitySummary = { supply: 0, load: 0, shortBuildings: 0 };
+  /** Weather multiplier on every lot's load (sprinklers in a heatwave). */
+  loadFactor = 1;
 
   tick(
     map: CityMap,
@@ -45,7 +47,11 @@ export class WaterCoverageSystem {
       if (!map.getTile(instance.x, instance.y)?.powered) continue;
       sources.push({ x: instance.x, y: instance.y, capacity });
     }
-    const grid = distributeAlongStreets(map, sources, (tile) => utilityLoad(tile, defs));
+    const factor = this.loadFactor;
+    const grid = distributeAlongStreets(map, sources, (tile) => {
+      const load = utilityLoad(tile, defs);
+      return load === null ? null : load * factor;
+    });
     this.grid = grid;
 
     let zoned = 0;
@@ -64,7 +70,7 @@ export class WaterCoverageSystem {
     this.summary.supply = grid.networks
       .filter((n) => n.streets > 0 || n.served > 0)
       .reduce((sum, n) => sum + n.supply, 0);
-    this.summary.load = grid.networks.reduce((sum, n) => sum + n.load, 0);
+    this.summary.load = Math.round(grid.networks.reduce((sum, n) => sum + n.load, 0));
     this.summary.shortBuildings = shortBuildings;
   }
 }

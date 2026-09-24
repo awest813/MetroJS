@@ -3,6 +3,9 @@ import { FAIL_GAP_MS, GROWTH_GAP_MS, PAINT_GAP_MS } from './voices';
 
 export const MUTE_STORAGE_KEY = 'openpublica.mute';
 
+/** Rain hiss at full downpour: well under the paint blips. */
+const RAIN_GAIN = 0.035;
+
 type WebAudioContext = AudioContext;
 
 function readStoredMute(): boolean {
@@ -42,6 +45,8 @@ export class AudioBus {
   private _unlocked = false;
   private _lastAt = new Map<string, number>();
   private _ambientLevel = 0;
+  private _rain: GainNode | null = null;
+  private _rainLevel = 0;
   private readonly _listeners = new Set<(muted: boolean) => void>();
 
   get muted(): boolean {
@@ -85,6 +90,7 @@ export class AudioBus {
       this._ambient.connect(this._master);
       this._applyMute();
       this._startAmbientBed();
+      this._startRainBed();
       this._unlocked = true;
     }
     if (this._ctx.state === 'suspended') {
@@ -102,6 +108,52 @@ export class AudioBus {
     const now = this._ctx.currentTime;
     this._ambient.gain.cancelScheduledValues(now);
     this._ambient.gain.setTargetAtTime(next * 0.018, now, 0.6);
+  }
+
+  /** Rain hiss: 0 dry … 1 downpour. Follows the weather on screen. */
+  setRain(level: number): void {
+    const next = Math.max(0, Math.min(1, level));
+    if (Math.abs(next - this._rainLevel) < 0.01) return;
+    this._rainLevel = next;
+    if (!this._rain || !this._ctx) return;
+    const now = this._ctx.currentTime;
+    this._rain.gain.cancelScheduledValues(now);
+    this._rain.gain.setTargetAtTime(next * RAIN_GAIN, now, 0.8);
+  }
+
+  /** A low roll of thunder, a moment after the flash. */
+  thunder(): void {
+    if (this._muted || !this._ctx || !this._master || !this._unlocked) return;
+    const ctx = this._ctx;
+    const t0 = ctx.currentTime + 0.25 + Math.random() * 0.6;
+    const seconds = 2.6;
+    const rate = ctx.sampleRate;
+    const buffer = ctx.createBuffer(1, Math.floor(rate * seconds), rate);
+    const data = buffer.getChannelData(0);
+    let brown = 0;
+    for (let i = 0; i < data.length; i++) {
+      brown = (brown + 0.02 * (Math.random() * 2 - 1)) / 1.02;
+      data[i] = brown * 3.5;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 160;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.16, t0 + 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + seconds);
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(this._master);
+    src.start(t0);
+    src.stop(t0 + seconds + 0.05);
+    src.onended = () => {
+      src.disconnect();
+      filter.disconnect();
+      gain.disconnect();
+    };
   }
 
   playPaint(voice: Voice): boolean {
@@ -147,6 +199,33 @@ export class AudioBus {
         0.08,
       );
     }
+    if (this._rain) {
+      this._rain.gain.cancelScheduledValues(now);
+      this._rain.gain.setTargetAtTime(this._muted ? 0 : this._rainLevel * RAIN_GAIN, now, 0.08);
+    }
+  }
+
+  /** Looping hiss for rain; silent until {@link setRain}. */
+  private _startRainBed(): void {
+    if (!this._ctx || !this._master || this._rain) return;
+    const ctx = this._ctx;
+    const rate = ctx.sampleRate;
+    const buffer = ctx.createBuffer(1, rate * 2, rate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 2400;
+    filter.Q.value = 0.4;
+    this._rain = ctx.createGain();
+    this._rain.gain.value = this._muted ? 0 : this._rainLevel * RAIN_GAIN;
+    src.connect(filter);
+    filter.connect(this._rain);
+    this._rain.connect(this._master);
+    src.start();
   }
 
   private _startAmbientBed(): void {
