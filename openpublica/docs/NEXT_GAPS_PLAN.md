@@ -15,7 +15,7 @@ checked against five scripted test cities (Gap N). The first audit's four
 open items (city health, honest feedback, PBR/sky, the `App.ts` split) have
 all shipped. What is left (section 5) is depth, not missing systems:
 
-1. **Buildings never shrink**: an office block or works keeps its size after the land value or demand that grew it is gone.
+1. **Crime in a policed city**: Metro ends with buildings emptying to crime despite three police stations.
 2. **Presentation** extras stay optional (GLB kits, SSAO).
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
@@ -276,9 +276,9 @@ from the New confirm; `test/testCities.ts` builds each and checks it.
 |---|---|---|---|
 | `hamlet` | 11, $10,000, 2 years | The first hours: a crossroads, shops, a few factories, one plant past town, woods all round | 140 people, 120 jobs (its workshops grown into factories), power 260/400, treasury $17k |
 | `riverside` | 2026, $40,000, 2½ years | A street bridge and a highway bridge; the plants are all on the north bank and light the far one across the bridge; shore lots, a bridgehead park, a far-bank tower, factories across the lake | 460 people, 468 jobs (works along the highway), both banks lit by three north-bank plants, waterfront valued above inland, the south bank's commuters on the street bridge |
-| `metro` | 7, $120,000, 4 years in 3 phases | Zone areas with looped auto streets, a highway, a trolley line crossing it at grade, downtown, mixed use, industry, six plants, four towers, police, fire, parks, a downtown of office blocks | 901 people, 870 jobs, power 1795/2400 (growth waited for each new plant), one 36-tile trolley line, 5 dead ends (all scripted road ends) |
+| `metro` | 7, $120,000, 4 years in 3 phases | Zone areas with looped auto streets, a highway, a trolley line crossing it at grade, downtown, mixed use, industry, six plants, four towers, police, fire, parks, a downtown of office blocks | 1,064 people, 962 jobs, 13 office blocks on land worth 100, power 2050/2400 (growth waited for each new plant), one 36-tile trolley line, 5 dead ends (all scripted road ends) |
 | `troubled` | 101, $30,000, 3 years | Blocks four lots deep, a plant among the houses, factories next door, no police, a tower with no street, a police station on a dark street, taxes raised to 16/14/14 | 150 lots with no road, power 399/400 with dark houses, approval 0 |
-| `sprawl` | 314, $60,000, 3½ years | A highway across the map with cul-de-sacs, a shopping strip, an industrial park; one plant at the west end until month 30, a second at the far end, a third at month 36 as the park turns into factories | With one plant, growth waits at the grid's capacity (population steady at about 220, nothing dark); each new plant lets it grow on (604 people, power 1198/1200) |
+| `sprawl` | 314, $60,000, 3½ years | A highway across the map with cul-de-sacs, a shopping strip, an industrial park; one plant at the west end until month 30, a second at the far end, a third at month 36 as the park turns into factories | With one plant, growth waits at the grid's capacity (population steady at about 220, nothing dark); each new plant lets it grow on (584 people, power 1198/1200, and the grid-full advisory) |
 
 Building them turned up six sim faults, now fixed:
 
@@ -517,6 +517,33 @@ allow instead of overshooting them.
 **Exit:** In `?city=sprawl`, Inspect an empty lot at the end: it is waiting
 for power, and no house on the strip is dark.
 
+### Gap Y — Buildings that shrink **shipped**
+
+A building kept its size after whatever grew it was gone: Metro had office
+blocks on land worth 36 (grown at 70), and works would have kept their size
+without the highway that justified them.
+
+| Slice | What shipped |
+|---|---|
+| Y1 Outgrown lots | `outgrownLot`: homes, shops, and mixed use are outgrown when their land value is more than `SHRINK_SLACK` (10) under the bar that grew them (an office block under 60, a rowhouse under 35); industry when it is in decline (demand under 10) or works have lost their highway. Weak demand elsewhere stays the stress pass's business. After `SHRINK_MONTHS` (6) straight outgrown months a building steps down one size, at most `demandExodusCap` (5%) of a zone a month, least valued first; the rest wait their turn. Inspect says "outgrown — … it steps down in N months". |
+| Y2 Offices are walkable | Measuring the shrink showed why Metro's offices sat on cheap land: a shop row gives its block a walkability and land-value bonus, and the office block it grew into gave none, so upgrading pulled its own lot from 100 to about 27 and offices would shrink and regrow every seven months. Office blocks now have the shop row's `walkabilityRadius` (3). |
+
+Two fixes the measurements forced along the way: industry is judged against
+decline, not the growth bars (at full employment demand sits at 20, which
+means no new factories are needed, not that the old ones are not; judging
+works against 60 stepped every Riverside works down); and the monthly cap,
+without which all 27 of Metro's factories stepped down in the same month
+and jobs fell 963 → 674.
+
+| Metro | Before | After |
+|---|---|---|
+| Office blocks at the end (mean land value) | 7 (36) | 13 (100) |
+| Mixed use (flats / shopfront / main-street blocks) | 33 / 0 / 0 | 0 / 1 / 27 |
+| People, jobs | 901, 870 | 1,064, 962 |
+
+**Exit:** Inspect a building whose land value fell well under its size's bar:
+it says it is outgrown and when it will step down.
+
 ---
 
 ## 4. Explicitly still out of scope (Phase I)
@@ -538,7 +565,7 @@ Unchanged from the 3D plan:
 The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped. Next, each found by
 the test cities or the audits and small enough for one PR:
 
-1. **Buildings that shrink.** An office block keeps its size after its own traffic wears the land value down, and a works after industrial demand falls. Let the top tiers step down one size when value or demand stays under their bar for several months, freeing the power, traffic, and smog they carry.
+1. **Crime in a policed city.** Metro's last advisory is buildings emptying to crime although it has three powered police stations reaching 580 tiles. Find whether the stations miss the dense blocks (reach is road steps from each station), crime outruns coverage in dense housing, or the stress threshold is too low, and fix the one at fault.
 2. **Faster scenario tests.** The five test cities add about 20 s to Jest. Build each once per run (already cached per file) and consider a separate job for the long builds.
 3. **GLB kits (C4) and SSAO (C5)** stay optional; SSAO only after a filled-city frame-time check on High quality.
 
@@ -556,6 +583,7 @@ the test cities or the audits and small enough for one PR:
 - Transit: in `?city=metro`, trolleys cross the highway at (44, 18) on rails set into it; Inspect there says level crossing and shows transit 100. Zone a big area in the open and its streets close into loops.
 - Commutes: in `?city=riverside` open Traffic and find the street bridge carrying the south bank's commuters; lay a long street between a row of houses and a block of shops and it reads busy along its whole length.
 - Growth and power: in `?city=sprawl` Inspect an empty lot at the end and it is waiting for power, with no house dark.
+- Shrinking: Inspect an office block whose block lost its land value (bulldoze the shops around it, or put a plant next door) and it counts down to stepping down.
 - Industry and budget: in `?city=riverside` the highway's industrial strip is works and factories. In Budget, Borrow $10k adds $10,000 and a $500/mo repayment row; Safety at 70% shrinks a police station's placement preview; Roads at 80% cut road upkeep and raise Traffic.
 - Water: from an angled camera, hover the edge of a bridge deck (the cursor sits on the deck); beach lots show dry ground to the water's edge; Value shows the waterfront premium.
 - Terrain: drag a street across a hillside (the ground levels under it, no grass through the deck); hills shade with the sun at Dawn/Dusk; tilt the camera low at the map edge to see the skirt.

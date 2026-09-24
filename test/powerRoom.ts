@@ -124,7 +124,7 @@ describe('growth on a full grid', () => {
     let lot = null as ReturnType<CitySim['getTile']> | null;
     sim.map.forEach((t) => { if (!lot && t.zoneType === ZoneType.Residential && !t.buildingId) lot = t; });
     sim.stats.residentialDemand = 60;
-    expect(formatGrowthHint(lot!, sim.map, sim.stats, true)).toBe('waiting for power — its grid is full, so add a plant on these streets');
-    expect(formatGrowthHint(lot!, sim.map, sim.stats, false)).toMatch(/^waiting to grow/);
+    expect(formatGrowthHint(lot!, sim.map, sim.stats, { gridFull: true })).toBe('waiting for power — its grid is full, so add a plant on these streets');
+    expect(formatGrowthHint(lot!, sim.map, sim.stats, { gridFull: false })).toMatch(/^waiting to grow/);
   });
 });

@@ -143,6 +143,45 @@ export function lotTier(map: CityMap, tile: CityTile, demand: number): number {
   return developmentTier(tile.landValue, demand);
 }
 
+/**
+ * Land value points of slack a building keeps under the bar that grew it
+ * before it counts as outgrown, so it does not flip size at the bar.
+ */
+export const SHRINK_SLACK = 10;
+
+/** Consecutive outgrown months before a building steps down one size. */
+export const SHRINK_MONTHS = 6;
+
+/**
+ * Industrial demand under which industry is in decline (taxes too high, or
+ * more jobs than people). At the baseline of 20 the city simply needs no new
+ * factories; the ones it has are still wanted.
+ */
+export const INDUSTRY_DECLINE_DEMAND = 10;
+
+/**
+ * True when a building is bigger than its lot can now support: homes, shops,
+ * and mixed use by land value (an office block on land well under 70), and
+ * industry when it is in decline or works have lost their highway. Weak
+ * demand elsewhere is the stress pass's business (it thins a zone with no
+ * demand at all).
+ */
+export function outgrownLot(
+  map: CityMap,
+  tile: CityTile,
+  defs: readonly GrowthDef[],
+  current: GrowthDef,
+  demand: number,
+): boolean {
+  const ranked = rankedZoneDefs(defs);
+  const size = ranked.findIndex((def) => def.id === current.id);
+  if (tile.zoneType === ZoneType.Industrial) {
+    const sustained = demand >= INDUSTRY_DECLINE_DEMAND ? TALL_DEMAND : demand + SHRINK_SLACK;
+    return size > industrialTier(sustained, hasFreightAccess(map, tile.x, tile.y));
+  }
+  return size > developmentTier(tile.landValue + SHRINK_SLACK, TALL_DEMAND);
+}
+
 export function rankedZoneDefs<T extends GrowthDef>(defs: readonly T[]): T[] {
   return defs
     .filter((def) => !def.isService)
@@ -217,8 +256,12 @@ export function formatGrowthHint(
   tile: CityTile,
   map: CityMap,
   stats: CityStats,
-  /** The lot's power grid has no room for another building (`CitySim.gridFullAt`). */
-  gridFull = false,
+  opts: {
+    /** The lot's power grid has no room for another building (`CitySim.gridFullAt`). */
+    gridFull?: boolean;
+    /** Months the building has outgrown its lot (`ZoneGrowthSystem.outgrownMonths`). */
+    outgrownMonths?: number;
+  } = {},
 ): string | null {
   if (tile.terrain === TerrainType.Water) return null;
   if (tile.buildingId !== null) {
@@ -227,6 +270,14 @@ export function formatGrowthHint(
       return 'struggling — restore power, demand, or road access';
     }
     if (!tile.powered) return 'unpowered — connect its street to a power plant, or add one if the grid is full';
+    const outgrown = opts.outgrownMonths ?? 0;
+    if (outgrown > 0) {
+      const left = Math.max(1, SHRINK_MONTHS - outgrown);
+      const why = tile.zoneType === ZoneType.Industrial
+        ? 'industry here is in decline or has lost its highway'
+        : 'its land value has fallen under what this size needs';
+      return `outgrown — ${why}; it steps down in ${left} month${left === 1 ? '' : 's'}`;
+    }
     return null;
   }
   if (tile.zoneType === ZoneType.None) return null;
@@ -259,7 +310,7 @@ export function formatGrowthHint(
   if (hostile === 'smog') return 'too smoggy to settle — move plants and factories away or add parks';
   if (hostile === 'crime') return 'too much crime to settle — a police station nearby would help';
 
-  if (gridFull) return 'waiting for power — its grid is full, so add a plant on these streets';
+  if (opts.gridFull) return 'waiting for power — its grid is full, so add a plant on these streets';
 
   const pace = monthlyGrowthBudget(demand, stats.population, stats.jobs);
   const fill = `up to ${pace} new ${pace === 1 ? 'building' : 'buildings'} a month at this demand`;

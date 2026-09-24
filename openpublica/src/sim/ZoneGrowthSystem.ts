@@ -29,7 +29,9 @@ import {
   nextDevelopmentDef,
   targetBuildingDef,
   lotTier,
+  outgrownLot,
   rankedZoneDefs,
+  SHRINK_MONTHS,
   tileHasAdjacentRoad,
   zoneBuildingIsStressed,
   zoneStress,
@@ -105,6 +107,11 @@ export class ZoneGrowthSystem {
 
   /** Candidate defs for each zone type. */
   private readonly _defsByZone: Map<ZoneType, BuildingDef[]>;
+  /**
+   * Consecutive months each outgrown building has spent too big for its lot,
+   * by tile key. Not saved: after a load the count starts again.
+   */
+  private readonly _outgrownMonths = new Map<string, number>();
 
   /** Dice for growth rolls; test cities swap in a seeded one so they build the same every time. */
   random: () => number = () => Math.random();
@@ -266,6 +273,7 @@ export class ZoneGrowthSystem {
 
     this._power.tick(map, this.buildings, this.defs);
     this._degradeBuildings(map, stats, changedTiles);
+    this._shrinkOutgrown(map, stats, changedTiles);
 
     this._recalcStats(stats, map);
     this.economy.tick(map, this.buildings, this._defs, stats);
@@ -517,6 +525,63 @@ export class ZoneGrowthSystem {
       tile.neglectMonths = ABANDON_COOLDOWN_MONTHS;
       changedTiles.push(coord);
     }
+  }
+
+  /**
+   * Step a building down one size once it has outgrown its lot for
+   * {@link SHRINK_MONTHS} straight months (see `outgrownLot`): the land value
+   * or demand that grew it is gone. At most `demandExodusCap` of a zone step
+   * down in a month. This runs after the stress pass, so a building stress
+   * already stepped down is judged at its new size.
+   */
+  private _shrinkOutgrown(
+    map: CityMap,
+    stats: CityStats,
+    changedTiles: Array<{ x: number; y: number }>,
+  ): void {
+    const counted = new Set<string>();
+    /** Buildings due to step down, by zone, and each zone's building count. */
+    const due = new Map<ZoneType, Array<{ tile: CityTile; def: BuildingDef }>>();
+    const zoneBuildings = new Map<ZoneType, number>();
+    map.forEach((tile) => {
+      if (tile.buildingId === null) return;
+      const def = this._defs.get(tile.buildingId);
+      if (!def || def.isService) return;
+      zoneBuildings.set(tile.zoneType, (zoneBuildings.get(tile.zoneType) ?? 0) + 1);
+      const bucket = this._defsByZone.get(tile.zoneType);
+      if (!bucket || !outgrownLot(map, tile, bucket, def, demandForZone(tile.zoneType, stats))) return;
+      const key = tileKey(tile.x, tile.y);
+      counted.add(key);
+      const months = Math.min(SHRINK_MONTHS, (this._outgrownMonths.get(key) ?? 0) + 1);
+      this._outgrownMonths.set(key, months);
+      if (months < SHRINK_MONTHS) return;
+      const list = due.get(tile.zoneType) ?? [];
+      list.push({ tile, def });
+      due.set(tile.zoneType, list);
+    });
+    for (const key of this._outgrownMonths.keys()) {
+      if (!counted.has(key)) this._outgrownMonths.delete(key);
+    }
+
+    // A few a month, least valued first, so a district shrinks gradually and
+    // demand can answer before every outgrown building steps down together.
+    for (const [zone, list] of due) {
+      list.sort((a, b) => a.tile.landValue - b.tile.landValue || a.tile.y - b.tile.y || a.tile.x - b.tile.x);
+      for (const { tile, def } of list.slice(0, demandExodusCap(zoneBuildings.get(zone) ?? 0))) {
+        const smaller = this._pickSmallerDef(tile.zoneType, def);
+        if (!smaller) continue;
+        const key = tileKey(tile.x, tile.y);
+        this._outgrownMonths.delete(key);
+        this.buildings.set(key, { defId: smaller.id, x: tile.x, y: tile.y });
+        tile.buildingId = smaller.id;
+        changedTiles.push({ x: tile.x, y: tile.y });
+      }
+    }
+  }
+
+  /** Months the building at (x, y) has outgrown its lot (0 when it has not). */
+  outgrownMonths(x: number, y: number): number {
+    return this._outgrownMonths.get(tileKey(x, y)) ?? 0;
   }
 
   private _pickSmallerDef(zoneType: ZoneType, current: BuildingDef): BuildingDef | undefined {
