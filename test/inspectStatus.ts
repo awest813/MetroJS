@@ -67,6 +67,14 @@ describe('formatInspectStatus', () => {
     expect(line).not.toContain('$');
   });
 
+  it('should mention transit access near a trolley line', () => {
+    const map = new CityMap(4, 4);
+    const tile = map.getTile(1, 1)!;
+    expect(formatInspectStatus('Inspect', tile, null)).not.toContain('transit');
+    tile.transitAccess = 64;
+    expect(formatInspectStatus('Inspect', tile, null)).toContain('transit 64');
+  });
+
   it('should mention traffic pressure on road tiles', () => {
     const map = new CityMap(4, 4);
     const tile = map.getTile(1, 1)!;

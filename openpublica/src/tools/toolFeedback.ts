@@ -64,6 +64,9 @@ function explainRoadFailure(tool: RoadTool, coord: TileCoord, sim: CitySim): str
     case 'same':
       return bridge ? `Already a ${noun} bridge.` : `Already a ${noun}.`;
     case 'replace': {
+      if (tool.roadType === RoadType.TrolleyAvenue && tile?.roadType === RoadType.Highway) {
+        return 'Trolley lines cross a highway at grade — lay the line up to it on both sides.';
+      }
       const existing = tile ? ROAD_NOUN[tile.roadType] : 'road';
       return `Already a ${existing} — bulldoze it first to lay a ${noun}.`;
     }

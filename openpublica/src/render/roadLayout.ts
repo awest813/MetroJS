@@ -3,6 +3,7 @@
 import { RoadType } from '../sim/CityTile';
 import type { RoadNeighbors } from '../sim/roadConnections';
 import { roadProfile } from '../sim/roadConnections';
+import type { RailAxis } from '../sim/TransitSystem';
 
 export type Cardinal = 'n' | 'e' | 's' | 'w';
 
@@ -87,12 +88,17 @@ export function countByKind(pieces: readonly RoadPiece[], kind: RoadPieceKind): 
  * `neighborWidths` gives the deck width of each connected neighbour. Where it
  * is narrower (a highway meeting a street), this tile's arm necks down to it
  * and short curbs close the pad edge, so the two decks meet flush at the seam.
+ *
+ * `railAxis` marks a street or highway tile as a level crossing: the rails of
+ * the trolley line run across it, set into the paving (no ties), and the lane
+ * marks and crosswalks keep off the rails.
  */
 export function roadPieces(
   type: RoadType,
   neighbors: RoadNeighbors,
   bridge = false,
   neighborWidths: Partial<Record<Cardinal, number>> = {},
+  railAxis: RailAxis | null = null,
 ): RoadPiece[] {
   const profile = roadProfile(type);
   const pieces: RoadPiece[] = [];
@@ -168,8 +174,13 @@ export function roadPieces(
 
   if (bridge) addBridgeKit(pieces, dirs, w, armWidth);
 
-  if (trolley) addTrolleyKit(pieces, dirs, isolated, w);
-  else addStreetKit(pieces, type, dirs, isolated, isFourWay(neighbors));
+  if (trolley) {
+    addTrolleyKit(pieces, dirs, isolated, w);
+  } else {
+    const onRails = (dir: Cardinal): boolean => railAxis !== null && axisOf(dir) === railAxis;
+    addStreetKit(pieces, type, dirs.filter((d) => !onRails(d)), isolated, isFourWay(neighbors));
+    if (railAxis) addRails(pieces, railAxis, dirs, w, false);
+  }
 
   return pieces;
 }
@@ -273,40 +284,51 @@ function addStreetKit(
   }
 }
 
+function axisOf(dir: Cardinal): RailAxis {
+  return dir === 'n' || dir === 's' ? 'ns' : 'ew';
+}
+
 function addTrolleyKit(
   pieces: RoadPiece[],
   dirs: Cardinal[],
   isolated: boolean,
   padWidth: number,
 ): void {
-  const ns = isolated || dirs.includes('n') || dirs.includes('s');
-  const ew = isolated || dirs.includes('e') || dirs.includes('w');
+  const arms: Cardinal[] = isolated ? [...CARDINALS] : dirs;
+  if (isolated || dirs.includes('n') || dirs.includes('s')) addRails(pieces, 'ns', arms, padWidth, true);
+  if (isolated || dirs.includes('e') || dirs.includes('w')) addRails(pieces, 'ew', arms, padWidth, true);
+}
 
-  if (ns) {
-    pieces.push(piece('rail', -RAIL_GAUGE, 0, RAIL_WIDTH, RAIL_HEIGHT, padWidth));
-    pieces.push(piece('rail', RAIL_GAUGE, 0, RAIL_WIDTH, RAIL_HEIGHT, padWidth));
-    for (const dir of ['n', 's'] as const) {
-      if (!isolated && !dirs.includes(dir)) continue;
-      const dz = CARDINAL_VEC[dir].dz;
-      pieces.push(piece('rail', -RAIL_GAUGE, dz * (ARM_SPAN / 2), RAIL_WIDTH, RAIL_HEIGHT, ARM_SPAN, dir));
-      pieces.push(piece('rail', RAIL_GAUGE, dz * (ARM_SPAN / 2), RAIL_WIDTH, RAIL_HEIGHT, ARM_SPAN, dir));
-    }
-    for (let i = -1; i <= 1; i++) {
-      pieces.push(piece('tie', 0, i * 0.14, TIE_WIDTH, TIE_HEIGHT, TIE_LENGTH));
+/**
+ * A pair of rails along `axis` across the pad and out along each of `arms` on
+ * that axis, on ties unless they are set into a road's paving.
+ */
+function addRails(
+  pieces: RoadPiece[],
+  axis: RailAxis,
+  arms: readonly Cardinal[],
+  padWidth: number,
+  ties: boolean,
+): void {
+  const ns = axis === 'ns';
+  for (const side of [-RAIL_GAUGE, RAIL_GAUGE]) {
+    pieces.push(ns
+      ? piece('rail', side, 0, RAIL_WIDTH, RAIL_HEIGHT, padWidth)
+      : piece('rail', 0, side, padWidth, RAIL_HEIGHT, RAIL_WIDTH));
+  }
+  for (const dir of arms) {
+    if (axisOf(dir) !== axis) continue;
+    const { dx, dz } = CARDINAL_VEC[dir];
+    for (const side of [-RAIL_GAUGE, RAIL_GAUGE]) {
+      pieces.push(ns
+        ? piece('rail', side, dz * (ARM_SPAN / 2), RAIL_WIDTH, RAIL_HEIGHT, ARM_SPAN, dir)
+        : piece('rail', dx * (ARM_SPAN / 2), side, ARM_SPAN, RAIL_HEIGHT, RAIL_WIDTH, dir));
     }
   }
-
-  if (ew) {
-    pieces.push(piece('rail', 0, -RAIL_GAUGE, padWidth, RAIL_HEIGHT, RAIL_WIDTH));
-    pieces.push(piece('rail', 0, RAIL_GAUGE, padWidth, RAIL_HEIGHT, RAIL_WIDTH));
-    for (const dir of ['e', 'w'] as const) {
-      if (!isolated && !dirs.includes(dir)) continue;
-      const dx = CARDINAL_VEC[dir].dx;
-      pieces.push(piece('rail', dx * (ARM_SPAN / 2), -RAIL_GAUGE, ARM_SPAN, RAIL_HEIGHT, RAIL_WIDTH, dir));
-      pieces.push(piece('rail', dx * (ARM_SPAN / 2), RAIL_GAUGE, ARM_SPAN, RAIL_HEIGHT, RAIL_WIDTH, dir));
-    }
-    for (let i = -1; i <= 1; i++) {
-      pieces.push(piece('tie', i * 0.14, 0, TIE_LENGTH, TIE_HEIGHT, TIE_WIDTH));
-    }
+  if (!ties) return;
+  for (let i = -1; i <= 1; i++) {
+    pieces.push(ns
+      ? piece('tie', 0, i * 0.14, TIE_WIDTH, TIE_HEIGHT, TIE_LENGTH)
+      : piece('tie', i * 0.14, 0, TIE_LENGTH, TIE_HEIGHT, TIE_WIDTH));
   }
 }

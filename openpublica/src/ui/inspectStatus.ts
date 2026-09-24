@@ -64,6 +64,7 @@ export function formatInspectStatus(
   if (tile.populationDensity > 0) parts.push(`density ${tile.populationDensity}`);
   if (tile.policeCoverage > 0) parts.push(`police ${tile.policeCoverage}`);
   if (tile.fireCoverage > 0) parts.push(`fire ${tile.fireCoverage}`);
+  if (tile.transitAccess > 0) parts.push(`transit ${tile.transitAccess}`);
   if (tile.watered) parts.push('watered');
   if (tile.crime > 0) parts.push(`crime ${tile.crime}`);
   if (tile.neglectMonths >= 2 && tile.buildingId !== null) parts.push('struggling');

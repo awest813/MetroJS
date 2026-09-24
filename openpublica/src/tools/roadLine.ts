@@ -4,7 +4,7 @@ import type { TileCoord } from '../data/types';
 import type { CitySim } from '../sim/CitySim';
 import { RoadType, TerrainType } from '../sim/CityTile';
 import { bridgeProblem } from '../sim/roadConnections';
-import { roadBuildCost, type RoadTool, type RoadToolBlock } from './RoadTool';
+import { roadPaveCost, type RoadTool, type RoadToolBlock } from './RoadTool';
 
 /**
  * Road lines: press to set an anchor, drag to preview, release to build.
@@ -48,7 +48,7 @@ export type LineVerdict =
   | 'build'
   /** New road over water. */
   | 'bridge'
-  /** A street upgraded to this tool's road type. */
+  /** A street upgraded to this tool's road type, for the difference in price. */
   | 'upgrade'
   /** Already road; the line passes through (an intersection) at no cost. */
   | 'keep'
@@ -108,7 +108,7 @@ export function planRoadLine(tool: RoadTool, path: readonly TileCoord[], sim: Ci
       continue;
     }
     const water = tile.terrain === TerrainType.Water;
-    const price = roadBuildCost(tool.roadType, water);
+    const price = roadPaveCost(tool.roadType, existing, water);
     if (price > money) {
       block(x, y, 'funds');
       continue;

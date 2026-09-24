@@ -3,7 +3,7 @@
 
 import { RoadType, TerrainType } from '../sim/CityTile';
 import type { CityMap } from '../sim/CityMap';
-import { MIN_TROLLEY_LINE_TILES, trolleyLines } from '../sim/TransitSystem';
+import { MIN_TROLLEY_LINE_TILES, railsJoin, trolleyLines } from '../sim/TransitSystem';
 
 export type NodeKey = string;
 
@@ -74,6 +74,7 @@ function isRoad(map: CityMap, x: number, y: number): boolean {
 function buildFilteredGraph(
   map: CityMap,
   include: (x: number, y: number) => boolean,
+  linked: (a: RoadNode, b: RoadNode) => boolean = () => true,
 ): RoadGraph {
   const nodes = new Map<NodeKey, RoadNode>();
   const adj = new Map<NodeKey, NodeKey[]>();
@@ -97,7 +98,8 @@ function buildFilteredGraph(
       const nx = node.x + dx;
       const ny = node.y + dy;
       const nKey = nodeKey(nx, ny);
-      if (nodes.has(nKey)) nbrs.push(nKey);
+      const next = nodes.get(nKey);
+      if (next && linked(node, next)) nbrs.push(nKey);
     }
   }
 
@@ -129,6 +131,8 @@ export function buildRoadGraph(map: CityMap): RoadGraph {
 /**
  * Subgraph of trolley lines long enough to run a trolley (cars stay on the
  * full road graph). Short stubs are left out so no trolley shuttles on them.
+ * Trolleys run straight over level crossings and never turn onto the road
+ * they cross.
  */
 export function buildTrolleyGraph(map: CityMap): RoadGraph {
   const running = new Set<string>();
@@ -136,7 +140,11 @@ export function buildTrolleyGraph(map: CityMap): RoadGraph {
     if (line.length < MIN_TROLLEY_LINE_TILES) continue;
     for (const tile of line) running.add(nodeKey(tile.x, tile.y));
   }
-  return buildFilteredGraph(map, (x, y) => running.has(nodeKey(x, y)));
+  return buildFilteredGraph(
+    map,
+    (x, y) => running.has(nodeKey(x, y)),
+    (a, b) => railsJoin(map, map.getTile(a.x, a.y)!, map.getTile(b.x, b.y)!),
+  );
 }
 
 export function undirectedEdgeCount(graph: RoadGraph): number {
@@ -212,7 +220,7 @@ export function trolleyTargetCount(lineLengths: readonly number[]): number {
   return Math.min(MAX_TROLLEYS, total);
 }
 
-/** Tile counts of each connected trolley line. */
+/** Tile counts of each connected trolley line, level crossings included. */
 export function trolleyLineLengths(map: CityMap): number[] {
   return trolleyLines(map).map((line) => line.length);
 }

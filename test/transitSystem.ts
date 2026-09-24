@@ -1,7 +1,8 @@
 import { CitySim } from '../openpublica/src/sim/CitySim';
 import { RoadType, ZoneType } from '../openpublica/src/sim/CityTile';
 import { MONTH_SECONDS } from '../openpublica/src/data/constants';
-import { MIN_TROLLEY_LINE_TILES, trolleyLines } from '../openpublica/src/sim/TransitSystem';
+import { MIN_TROLLEY_LINE_TILES, levelCrossingAxis, trolleyLines } from '../openpublica/src/sim/TransitSystem';
+import { RoadTool } from '../openpublica/src/tools/RoadTool';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,34 @@ describe('TransitSystem', () => {
       sim.placeRoad(6, 8, RoadType.TrolleyAvenue);
       expect(trolleyLines(sim.map).map((line) => line.length).sort()).toEqual([2, 2]);
       expect(sim.getTile(4, 8)!.transitAccess).toBe(0);
+    });
+
+    it('should carry a trolley line dragged over a highway across it at grade', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.stats.money = 100_000;
+      for (let x = 0; x < 16; x++) sim.placeRoad(x, 8, RoadType.Highway);
+      // The trolley tool keeps the highway tile and lays rails either side of it.
+      const trolley = new RoadTool(RoadType.TrolleyAvenue);
+      for (let y = 6; y <= 10; y++) trolley.apply({ x: 8, y }, sim);
+      expect(sim.getTile(8, 8)!.roadType).toBe(RoadType.Highway);
+      expect(levelCrossingAxis(sim.map, 8, 8)).toBe('ns');
+      expect(levelCrossingAxis(sim.map, 7, 8)).toBeNull();
+      const lines = trolleyLines(sim.map);
+      expect(lines.map((line) => line.length)).toEqual([5]);
+      // Two tiles each side is too short to run alone; the crossing joins them into a running line.
+      expect(sim.getTile(8, 6)!.transitAccess).toBeGreaterThan(0);
+    });
+
+    it('should not ladder two parallel avenues through the street between them', () => {
+      const sim = CitySim.createCity(16, 16);
+      sim.stats.money = 100_000;
+      for (let x = 2; x <= 10; x++) {
+        sim.placeRoad(x, 6, RoadType.TrolleyAvenue);
+        sim.placeRoad(x, 7, RoadType.Street);
+        sim.placeRoad(x, 8, RoadType.TrolleyAvenue);
+      }
+      for (let x = 2; x <= 10; x++) expect(levelCrossingAxis(sim.map, x, 7)).toBeNull();
+      expect(trolleyLines(sim.map).map((line) => line.length)).toEqual([9, 9]);
     });
 
     it('should cap stacked transit access at 100', () => {

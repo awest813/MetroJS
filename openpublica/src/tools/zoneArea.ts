@@ -170,8 +170,47 @@ function connectedStreets(map: CityMap, streets: readonly TileCoord[]): TileCoor
   return largest;
 }
 
+/**
+ * Drop dead-end tails inside the area: a planned street with only one road
+ * beside it whose lots all front another street too (a spine running on past
+ * the last line). The tile goes back to being a lot on that street.
+ */
+function pruneTails(map: CityMap, rect: Rect, streets: readonly TileCoord[]): TileCoord[] {
+  const set = new Set(streets.map((t) => key(t.x, t.y)));
+  const roadAt = (x: number, y: number): boolean => set.has(key(x, y)) || isLandRoad(map.getTile(x, y));
+  const inRect = (x: number, y: number): boolean => x >= rect.x0 && x <= rect.x1 && y >= rect.y0 && y <= rect.y1;
+  const frontages = (x: number, y: number): number => ROAD_STEPS.filter(([dx, dy]) => roadAt(x + dx, y + dy)).length;
+  let pruned = true;
+  while (pruned) {
+    pruned = false;
+    for (const t of streets) {
+      const k = key(t.x, t.y);
+      if (!set.has(k) || !inRect(t.x, t.y) || frontages(t.x, t.y) !== 1) continue;
+      const lotsKeepAStreet = ROAD_STEPS.every(([dx, dy]) => {
+        const x = t.x + dx;
+        const y = t.y + dy;
+        return roadAt(x, y) || !inRect(x, y) || !isOpenLot(map, x, y) || frontages(x, y) >= 2;
+      });
+      if (!lotsKeepAStreet) continue;
+      set.delete(k);
+      pruned = true;
+    }
+  }
+  return streets.filter((t) => set.has(key(t.x, t.y)));
+}
+
 /** Longest run of street a planned grid lays beyond its area to reach a road. */
 const MAX_STUB = 4;
+
+/**
+ * Lines at least this long are tied to a road at both ends, so each block is
+ * a loop rather than a dead-end comb: cars and service trucks can go round,
+ * and trips from the far lots spread both ways.
+ */
+export const LOOP_MIN_LINE = 8;
+
+/** Longest run of street a line's far end lays past the area to tie into a road. */
+const MAX_TIE = 2;
 
 /**
  * The shortest straight run of new street, out from the edge of the area,
@@ -207,7 +246,11 @@ function stubToNetwork(map: CityMap, rect: Rect, streets: readonly TileCoord[]):
  * already have one. Lines run along the long side every third row; a spine
  * down one short side ties them to each other and, where it can, to the
  * existing roads. A grid that would still be an island lays a short stub to
- * a road a few tiles off. Never bridges, never through buildings.
+ * a road a few tiles off. Lines of {@link LOOP_MIN_LINE} or more are tied at
+ * their other end too, by a short run to a road just past the area or a
+ * second spine, so the blocks close into loops (dropped if that would pave
+ * more than the lots it serves allow). A spine's dead-end tail past the last
+ * line is left as lots. Never bridges, never through buildings.
  */
 export function autoStreetLayout(map: CityMap, anchor: TileCoord, target: TileCoord): TileCoord[] {
   const rect = rectOf(anchor, target);
@@ -255,28 +298,93 @@ export function autoStreetLayout(map: CityMap, anchor: TileCoord, target: TileCo
   let best: TileCoord[] = [];
   let bestScore: LayoutScore | null = null;
 
+  const lineLength = alongX ? w : h;
+  /** The line's end tile on one short side, and the step out of the area past it. */
+  const lineEnd = (i: number, atStart: boolean): { end: TileCoord; dx: number; dy: number } => {
+    const tiles = lineTiles(i);
+    const end = atStart ? tiles[0] : tiles[tiles.length - 1];
+    const out = atStart ? -1 : 1;
+    return alongX ? { end, dx: out, dy: 0 } : { end, dx: 0, dy: out };
+  };
+  /**
+   * Streets that tie each line's end on one side to a road: nothing where it
+   * already meets one, a run of up to {@link MAX_TIE} tiles to a road just
+   * past the area, or else a spine down that side.
+   */
+  const tieSide = (lineIds: readonly number[], atStart: boolean, planned: ReadonlySet<string>): TileCoord[] => {
+    const roadAt = (x: number, y: number): boolean => planned.has(key(x, y)) || isLandRoad(map.getTile(x, y));
+    const runs: TileCoord[] = [];
+    let spine = false;
+    for (const i of lineIds) {
+      const { end, dx, dy } = lineEnd(i, atStart);
+      if (!planned.has(key(end.x, end.y)) || roadAt(end.x + dx, end.y + dy)) continue;
+      const run: TileCoord[] = [];
+      let tied = false;
+      for (let step = 1; step <= MAX_TIE + 1; step++) {
+        const x = end.x + dx * step;
+        const y = end.y + dy * step;
+        if (roadAt(x, y)) {
+          tied = true;
+          break;
+        }
+        if (step > MAX_TIE || !canPaveStreet(map, x, y)) break;
+        run.push({ x, y });
+      }
+      if (tied) runs.push(...run);
+      else spine = true;
+    }
+    if (!spine) return runs;
+    return paveable(spineTiles(atStart)).filter((t) => !planned.has(key(t.x, t.y)));
+  };
+  /** The candidate kept and scored, or null when it strands every street or paves too much. */
+  const judge = (streets: TileCoord[]): { kept: TileCoord[]; score: LayoutScore } | null => {
+    const kept = pruneTails(map, rect, connectedStreets(map, streets));
+    if (kept.length === 0) return null;
+    const score = scoreLayout(map, rect, new Set(kept.map((t) => key(t.x, t.y))));
+    if (score.served - bare.served < MIN_LOTS_PER_STREET_TILE * score.paved) return null;
+    return { kept, score };
+  };
+
   for (let offset = 0; offset < STREET_PITCH; offset++) {
     const streets: TileCoord[] = [];
-    for (let i = offset; i < lines; i += STREET_PITCH) streets.push(...paveable(lineTiles(i)));
+    const lineIds: number[] = [];
+    for (let i = offset; i < lines; i += STREET_PITCH) {
+      const tiles = paveable(lineTiles(i));
+      if (tiles.length > 0) lineIds.push(i);
+      streets.push(...tiles);
+    }
     if (streets.length === 0) continue;
     let set = new Set(streets.map((t) => key(t.x, t.y)));
     let joined = joinedToNetwork(map, set);
+    let spineAt: boolean | null = null;
     if (streets.some((t) => !joined.has(key(t.x, t.y)))) {
-      const atStart = spineContacts(true) >= spineContacts(false);
-      for (const t of paveable(spineTiles(atStart))) {
+      spineAt = spineContacts(true) >= spineContacts(false);
+      for (const t of paveable(spineTiles(spineAt))) {
         if (!set.has(key(t.x, t.y))) streets.push(t);
       }
       joined = joinedToNetwork(map, new Set(streets.map((t) => key(t.x, t.y))));
     }
     if (!streets.some((t) => joined.has(key(t.x, t.y)))) streets.push(...stubToNetwork(map, rect, streets));
-    const kept = connectedStreets(map, streets);
-    if (kept.length === 0) continue;
-    set = new Set(kept.map((t) => key(t.x, t.y)));
-    const score = scoreLayout(map, rect, set);
-    if (score.served - bare.served < MIN_LOTS_PER_STREET_TILE * score.paved) continue;
-    if (!bestScore || better(score, bestScore)) {
-      best = kept;
-      bestScore = score;
+    let candidate = judge(streets);
+    if (!candidate) continue;
+
+    if (lineLength >= LOOP_MIN_LINE) {
+      const looped = [...streets];
+      set = new Set(looped.map((t) => key(t.x, t.y)));
+      for (const atStart of [true, false]) {
+        if (spineAt === atStart) continue;
+        for (const t of tieSide(lineIds, atStart, set)) {
+          set.add(key(t.x, t.y));
+          looped.push(t);
+        }
+      }
+      const closed = looped.length > streets.length ? judge(looped) : null;
+      if (closed && closed.score.unserved <= candidate.score.unserved) candidate = closed;
+    }
+
+    if (!bestScore || better(candidate.score, bestScore)) {
+      best = candidate.kept;
+      bestScore = candidate.score;
     }
   }
   return best;

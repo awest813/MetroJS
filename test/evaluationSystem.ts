@@ -125,7 +125,9 @@ describe('EvaluationSystem', () => {
       sim.getTile(x, 10)!.trafficPressure = 10;
     }
     sim.evaluate();
-    expect(sim.stats.advisory).toMatch(/traffic/i);
+    expect(sim.stats.advisory).toBe(
+      'Traffic is jammed on 4 roads — upgrade them to a highway or trolley line, or add a street behind the block.',
+    );
   });
 
   it('should mention dry lots only after people live in the city', () => {

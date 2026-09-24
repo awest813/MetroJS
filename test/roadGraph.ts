@@ -73,6 +73,19 @@ describe('roadGraph', () => {
     expect(vehicleTargetCount(400, 64)).toBe(48);
   });
 
+  it('should run trolleys straight over a level crossing, never onto the road it crosses', () => {
+    const map = new CityMap(12, 12);
+    paintLine(map, [[0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [6, 5]], RoadType.Highway);
+    paintLine(map, [[3, 2], [3, 3], [3, 4], [3, 6], [3, 7], [3, 8]], RoadType.TrolleyAvenue);
+    expect(trolleyLineLengths(map)).toEqual([7]);
+    const trolley = buildTrolleyGraph(map);
+    expect(trolley.nodes.has(nodeKey(3, 5))).toBe(true);
+    expect([...trolley.adj.get(nodeKey(3, 5))!].sort()).toEqual([nodeKey(3, 4), nodeKey(3, 6)].sort());
+    expect(trolley.nodes.has(nodeKey(2, 5))).toBe(false);
+    // Cars still cross on the full road graph.
+    expect(edgeExists(buildRoadGraph(map), nodeKey(2, 5), nodeKey(3, 5))).toBe(true);
+  });
+
   it('should run trolleys per line, never on a short stub', () => {
     expect(trolleyTargetCount([3])).toBe(0);
     expect(trolleyTargetCount([4])).toBe(1);

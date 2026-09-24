@@ -16,7 +16,7 @@ open items (city health, honest feedback, PBR/sky, the `App.ts` split) have
 all shipped. What is left (section 5) is depth, not missing systems:
 
 1. **Industry** has one building and a flat demand target, so factories never densify.
-2. **Auto streets** join their lines through one spine, so crews and traffic detour.
+2. **Commutes** stay within three tiles of each building, so a highway only relieves the lots beside it.
 3. **Budget levers** stop at taxes: no bonds or service funding when in the red.
 4. **Presentation** extras stay optional (GLB kits, SSAO).
 
@@ -193,7 +193,7 @@ then emptied as crime caught up, and what grew was scattered across the area.
 |---|---|
 | I1 Batching | `CitySim.batch` defers derived-state refresh to one pass (every refresh recomputes from the map, so results match). `ToolController.applyTiles` applies a list in one batch and reports the changed tiles together; `CityView.syncPaintedTiles` keeps per-tile work local and runs map-wide refreshes once. 1,296 lots: 2.1 s → 3 ms in the sim (ES2020; Jest's ES5 build runs these loops about 10× slower); a 107-tile area releases in about one SwiftShader frame. |
 | I2 Areas | Zone brushes and Dezone drag a rectangle (`planZoneArea`): each tile is tinted zone, no street (amber), street, clear, already zoned, or skipped (building, funds); the status line gives lots, streets, cost, and lots that will wait. Release applies it through the tools. Esc cancels, Shift paints freehand. Road lines and zone areas share `PlannedDragInput`. |
-| I3 Streets | `autoStreetLayout`: where lots would have no street, the area lays one every third line along its long side (two-lot blocks), plus a spine down a short side when needed to reach the existing roads. Pieces cut off by water are dropped, and it never bridges or paves through buildings. It only paves when each new street tile gives at least half a lot a new frontage, so an existing grid is left alone. S toggles it. |
+| I3 Streets | `autoStreetLayout`: where lots would have no street, the area lays one every third line along its long side (two-lot blocks), plus a spine down a short side when needed to reach the existing roads (Gap T ties long lines at both ends). Pieces cut off by water are dropped, and it never bridges or paves through buildings. It only paves when each new street tile gives at least half a lot a new frontage, so an existing grid is left alone. S toggles it. |
 | I4 Pace | `monthlyGrowthBudget`: each zone type fills at most 4 + demand/4 lots a month, scaled up by city size (doubling per 1,000 residents plus jobs). When more lots pass their roll, lots beside buildings are 8× likelier to be kept, so zones fill outward. A 45×45 zone now grows about 15 a month instead of 264–580 in month 1, with about 1.6–1.9 neighbours within two tiles of each building instead of 1.1. The lot hint shows the pace. |
 
 ### Gap J — Frame cost **shipped**
@@ -277,8 +277,8 @@ from the New confirm; `test/testCities.ts` builds each and checks it.
 | City | Seed, budget, time | What it shows | Where it ends |
 |---|---|---|---|
 | `hamlet` | 11, $10,000, 2 years | The first hours: a crossroads, shops, a few factories, one plant past town, woods all round | 104 people, 70 jobs, power 174/400, treasury $15k |
-| `riverside` | 2026, $40,000, 2½ years | A street bridge and a highway bridge; the plants are all on the north bank and light the far one across the bridge; shore lots, a bridgehead park, a far-bank tower, factories across the lake | 292 people, both banks lit, waterfront valued above inland |
-| `metro` | 7, $120,000, 4 years in 3 phases | Zone areas with auto streets, a highway, a trolley line, downtown, mixed use, industry, six plants, four towers, police, fire, parks, a downtown of office blocks | 1,074 people, 848 jobs, power 1946/2400 (a snowy January) |
+| `riverside` | 2026, $40,000, 2½ years | A street bridge and a highway bridge; the plants are all on the north bank and light the far one across the bridge; shore lots, a bridgehead park, a far-bank tower, factories across the lake | 276 people, both banks lit, waterfront valued above inland |
+| `metro` | 7, $120,000, 4 years in 3 phases | Zone areas with looped auto streets, a highway, a trolley line crossing it at grade, downtown, mixed use, industry, six plants, four towers, police, fire, parks, a downtown of office blocks | 986 people, 724 jobs, power 1734/2400, one 36-tile trolley line, 5 dead ends (all scripted road ends) |
 | `troubled` | 101, $30,000, 3 years | Blocks four lots deep, a plant among the houses, factories next door, no police, a tower with no street, a police station on a dark street, taxes raised to 16/14/14 | 150 lots with no road, power 399/400 with dark houses, approval 0 |
 | `sprawl` | 314, $60,000, 3½ years | A highway across the map with cul-de-sacs, a shopping strip, an industrial park; one plant at the west end until month 30 | Before the second plant the dark lots are the far (east) ones; after it all are lit; water 597/600 |
 
@@ -377,6 +377,43 @@ A review of every pass on this branch (roads through weather) turned up:
 | Rain, storms, and snow fogged the city at the default camera distance | Their fog starts past the default distance; only Fog hides the city |
 | Docs said Budget shows "Roads now" and that plants and towers show a coverage disc | Corrected |
 
+### Gap T — Transport **shipped**
+
+An audit of roads, traffic, bridges, and the trolley against the test cities
+found:
+
+- Metro's trolley line was cut in two by the highway it crossed. The trolley
+  tool keeps a highway it is dragged over, and lines did not join across it,
+  so no trolley ever crossed and each half ran as its own line.
+- Upgrading a street to a highway or trolley avenue charged the full new
+  price, as if the street were not there.
+- Transit took a flat 4 off every road near a line. Quiet streets and the
+  trolley avenue itself read zero traffic, while a jammed street stayed
+  jammed, so a trolley line did not fix the jam the advisory sent players to
+  fix with it.
+- The traffic advisory suggested "a highway", but trips stay within three
+  tiles of home. Metro's highway, which no lot fronts, carried a mean pressure
+  of 0.6 while the streets beside it jammed.
+- Auto streets ended in a dead end on the far side of every zone area (Metro
+  had 26 dead ends, Riverside 12).
+
+| Slice | What shipped |
+|---|---|
+| T1 Level crossings | `levelCrossingAxis`: a street or highway tile with trolley avenue running straight at it from both sides (and the road running on across) carries the line at grade. `trolleyLines`, transit, and the trolley graph join across it: trolleys go straight over, never onto the road. The road kit sets rails into the paving and keeps lane marks and crosswalks off them. Two parallel avenues with a street between them do not form a ladder of crossings. Inspect names the crossing, and the trolley tool explains a highway click as a crossing rather than "bulldoze it first". |
+| T2 Upgrade price | `roadPaveCost`: paving over a street pays the difference (highway $15, trolley $20; bridges at the bridge prices). The drag preview and the tooltips say so. |
+| T3 Transit relief | `transitRelief`: a road sheds up to `TRANSIT_TRIP_SHARE` (half) of its trips at full access, less with less access. A jammed street near a line gets real relief and quiet ones keep some cars. Replaying both rules on the same grown Metro, the flat rule leaves 85 jammed roads and the share 82. Inspect shows transit access. |
+| T4 Honest advice | "Traffic is jammed on N roads — upgrade them to a highway or trolley line, or add a street behind the block." Each fix was measured on Hamlet's jammed high street: upgrading it to highway takes jams 10 → 2, to trolley 10 → 2, and streets behind both sides 10 → 0. |
+| T5 Looped auto streets | Lines of `LOOP_MIN_LINE` (8) tiles or more are tied at both ends, by a run of up to two tiles to a road just past the area, or else a spine down the far side. The loop is dropped when it would break the lots-per-street-tile bar. Spine tails past the last line go back to lots. |
+
+| City | Before | After |
+|---|---|---|
+| Metro | 2 trolley lines (split at the highway); 26 dead ends; 76 jammed roads; police on 465 tiles; happiness 84; 1,074 people | 1 line of 36 tiles; 5 dead ends (the scripted road ends); 69 jammed; police on 580 tiles; happiness 86; 986 people (the second spines take lots) |
+| Riverside | 12 dead ends; 292 people | 4 dead ends; 276 people |
+
+**Exit:** A trolley line dragged across a highway runs through it: rails
+cross the highway, trolleys cross, and Inspect says level crossing. A jammed
+street clears when it is upgraded or given a street behind it.
+
 ---
 
 ## 4. Explicitly still out of scope (Phase I)
@@ -399,7 +436,7 @@ The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped. Next, each found
 the test cities or the audits and small enough for one PR:
 
 1. **Industry that grows.** Industrial demand only drifts back to 20 each month, so it never reaches the 35 needed for a bigger building, and industry has one building anyway. Drive it from the jobs the city lacks (as housing demand reads jobs) and add a factory tier. Measure with Troubled and Metro.
-2. **Looped auto streets.** A zone area's lines meet only at one spine, so police in Metro reached a few rows of a 15-wide district and traffic detours. Tie long areas' lines at both ends (or every other pair), keeping the lots-per-street-tile bar.
+2. **Commutes.** Trips stay within three tiles of each building, so a highway only relieves the lots beside it, and Metro's downtown office streets sit at the cap of 20 whatever is built nearby. Send a share of each home's trips toward the nearest jobs over the road graph (a coarse flow, not per car) so that highways and trolley lines carry cross-town traffic.
 3. **Budget levers.** When the budget is in the red the only lever is taxes. Add service funding (coverage and upkeep scale together) or a small bond with interest, shown in Budget.
 4. **Buildings that shrink with land value.** An office block keeps its size after its own traffic wears the land value down (Metro has one on land worth 37). Let the top tier step down when value stays under its bar.
 5. **Faster scenario tests.** The five test cities add about 20 s to Jest. Build each once per run (already cached per file) and consider a separate job for the long builds.
@@ -415,7 +452,8 @@ the test cities or the audits and small enough for one PR:
 - Play: grow a city, toggle Smog, Frame, Save/Load, mute, Dawn/Dusk.
 - First minutes: Road is selected; HUD coach steps street → lots → plant; fire/water nags wait until population 40.
 - Services: hover a park to see its coverage disc, a plant or tower to see the network it feeds, or a police/fire tool over a lot to see the streets it reaches; Budget lists civic and road upkeep; water raises land value on covered lots.
-- Roads: drag a street straight across a river (status names the bridge tiles), drag one across a highway (the highway stays), and watch Traffic drop on a jammed street after a parallel street is joined up.
+- Roads: drag a street straight across a river (status names the bridge tiles), drag one across a highway (the highway stays), and watch Traffic drop on a jammed street after a parallel street is joined up. Drag a highway over a street (the preview charges $15 a tile for the upgrade).
+- Transit: in `?city=metro`, trolleys cross the highway at (44, 18) on rails set into it; Inspect there says level crossing and shows transit 100. Zone a big area in the open and its streets close into loops.
 - Water: from an angled camera, hover the edge of a bridge deck (the cursor sits on the deck); beach lots show dry ground to the water's edge; Value shows the waterfront premium.
 - Terrain: drag a street across a hillside (the ground levels under it, no grass through the deck); hills shade with the sun at Dawn/Dusk; tilt the camera low at the map edge to see the skirt.
 - Placement: with Road, drag an L across a lake so it turns on the water (blue bridge tiles, the turn tile red, status gives cost and bridges), press Esc before releasing (nothing is built), then release a line on land; Shift-drag paints freehand; hover water with a zone brush (red cursor); shops along a street face it; cars curve through corners.

@@ -87,6 +87,20 @@ export function deckDirtyTiles(map: CityMap, x: number, y: number): Array<{ x: n
   return Array.from(out.values());
 }
 
+/**
+ * Tiles whose road kit may change when (x, y) is paved or cleared: the decks
+ * {@link deckDirtyTiles} re-seats, plus the four diagonal neighbours, since a
+ * level crossing reads the whole 3×3 block around it.
+ */
+export function roadKitDirtyTiles(map: CityMap, x: number, y: number): Array<{ x: number; y: number }> {
+  const out = new Map<string, { x: number; y: number }>();
+  for (const t of deckDirtyTiles(map, x, y)) out.set(`${t.x},${t.y}`, t);
+  for (const [dx, dy] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+    if (map.getTile(x + dx, y + dy)) out.set(`${x + dx},${y + dy}`, { x: x + dx, y: y + dy });
+  }
+  return Array.from(out.values());
+}
+
 /** Height of the deck surface under a vehicle part-way along an edge. */
 export function edgeDeckHeight(fromDeck: number, toDeck: number, t: number): number {
   return fromDeck + (toDeck - fromDeck) * t;

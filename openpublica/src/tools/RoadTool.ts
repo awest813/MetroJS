@@ -22,6 +22,15 @@ export function roadBuildCost(type: RoadType, overWater: boolean): number {
   return overWater ? land * BRIDGE_COST_MULTIPLIER : land;
 }
 
+/**
+ * What paving `type` over a tile that holds `existing` costs: the full price
+ * on open ground, and only the difference when upgrading a street (its own
+ * price was paid when it was laid).
+ */
+export function roadPaveCost(type: RoadType, existing: RoadType, overWater: boolean): number {
+  return Math.max(0, roadBuildCost(type, overWater) - roadBuildCost(existing, overWater));
+}
+
 /** Why a road tool left a tile alone, or null when it can pave it. */
 export type RoadToolBlock =
   | 'off-map'
@@ -51,9 +60,10 @@ const TOOL_LABELS: Record<RoadType, string> = {
  * Paves one road tile and deducts the cost. Over water the tile is a bridge
  * at {@link BRIDGE_COST_MULTIPLIER}× the price, and bridges run straight.
  *
- * Painting a highway or trolley avenue over a street upgrades it. Nothing
- * paints over a highway or trolley line, so a street dragged across one
- * leaves an intersection instead of a downgraded gap.
+ * Painting a highway or trolley avenue over a street upgrades it for the
+ * difference in price. Nothing paints over a highway or trolley line, so a
+ * street dragged across one leaves an intersection instead of a downgraded
+ * gap, and a trolley line dragged over a highway crosses it at grade.
  */
 export class RoadTool implements Tool {
   readonly name: string;
@@ -67,10 +77,10 @@ export class RoadTool implements Tool {
     this.label = TOOL_LABELS[roadType];
   }
 
-  /** What this tile would cost to pave, bridge surcharge included. */
+  /** What this tile would cost to pave, bridge surcharge included; an upgrade pays the difference. */
   costAt(coord: TileCoord, sim: CitySim): number {
     const tile = sim.getTile(coord.x, coord.y);
-    return roadBuildCost(this.roadType, tile?.terrain === TerrainType.Water);
+    return roadPaveCost(this.roadType, tile?.roadType ?? RoadType.None, tile?.terrain === TerrainType.Water);
   }
 
   blockAt(coord: TileCoord, sim: CitySim): RoadToolBlock | null {

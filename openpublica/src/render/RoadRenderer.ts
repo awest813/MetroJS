@@ -13,6 +13,7 @@ import type { TileCoord } from '../data/types';
 import { TILE_SIZE } from '../data/constants';
 import type { HeightField } from '../sim/HeightField';
 import { isBridgeAt, roadNeighbors, roadProfile, type RoadNeighbors } from '../sim/roadConnections';
+import { levelCrossingAxis } from '../sim/TransitSystem';
 import {
   ARM_SPAN,
   CARDINAL_VEC,
@@ -23,7 +24,7 @@ import {
   type RoadPiece,
   type RoadPieceKind,
 } from './roadLayout';
-import { deckBaseHeight, deckDirtyTiles } from './roadDeck';
+import { deckBaseHeight, roadKitDirtyTiles } from './roadDeck';
 import { coloredPbr } from './pbrSurfaces';
 import { ThinInstanceGroups } from './thinInstanceGroups';
 
@@ -107,9 +108,9 @@ export class RoadRenderer {
     this._pieces.flush();
   }
 
-  /** Rebuild the painted tile, its neighbours, and any bridge span they touch. */
+  /** Rebuild the painted tile, its neighbours, any bridge span they touch, and nearby level crossings. */
   updateAround(map: CityMap, coord: TileCoord): void {
-    this.rebuildTiles(map, deckDirtyTiles(map, coord.x, coord.y));
+    this.rebuildTiles(map, roadKitDirtyTiles(map, coord.x, coord.y));
   }
 
   /** Rebuild these tiles (roads only; other tiles are skipped). */
@@ -155,7 +156,8 @@ export class RoadRenderer {
     const bridge = isBridgeAt(map, x, y);
     const bed = this._heights?.tileCenter(x, y) ?? h0 - 1;
     const deckSrc = this._decks[tile.roadType];
-    for (const piece of roadPieces(tile.roadType, neighbors, bridge, widths)) {
+    const railAxis = levelCrossingAxis(map, x, y);
+    for (const piece of roadPieces(tile.roadType, neighbors, bridge, widths, railAxis)) {
       if (piece.kind === 'pier') {
         this._spawnPier(key, piece, cx, cz, bed, h0 - GIRDER_DEPTH);
       } else {

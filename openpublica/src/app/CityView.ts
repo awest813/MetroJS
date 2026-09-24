@@ -12,7 +12,7 @@ import { BuildingRenderer } from '../render/BuildingRenderer';
 import { OverlayRenderer } from '../render/OverlayRenderer';
 import { TrafficVehicleRenderer } from '../render/TrafficVehicleRenderer';
 import { RoadRenderer, ROAD_DECK_LIFT } from '../render/RoadRenderer';
-import { deckBaseHeight, deckDirtyTiles } from '../render/roadDeck';
+import { deckBaseHeight, deckDirtyTiles, roadKitDirtyTiles } from '../render/roadDeck';
 import { buildingFacing } from '../render/buildingFacing';
 import type { SurfaceHeights, TileTint } from '../render/HighlightRenderer';
 import { VegetationRenderer } from '../render/VegetationRenderer';
@@ -166,7 +166,7 @@ export class CityView {
     const facing = new Map<string, TileCoord>();
     let smoke = false;
     for (const tile of tiles) {
-      for (const d of deckDirtyTiles(map, tile.x, tile.y)) decks.set(`${d.x},${d.y}`, d);
+      for (const d of roadKitDirtyTiles(map, tile.x, tile.y)) decks.set(`${d.x},${d.y}`, d);
       around.set(`${tile.x},${tile.y}`, tile);
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const n = { x: tile.x + dx, y: tile.y + dy };

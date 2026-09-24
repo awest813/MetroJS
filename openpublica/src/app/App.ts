@@ -51,6 +51,7 @@ import {
 import { stationHasRoad } from '../sim/roadDispatch';
 import type { BuildingDef } from '../sim/BuildingDef';
 import { groveStrengths, isWooded } from '../sim/woods';
+import { levelCrossingAxis } from '../sim/TransitSystem';
 import {
   GRID_LINE,
   GRID_SHORT,
@@ -471,7 +472,10 @@ export class App {
       const woods = tile && isWooded(tile, groveStrengths(sim.terrainSeed, sim.map.width, sim.map.height), sim.map.width)
         ? 'woods — lots beside them are worth more; zoning or paving clears them'
         : null;
-      const hint = [serviceHint, growthHint, woods].filter((part): part is string => Boolean(part)).join(' · ') || null;
+      const crossing = tile && levelCrossingAxis(sim.map, tile.x, tile.y)
+        ? 'level crossing — the trolley line runs across this road'
+        : null;
+      const hint = [serviceHint, growthHint, woods, crossing].filter((part): part is string => Boolean(part)).join(' · ') || null;
       statusEl.textContent = formatInspectStatus(
         tool.label,
         tile ?? undefined,

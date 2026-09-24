@@ -363,7 +363,11 @@ function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherFore
     out.push({ id: 'crime', message: 'Crime is high — add a powered police station on a street near housing.' });
   }
   if (census.extremeRoads >= 3) {
-    out.push({ id: 'traffic', message: 'Traffic is jammed — add a parallel street, a highway, or a trolley line.' });
+    // Trips stay near home, so a highway across town relieves nothing: fix the jammed road itself.
+    out.push({
+      id: 'traffic',
+      message: `Traffic is jammed on ${census.extremeRoads} roads — upgrade them to a highway or trolley line, or add a street behind the block.`,
+    });
   }
   if (stats.resTaxRate >= 15 || stats.comTaxRate >= 15 || stats.indTaxRate >= 15) {
     out.push({ id: 'tax', message: 'Taxes are high — demand and approval will sag.' });

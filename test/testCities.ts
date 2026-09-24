@@ -4,6 +4,8 @@ import { RoadType, TerrainType, ZoneType, type CityTile } from '../openpublica/s
 import { SaveCodec } from '../openpublica/src/save/SaveCodec';
 import { MAP_SIZE } from '../openpublica/src/data/constants';
 import { waterfrontDistance } from '../openpublica/src/sim/shoreline';
+import { levelCrossingAxis, trolleyLines } from '../openpublica/src/sim/TransitSystem';
+import { ROAD_STEPS, isRoadTile } from '../openpublica/src/sim/roadConnections';
 
 /**
  * Scenario tests: each scripted test city is built once (with the player's
@@ -32,6 +34,8 @@ const SERVICES = new Set(['small_power_plant', 'small_water_tower', 'small_park'
 const isZoneBuilding = (tile: CityTile): boolean => tile.buildingId !== null && !SERVICES.has(tile.buildingId);
 const darkBuildings = (sim: CitySim): CityTile[] => tiles(sim, (t) => isZoneBuilding(t) && !t.powered);
 const mean = (values: number[]): number => values.reduce((a, b) => a + b, 0) / Math.max(1, values.length);
+const deadEnds = (sim: CitySim): CityTile[] => tiles(sim, (t) =>
+  t.roadType !== RoadType.None && ROAD_STEPS.filter(([dx, dy]) => isRoadTile(sim.map, t.x + dx, t.y + dy)).length <= 1);
 
 const ids = TEST_CITIES.map((c) => c.id);
 
@@ -155,6 +159,16 @@ describe('metro', () => {
     // Offices only grow on dear land (their own traffic can wear it down later).
     const value = (id: string): number => mean(tiles(sim, (t) => t.buildingId === id).map((t) => t.landValue));
     expect(value('office_block')).toBeGreaterThan(value('small_shop'));
+  });
+
+  it('should run one trolley line across the highway and close its blocks into loops', () => {
+    const { sim } = city('metro');
+    const lines = trolleyLines(sim.map);
+    expect(lines).toHaveLength(1);
+    expect(levelCrossingAxis(sim.map, 44, 18)).toBe('ns');
+    expect(lines[0]).toContain(sim.getTile(44, 18));
+    // Only the scripted roads end in the open (the line, the highway, the plant street): the auto streets loop.
+    expect(deadEnds(sim).length).toBeLessThanOrEqual(6);
   });
 
   it('should run every service with power to spare', () => {

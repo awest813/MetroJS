@@ -95,6 +95,9 @@ describe('road lines', () => {
     sim.placeRoad(2, 2, RoadType.Street);
     const plan = planRoadLine(new RoadTool(RoadType.Highway), roadLinePath({ x: 1, y: 2 }, { x: 3, y: 2 }), sim);
     expect(plan.tiles.map((t) => t.verdict)).toEqual(['build', 'upgrade', 'build']);
+    // The street was paid for when it was laid: the upgrade costs the difference.
+    expect(plan.tiles.map((t) => t.cost)).toEqual([25, 15, 25]);
+    expect(plan.cost).toBe(65);
   });
 
   it('should skip buildings in the way', () => {

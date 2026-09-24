@@ -16,6 +16,7 @@ import {
   ROAD_COST,
   RoadTool,
   roadBuildCost,
+  roadPaveCost,
 } from '../openpublica/src/tools/RoadTool';
 import { TrolleyAvenueTool, TROLLEY_AVENUE_COST } from '../openpublica/src/tools/TrolleyAvenueTool';
 import { ToolController } from '../openpublica/src/tools/ToolController';
@@ -164,14 +165,21 @@ describe('road tools', () => {
     expect(explainToolFailure('road', { x: 5, y: 4 }, sim)).toMatch(/from the side/);
   });
 
-  it('should upgrade a street to a highway or trolley line', () => {
+  it('should upgrade a street to a highway or trolley line for the difference in price', () => {
     const sim = makeSim(16, 1000);
     street(sim, [[2, 2], [3, 2]]);
+    const streetPrice = ROAD_COST[RoadType.Street];
+    expect(new RoadTool(RoadType.Highway).costAt({ x: 2, y: 2 }, sim)).toBe(ROAD_COST[RoadType.Highway] - streetPrice);
     expect(new RoadTool(RoadType.Highway).apply({ x: 2, y: 2 }, sim)).toBe(true);
     expect(sim.getTile(2, 2)!.roadType).toBe(RoadType.Highway);
     expect(new TrolleyAvenueTool().apply({ x: 3, y: 2 }, sim)).toBe(true);
     expect(sim.getTile(3, 2)!.roadType).toBe(RoadType.TrolleyAvenue);
-    expect(sim.stats.money).toBe(1000 - ROAD_COST[RoadType.Highway] - TROLLEY_AVENUE_COST);
+    expect(sim.stats.money).toBe(1000 - (ROAD_COST[RoadType.Highway] - streetPrice) - (TROLLEY_AVENUE_COST - streetPrice));
+    // A street bridge upgrades for the difference between the bridge prices.
+    expect(roadPaveCost(RoadType.Highway, RoadType.Street, true)).toBe(
+      roadBuildCost(RoadType.Highway, true) - roadBuildCost(RoadType.Street, true),
+    );
+    expect(roadPaveCost(RoadType.Highway, RoadType.None, false)).toBe(ROAD_COST[RoadType.Highway]);
   });
 
   it('should never downgrade a highway or trolley line without a bulldoze', () => {
@@ -184,6 +192,9 @@ describe('road tools', () => {
     expect(sim.stats.money).toBe(before);
     expect(explainToolFailure('road', { x: 2, y: 2 }, sim)).toBe(
       'Already a highway — bulldoze it first to lay a street.',
+    );
+    expect(explainToolFailure('trolleyAvenue', { x: 2, y: 2 }, sim)).toBe(
+      'Trolley lines cross a highway at grade — lay the line up to it on both sides.',
     );
   });
 

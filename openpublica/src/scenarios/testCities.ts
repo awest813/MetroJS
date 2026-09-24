@@ -95,10 +95,11 @@ const metro: TestCity = {
   title: 'Metro',
   summary: 'Metro: a planned city in three phases, with a highway, a trolley line, industry, and every service.',
   covers: [
-    'large zone areas with auto streets (two-lot blocks), grown over four years',
+    'large zone areas with auto streets (two-lot blocks closed into loops), grown over four years',
     'densification, commercial and industrial demand, mixed use on a trolley line',
     'several plants and towers on one grid',
-    'police, fire, and park coverage; traffic on the highway',
+    'a trolley line crossing the highway at grade, and one trolley per eight tiles of it',
+    'police, fire, and park coverage; a jammed downtown of office blocks',
   ],
   build: (watch) => run((b) => b
     // Phase 1: a highway, homes, shops, factories, and a plant past them.

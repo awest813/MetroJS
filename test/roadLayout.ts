@@ -51,6 +51,25 @@ describe('roadLayout', () => {
     expect(rails.every((r) => Math.abs(r.oz) > 0.05 || r.sx >= 0.4)).toBe(true);
   });
 
+  it('should set rails into a level crossing and keep lane marks off them', () => {
+    const cross = { n: true, e: true, s: true, w: true };
+    const plain = roadPieces(RoadType.Highway, cross);
+    expect(countByKind(plain, 'rail')).toBe(0);
+    const crossing = roadPieces(RoadType.Highway, cross, false, {}, 'ns');
+    // Two rails across the pad and two along each of the north and south arms.
+    const rails = crossing.filter((p) => p.kind === 'rail');
+    expect(rails).toHaveLength(6);
+    expect(rails.every((r) => r.sz > r.sx)).toBe(true);
+    expect(countByKind(crossing, 'tie')).toBe(0);
+    // Highway dashes stay on the east and west arms only.
+    const dashes = crossing.filter((p) => p.kind === 'dash');
+    expect(dashes.length).toBeGreaterThan(0);
+    expect(dashes.every((d) => d.slope === 'e' || d.slope === 'w')).toBe(true);
+    // A four-way street crossing keeps crosswalks off the rails.
+    const street = roadPieces(RoadType.Street, cross, false, {}, 'ew');
+    expect(street.filter((p) => p.kind === 'crosswalk').every((c) => c.slope === 'n' || c.slope === 's')).toBe(true);
+  });
+
   it('should keep trolley wider than street after the visual widen', () => {
     expect(roadProfile(RoadType.TrolleyAvenue).width).toBeGreaterThan(roadProfile(RoadType.Street).width);
   });

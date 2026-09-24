@@ -18,6 +18,7 @@ import {
   createResidentialLowBrush,
 } from '../openpublica/src/tools/ZoneBrushTool';
 import {
+  LOOP_MIN_LINE,
   autoStreetLayout,
   formatAreaPlan,
   formatAreaResult,
@@ -181,12 +182,53 @@ describe('streets through big zones', () => {
     for (const t of plan.streets) expect(network.has(`${t.x},${t.y}`)).toBe(true);
   });
 
-  it('should add a back street to a block three lots deep', () => {
+  it('should add a back street to a block three lots deep, tied in at both ends', () => {
     const sim = makeSim();
     streetRow(sim, 3);
     const plan = planZoneArea(createResidentialLowBrush(), { x: 2, y: 4 }, { x: 15, y: 6 }, sim, true);
     expect(plan.noStreet).toBe(0);
-    expect(plan.streets.filter((t) => t.y === 6)).toHaveLength(14);
+    const back = [5, 6].find((y) => plan.streets.filter((t) => t.y === y).length === 14);
+    expect(back).toBeDefined();
+    // Both ends of the back street run down to the front street: a loop, not a dead end.
+    for (const x of [2, 15]) {
+      for (let y = 4; y < back!; y++) expect(plan.streets).toContainEqual({ x, y });
+    }
+  });
+
+  it('should close long blocks into loops and leave no dead-end tails', () => {
+    const sim = makeSim();
+    const a = { x: 2, y: 2 };
+    const b = { x: 13, y: 11 };
+    const streets = new Set(autoStreetLayout(sim.map, a, b).map((t) => `${t.x},${t.y}`));
+    const roadAt = (x: number, y: number): boolean => streets.has(`${x},${y}`);
+    for (const k of streets) {
+      const [x, y] = k.split(',').map(Number);
+      const links = ROAD_STEPS.filter(([dx, dy]) => roadAt(x + dx, y + dy)).length;
+      expect([k, links >= 2]).toEqual([k, true]);
+    }
+    // A short area keeps its comb: a second spine would eat too many of its lots.
+    const x1 = 2 + LOOP_MIN_LINE - 2;
+    const short = autoStreetLayout(makeSim().map, { x: 2, y: 2 }, { x: x1, y: 7 });
+    const shortSet = new Set(short.map((t) => `${t.x},${t.y}`));
+    const farEnds = short.filter((t) => t.x === x1);
+    expect(farEnds.length).toBeGreaterThan(0);
+    // Only the lines reach the far side; nothing runs along it.
+    for (const t of farEnds) {
+      expect(shortSet.has(`${t.x - 1},${t.y}`)).toBe(true);
+      expect(shortSet.has(`${t.x},${t.y + 1}`) || shortSet.has(`${t.x},${t.y - 1}`)).toBe(false);
+    }
+  });
+
+  it('should tie the far end of each line to a road just past the area, not lay a second spine', () => {
+    const sim = makeSim();
+    sim.batch(() => {
+      for (let y = 0; y < 24; y++) sim.placeRoad(15, y, RoadType.Street);
+    });
+    const streets = autoStreetLayout(sim.map, { x: 2, y: 2 }, { x: 13, y: 11 });
+    // Each line runs one tile past the area to the road on x = 15; no spine down x = 13.
+    const ties = streets.filter((t) => t.x === 14);
+    expect(ties.length).toBeGreaterThan(1);
+    expect(streets.filter((t) => t.x === 13)).toHaveLength(ties.length);
   });
 
   it('should not pave through a finished street grid or a thin strip', () => {
