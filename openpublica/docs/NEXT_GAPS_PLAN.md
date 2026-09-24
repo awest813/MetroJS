@@ -1,7 +1,7 @@
 # OpenPublica — Next gaps (after Phases A–H)
 
-**Date:** 2026-09-20  
-**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills).
+**Date:** 2026-09-24 (first written 2026-09-20)  
+**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–S below have shipped on top.
 
 This is an implementation plan for **what is still missing**, not a licence to rewrite sim formulas or import Micropolis art.
 
@@ -9,12 +9,16 @@ This is an implementation plan for **what is still missing**, not a licence to r
 
 ## 1. Audit verdict
 
-The city is already a **perspective 3D WebGL city**, not an orthographic postcard. The remaining work is:
+The city is a **perspective 3D WebGL city** with a playable city-health loop:
+every HUD number is simulated, shown on a map, explained by an advisory, and
+checked against five scripted test cities (Gap N). The first audit's four
+open items (city health, honest feedback, PBR/sky, the `App.ts` split) have
+all shipped. What is left (section 5) is depth, not missing systems:
 
-1. **City-health simulation** the HUD pretends to care about but cannot yet play (crime, fire, evaluation, density).
-2. **Honest player feedback** when growth stalls or the city is sick.
-3. **Presentation depth** leftover after C1–C2 (optional GLB/SSAO). Untextured PBR + sky dome are shipped.
-4. **Coordinator leftover** (`App.ts` still lists tools and HUD; mesh rebuild and city file live in `CityView` / `cityFile`).
+1. **Industry** has one building and a flat demand target, so factories never densify.
+2. **Auto streets** join their lines through one spine, so crews and traffic detour.
+3. **Budget levers** stop at taxes: no bonds or service funding when in the red.
+4. **Presentation** extras stay optional (GLB kits, SSAO).
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
 
@@ -39,7 +43,9 @@ Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as curren
 | MIT `simplex-noise` + `alea` for hills/trees | Shipped |
 | Sim layer Babylon-free | Still law |
 
-**Still frozen unless a slice below names a justified sim field:** growth/tax/power/traffic/walk/transit formulas.
+**Sim formulas change only inside a named slice** that states the old and new
+numbers and the test city that measured the change (as Gaps E, I, K, N, O, and
+S do). Nothing else retunes growth, tax, power, traffic, walk, or transit.
 
 ---
 
@@ -49,7 +55,7 @@ Ordered by what a player actually hits, then by what other work depends on.
 
 ### Gap A — City-health loop (sim + HUD)
 
-The HUD shows Poll / Happy / Walk / Transit plus Crime / Fire / Water / Score. Density, police, fire, crime, evaluation, and water coverage are playable. Remaining city-health work is degradation (B2), not more unused HUD fields.
+The HUD shows Poll / Happy / Walk / Transit plus Crime / Fire / Water / Score. Density, police, fire, crime, evaluation, and water coverage are playable, and degradation (B2) has shipped.
 
 | Slice | What to ship | Must not |
 |---|---|---|
@@ -58,7 +64,7 @@ The HUD shows Poll / Happy / Walk / Transit plus Crime / Fire / Water / Score. D
 | A3 Crime **shipped** | `tile.crime` from density, land value, police; HUD average | Hidden Micropolis crime RNG as-is |
 | A4 Fire **shipped** | Station def + tool + `tile.fireCoverage`; Fire overlay + HUD average | Disasters in the same PR |
 | A5 Evaluation **shipped** | Monthly score / approval / top problems from pollution, crime, traffic, taxes, power, bankruptcy | Census graphs in the same PR |
-| A6 Roads + water **shipped** | Highway tool + maintenance; `tile.watered` from powered towers; HUD Water / Mains overlay | Power-line network; growth/tax formulas |
+| A6 Roads + water **shipped** | Highway tool + maintenance; `tile.watered` from powered towers; HUD Water / Mains overlay | Power-line network (since superseded: Gap K runs power and water along the streets); growth/tax formulas |
 
 **Exit:** A grown city can be “unsafe” or “underserved” in HUD + overlay without opening the console.
 
@@ -69,7 +75,7 @@ Buildings **do** empty after sustained neglect. Status is city-local (HUD adviso
 | Slice | What to ship |
 |---|---|
 | B1 Advisory **shipped** | Structured messages (no power plant, bankrupt, smog spike, no road access) in the HUD feed |
-| B2 Degradation **shipped** | Zone buildings downgrade or leave after 4 stressed months (no road/demand/power, smog, crime); 2-month grow cooldown | Disasters; Micropolis decay tables |
+| B2 Degradation **shipped** | Zone buildings downgrade or leave after 4 stressed months (no road or power, smog, crime); a want of demand alone thins a zone 5% a month (Gap N); factories ignore smog; 2-month grow cooldown | Disasters; Micropolis decay tables |
 | B3 Downtown **shipped** | Commercial/mixed land-value boost from the residential centroid; honest zone plats (no painting roads/buildings) |
 
 **Exit:** A player who never places a plant sees a clear advisory, then empty lots, not a silent stall.
@@ -80,7 +86,7 @@ Buildings **do** empty after sustained neglect. Status is city-local (HUD adviso
 |---|---|---|
 | C1 Materials **shipped** | Untextured PBR colours (roughness) on terrain, kits, roads, water, trees, traffic | Micropolis sheets as albedo |
 | C2 Sky **shipped** | Inverted sky dome, vertex horizon→zenith; fog + sun slider still drive it | Full atmosphere / SSAO in C2 |
-| C3 Terrain read | Slight grass/dirt variation already from simplex; optional skirt on the city mesh | Change lake topology |
+| C3 Terrain read **shipped** | Grass/dirt variation from simplex; the earth skirt (Gap G); lawns, yards, and woods (Gap L) | Change lake topology |
 | C4 GLB (optional) | `@babylonjs/loaders` + `visualRef` + `ASSET_LICENSE.md`; procedural fallback | EA-looking kits |
 | C5 PostFX | SSAO/FXAA only after a filled-city frame-time check on High quality | Always-on SSAO |
 
@@ -90,9 +96,9 @@ Buildings **do** empty after sustained neglect. Status is city-local (HUD adviso
 
 | Slice | What to ship |
 |---|---|
-| D1 `npm test` | `openpublica` script that runs root Jest (done in this polish PR) |
+| D1 `npm test` **shipped** | `openpublica` script that runs root Jest |
 | D2 Split `App.ts` **shipped** | `CityView` rebuilds meshes; `mountCityMenu` owns save/load |
-| D3 Render tests | Keep GPU tests out of Jest; add a few more **pure** layout tests (picker math, daylight lerp) |
+| D3 Render tests **shipped** | GPU stays out of Jest; every pure render module has tests (deck picking, sky colours, weather looks, road layout and decks, vegetation, kits, facing, foundations, skirt) |
 
 ### Gap E — Roads, traffic, road services, bridges **shipped**
 
@@ -272,7 +278,7 @@ from the New confirm; `test/testCities.ts` builds each and checks it.
 |---|---|---|---|
 | `hamlet` | 11, $10,000, 2 years | The first hours: a crossroads, shops, a few factories, one plant past town, woods all round | 104 people, 70 jobs, power 174/400, treasury $15k |
 | `riverside` | 2026, $40,000, 2½ years | A street bridge and a highway bridge; the plants are all on the north bank and light the far one across the bridge; shore lots, a bridgehead park, a far-bank tower, factories across the lake | 292 people, both banks lit, waterfront valued above inland |
-| `metro` | 7, $120,000, 4 years in 3 phases | Zone areas with auto streets, a highway, a trolley line, downtown, mixed use, industry, six plants, three towers, police, fire, parks | 1,014 people, 601 jobs, power 1637/2400 (a snowy January) |
+| `metro` | 7, $120,000, 4 years in 3 phases | Zone areas with auto streets, a highway, a trolley line, downtown, mixed use, industry, six plants, four towers, police, fire, parks, a downtown of office blocks | 1,074 people, 848 jobs, power 1946/2400 (a snowy January) |
 | `troubled` | 101, $30,000, 3 years | Blocks four lots deep, a plant among the houses, factories next door, no police, a tower with no street, a police station on a dark street, taxes raised to 16/14/14 | 150 lots with no road, power 399/400 with dark houses, approval 0 |
 | `sprawl` | 314, $60,000, 3½ years | A highway across the map with cul-de-sacs, a shopping strip, an industrial park; one plant at the west end until month 30 | Before the second plant the dark lots are the far (east) ones; after it all are lit; water 597/600 |
 
@@ -336,6 +342,25 @@ storms flash (not with reduced motion) and thunder; rain hisses. Low quality
 drops the falling rain and snow and the lightning. Reloading no longer leaks
 a terrain material.
 
+### Gap S — Shops grow up **shipped**
+
+The test cities kept running short of jobs: Metro's shop demand sat at 100%
+with every commercial lot built, and three of five cities ended with houses
+emptying for want of work. Shops had one building (a 3-job small shop) while
+housing and mixed use had two and three sizes, so a busy downtown could never
+hold more than 3 jobs a lot.
+
+| Slice | What shipped |
+|---|---|
+| S1 Buildings | Shop Row (7 jobs, walkable) and Office Block (14 jobs) join the small shop as the mid and top commercial tiers, on the same land-value and demand bars as housing (45/35 and 70/60). New kits: a two-storey row with an awning, a glass-banded tower with a lobby. |
+| S2 Traffic | Shops and factories make trips by job (2/3 and 0.6 a job), so a 3-job shop and 5-job workshop are unchanged and an office block draws its 14 jobs' worth. A downtown jams unless it gets a grid, transit, or a highway. |
+
+Metro now ends with 20 office blocks and 10 shop rows: jobs 601 → 848,
+housing demand 16 → 58, happiness 90 → 84 from the downtown traffic. Its
+extra jobs outgrew three water towers, so its last phase adds a fourth.
+Factories stay single-size: industrial demand settles near 20, below the
+tier bar (section 5).
+
 ### Audit of the branch **shipped**
 
 A review of every pass on this branch (roads through weather) turned up:
@@ -370,23 +395,22 @@ Unchanged from the 3D plan:
 
 ## 5. Recommended next PRs (mergeable)
 
-1. ~~**Density + crime overlay inputs** (A1–A3).~~ Shipped: Crowd/Crime overlays, Police tool, HUD Crime.
-2. ~~**Fire coverage** (A4).~~ Shipped: Fire tool, overlay, HUD Fire (no disasters).
-3. ~~**Evaluation + advisory** (A5 + B1).~~ Shipped: HUD Score + mayor alert line.
-4. ~~**Highways + water towers** (A6).~~ Shipped: Highway tool, Water HUD/overlay, dry-lots advisory.
-5. ~~**Zoning plats + downtown** (B3).~~ Shipped: Dezone, hard empty-lot colours, C/M land value near housing.
-6. ~~**Degradation** (B2).~~ Shipped: four stressed months then downgrade/leave; HUD emptying advisory.
-7. ~~**PBR + sky** (C1–C2).~~ Shipped: metallic-roughness colours (low IBL) + fog-matching sky dome.
-8. ~~**App.ts split** (D2).~~ Shipped: `CityView` + `mountCityMenu`.
+The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped. Next, each found by
+the test cities or the audits and small enough for one PR:
 
-GLB (C4) and SSAO (C5) stay optional. C3 skirt is optional.
+1. **Industry that grows.** Industrial demand only drifts back to 20 each month, so it never reaches the 35 needed for a bigger building, and industry has one building anyway. Drive it from the jobs the city lacks (as housing demand reads jobs) and add a factory tier. Measure with Troubled and Metro.
+2. **Looped auto streets.** A zone area's lines meet only at one spine, so police in Metro reached a few rows of a 15-wide district and traffic detours. Tie long areas' lines at both ends (or every other pair), keeping the lots-per-street-tile bar.
+3. **Budget levers.** When the budget is in the red the only lever is taxes. Add service funding (coverage and upkeep scale together) or a small bond with interest, shown in Budget.
+4. **Buildings that shrink with land value.** An office block keeps its size after its own traffic wears the land value down (Metro has one on land worth 37). Let the top tier step down when value stays under its bar.
+5. **Faster scenario tests.** The five test cities add about 20 s to Jest. Build each once per run (already cached per file) and consider a separate job for the long builds.
+6. **GLB kits (C4) and SSAO (C5)** stay optional; SSAO only after a filled-city frame-time check on High quality.
 
 ---
 
 ## 6. Verification for later slices
 
 - Root `npm test` (or `cd openpublica && npm test`) stays green.
-- No `@babylonjs` imports under `src/sim/`, `src/tools/`, `src/save/`.
+- No `@babylonjs` imports under `src/sim/`, `src/tools/`, `src/save/`, `src/scenarios/`, `src/ui/`, `src/data/`.
 - Network tab still has no `tiles.png` / `sprites/`.
 - Play: grow a city, toggle Smog, Frame, Save/Load, mute, Dawn/Dusk.
 - First minutes: Road is selected; HUD coach steps street → lots → plant; fire/water nags wait until population 40.
@@ -403,4 +427,5 @@ GLB (C4) and SSAO (C5) stay optional. C3 skirt is optional.
 - Economy: open `?city=metro`, drag a tax slider and watch its take and the net change; zone an empty map deep into the red and read the months left in Budget.
 - Time: hide the tab for a minute and come back (the date moves on by about a quarter second, not two months); the HUD date counts days.
 - Weather: open `?city=metro&weather=snow`, `rain`, `storm`, `fog`, and `heat` (snow on roofs, plowed roads, amber HUD, Road upkeep (snow) in Budget; rain and storm grey the sky; heat raises Power and water load), then play a year at 4× and watch the seasons turn.
+- Shops: open `?city=metro`, look at the shopping districts (glass-banded office blocks among shop rows), and check Traffic there.
 - Test cities: open `?city=hamlet`, `riverside`, `metro`, `troubled`, and `sprawl` (or New → Or open a test city); each status line says what the city shows, the HUD and advisory match its row in Gap N, and New goes back to a fresh map.

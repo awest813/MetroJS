@@ -23,11 +23,14 @@ import type { CityStats } from './CitySim';
 /** Road trips per resident each simulated month. */
 const RESIDENTIAL_TRIP_RATE = 0.15;
 
-/** Base traffic pressure injected per commercial building onto adjacent roads. */
+/** Base traffic pressure injected per commercial building onto adjacent roads (mixed use). */
 const COMMERCIAL_BASE_PRESSURE = 2;
 
-/** Base traffic pressure injected per industrial building onto adjacent roads. */
-const INDUSTRIAL_BASE_PRESSURE = 3;
+/** Road trips per shop job: a 3-job small shop makes 2, an office block 14 jobs' worth. */
+const COMMERCIAL_TRIPS_PER_JOB = 2 / 3;
+
+/** Road trips per factory job: a 5-job workshop makes 3. */
+const INDUSTRIAL_TRIPS_PER_JOB = 0.6;
 
 /**
  * Radius (in tiles) around each building within which its trips spread over
@@ -67,8 +70,8 @@ export function roadCapacity(type: RoadType): number {
 /** Monthly road trips a building generates (0 for services and parks). */
 export function buildingTrips(def: BuildingDef): number {
   if (def.zoneType === ZoneType.Residential) return def.population * RESIDENTIAL_TRIP_RATE;
-  if (def.zoneType === ZoneType.Commercial) return COMMERCIAL_BASE_PRESSURE;
-  if (def.zoneType === ZoneType.Industrial) return INDUSTRIAL_BASE_PRESSURE;
+  if (def.zoneType === ZoneType.Commercial) return def.jobs * COMMERCIAL_TRIPS_PER_JOB;
+  if (def.zoneType === ZoneType.Industrial) return def.jobs * INDUSTRIAL_TRIPS_PER_JOB;
   if (def.zoneType === ZoneType.MixedUse) {
     // Mixed-use: residents generate commute trips and commercial activity
     // draws visitors — combine both contributions at a slight discount to

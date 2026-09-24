@@ -38,6 +38,17 @@ describe('development size', () => {
     expect(nextDevelopmentDef(mixed, BLOCK, 80, 80)).toBeUndefined();
   });
 
+  it('should grow shops into shop rows and office blocks downtown', () => {
+    const shops = CitySim.createCity(4, 4).growth.defs;
+    const commercial = [...shops.values()].filter((d) => d.zoneType === ZoneType.Commercial);
+    expect(commercial.map((d) => d.id).sort()).toEqual(['office_block', 'shop_row', 'small_shop']);
+    expect(targetBuildingDef(commercial, 30, 90)?.id).toBe('small_shop');
+    expect(targetBuildingDef(commercial, 50, 40)?.id).toBe('shop_row');
+    expect(targetBuildingDef(commercial, 75, 70)?.id).toBe('office_block');
+    const small = shops.get('small_shop')!;
+    expect(nextDevelopmentDef(commercial, small, 75, 70)?.id).toBe('shop_row');
+  });
+
   it('should grow faster when the demand bar is full', () => {
     expect(growthChance(50, 100)).toBeGreaterThan(growthChance(50, 10));
   });

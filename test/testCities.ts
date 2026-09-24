@@ -148,6 +148,15 @@ describe('metro', () => {
     expect(tiles(sim, (t) => t.buildingId === 'rowhouse').length).toBeGreaterThan(0);
   });
 
+  it('should grow a downtown of shop rows and office blocks where land is dear', () => {
+    const { sim } = city('metro');
+    expect(tiles(sim, (t) => t.buildingId === 'office_block').length).toBeGreaterThan(5);
+    expect(tiles(sim, (t) => t.buildingId === 'shop_row').length).toBeGreaterThan(0);
+    // Offices only grow on dear land (their own traffic can wear it down later).
+    const value = (id: string): number => mean(tiles(sim, (t) => t.buildingId === id).map((t) => t.landValue));
+    expect(value('office_block')).toBeGreaterThan(value('small_shop'));
+  });
+
   it('should run every service with power to spare', () => {
     const { sim } = city('metro');
     expect(sim.stats.powerShort).toBe(0);

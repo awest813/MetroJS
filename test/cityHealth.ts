@@ -389,6 +389,22 @@ describe('city health wiring', () => {
     expect(built('rowhouse').getTile(16, 8)!.trafficPressure).toBeGreaterThanOrEqual(EXTREME_TRAFFIC_PRESSURE);
   });
 
+  it('should draw traffic by jobs, so an office block is busier than a shop', () => {
+    const pressure = (defId: string): number => {
+      const sim = CitySim.createCity(16, 8);
+      sim.batch(() => {
+        for (let x = 2; x < 14; x++) sim.placeRoad(x, 4, RoadType.Street);
+        sim.getTile(8, 3)!.zoneType = ZoneType.Commercial;
+        sim.getTile(8, 3)!.buildingId = defId;
+        sim.growth.buildings.set('8,3', { defId, x: 8, y: 3 });
+      });
+      sim.refreshDerivedState();
+      return sim.getTile(8, 4)!.trafficPressure;
+    };
+    expect(pressure('office_block')).toBeGreaterThan(pressure('shop_row'));
+    expect(pressure('shop_row')).toBeGreaterThan(pressure('small_shop'));
+  });
+
   it('should drop happiness as soon as a street is jammed', () => {
     const sim = CitySim.createCity(16, 16);
     for (let i = 0; i < 4; i++) {

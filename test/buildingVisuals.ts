@@ -56,6 +56,14 @@ describe('buildingVisuals kits', () => {
     expect(awning!.d).toBeLessThan(BUILDING_KITS.small_shop.parts[0].d);
   });
 
+  it('should raise office blocks above shop rows above small shops', () => {
+    expect(BUILDING_SHAPES.office_block.height).toBeGreaterThan(BUILDING_SHAPES.shop_row.height);
+    expect(BUILDING_SHAPES.shop_row.height).toBeGreaterThan(BUILDING_SHAPES.small_shop.height);
+    const top = Math.max(...BUILDING_KITS.office_block.parts.map((p) => p.y + p.h / 2));
+    expect(top).toBeLessThanOrEqual(BUILDING_SHAPES.office_block.height);
+    expect(BUILDING_KITS.office_block.parts.filter((p) => p.slot === 'glass').length).toBeGreaterThanOrEqual(5);
+  });
+
   it('should give workshops a shed roof and a stack', () => {
     const kit = BUILDING_KITS.light_workshop;
     expect(kit.parts.some((p) => p.slot === 'roof' && p.rx)).toBe(true);
