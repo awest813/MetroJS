@@ -131,6 +131,14 @@ describe('riverside', () => {
     expect(sim.stats.waterAverage).toBeGreaterThan(50);
   });
 
+  it('should carry commuters from the far bank over the street bridge to work', () => {
+    const { sim } = city('riverside');
+    // Mid-span, farther from any lot than local trips spread: only commuters drive here.
+    const span = tiles(sim, (t) => t.terrain === TerrainType.Water && t.roadType === RoadType.Street);
+    const mid = span[Math.floor(span.length / 2)];
+    expect(mid.trafficPressure).toBeGreaterThan(0);
+  });
+
   it('should value waterfront lots above inland ones', () => {
     const { sim } = city('riverside');
     const nearWater = (t: CityTile): boolean => waterfrontDistance(sim.map, t.x, t.y) !== null;

@@ -8,6 +8,7 @@ import { ROAD_STEPS, isLandRoad } from './roadConnections';
 import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 import type { CityStats } from './CitySim';
+import { routeCommutes, type Commuter, type Workplace } from './commutes';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,9 @@ import type { CityStats } from './CitySim';
  * lining a lone street jam it. At the old rates (0.3 rounded up per house, 4
  * per shop, 6 per workshop) every street of houses the zone tool lays jammed
  * at 13, so any real city sat near zero happiness and lost its street trees.
+ * Once there are jobs to drive to, half of a home's trips commute instead:
+ * its own street reads about half as busy, and the load moves to the roads
+ * on the way to work, piling up where a district's commutes meet.
  */
 
 /** Road trips per resident each simulated month. */
@@ -54,6 +58,23 @@ export const TRIP_SPREAD_BUDGET = 3.5;
  */
 export const HIGHWAY_CAPACITY = 2;
 
+/**
+ * Share of a home's trips that are commutes: they leave by its street and
+ * drive the network to the nearest jobs with room (see `commutes.ts`)
+ * instead of spreading over the streets nearby. With no workplace on the
+ * network, they stay local.
+ */
+export const COMMUTE_SHARE = 0.5;
+
+/**
+ * Pressure each commute trip adds to every road tile it drives over.
+ * Commutes pile up toward the jobs, so this is well under a local trip's
+ * weight: 400 residents make 30 commute trips, which add about 4.5 to the one
+ * street out of their district on top of its own lots' trips, and half that
+ * per lane on a highway.
+ */
+export const COMMUTE_LOAD = 0.15;
+
 /** Noise units added per unit of trafficPressure on a road tile. */
 const NOISE_PER_PRESSURE = 3;
 
@@ -65,6 +86,18 @@ const MAX_TRAFFIC_PRESSURE = 20;
 /** Trips a road type absorbs relative to a street. */
 export function roadCapacity(type: RoadType): number {
   return type === RoadType.Highway ? HIGHWAY_CAPACITY : 1;
+}
+
+/** Jobs people drive to at this building: shops, offices, factories, mixed use (not civic posts). */
+export function commuteJobs(def: BuildingDef): number {
+  if (def.isService || def.zoneType === ZoneType.Residential || def.zoneType === ZoneType.None) return 0;
+  return def.jobs;
+}
+
+/** Monthly trips from a building's residents that commute to work. */
+export function commuteTrips(def: BuildingDef): number {
+  if (def.zoneType !== ZoneType.Residential && def.zoneType !== ZoneType.MixedUse) return 0;
+  return def.population * RESIDENTIAL_TRIP_RATE * COMMUTE_SHARE;
 }
 
 /** Monthly road trips a building generates (0 for services and parks). */
@@ -92,7 +125,9 @@ export function buildingTrips(def: BuildingDef): number {
  * beside its lot and spread over the road tiles connected to them within
  * SPREAD_RADIUS, weighted by distance.  Roads on another network (across a
  * river with no bridge, or simply not joined up) carry none of it, and a lot
- * with no street makes no trips.
+ * with no street makes no trips.  A share of each home's trips
+ * ({@link COMMUTE_SHARE}) are commutes instead: they drive the network to the
+ * nearest jobs with room and load every road on the way.
  *
  * Effects applied to the map / stats:
  * - `tile.trafficPressure` [0–20] — road tiles accumulate pressure from
@@ -137,11 +172,31 @@ export class TrafficPressureSystem {
     const weights: number[] = [];
     let stamp = 0;
 
-    // 2. Each building's trips spread over the roads it can drive to.
+    // 2. Commuters drive the network to work (see commutes.ts); a home with
+    //    no workplace on its network keeps those trips local.
+    const homes: Commuter[] = [];
+    const commuterOf = new Map<BuildingInstance, number>();
+    const workplaces: Workplace[] = [];
     for (const instance of buildings.values()) {
       const def = defs.get(instance.defId);
       if (!def) continue;
-      const trips = buildingTrips(def);
+      const commute = commuteTrips(def);
+      if (commute > 0) {
+        commuterOf.set(instance, homes.length);
+        homes.push({ x: instance.x, y: instance.y, trips: commute });
+      }
+      const jobs = commuteJobs(def);
+      if (jobs > 0) workplaces.push({ x: instance.x, y: instance.y, jobs });
+    }
+    const commutes = routeCommutes(map, homes, workplaces);
+
+    // 3. Each building's other trips spread over the roads it can drive to.
+    for (const instance of buildings.values()) {
+      const def = defs.get(instance.defId);
+      if (!def) continue;
+      let trips = buildingTrips(def);
+      const home = commuterOf.get(instance);
+      if (home !== undefined && commutes.routed[home]) trips -= homes[home].trips;
       if (trips <= 0) continue;
 
       stamp += 1;
@@ -191,7 +246,10 @@ export class TrafficPressureSystem {
       }
     }
 
-    // 3. Pressure per lane, clamped, then noise. Happiness is composed after walk/transit.
+    // 4. Commutes load every road they drive.
+    for (let i = 0; i < load.length; i++) load[i] += commutes.flow[i] * COMMUTE_LOAD;
+
+    // 5. Pressure per lane, clamped, then noise. Happiness is composed after walk/transit.
     map.forEach((tile) => {
       if (tile.roadType === RoadType.None) return;
       // Any road someone drives on reads at least 1, so a lone house's street is not empty.

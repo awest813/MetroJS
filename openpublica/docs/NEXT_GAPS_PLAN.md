@@ -16,8 +16,8 @@ open items (city health, honest feedback, PBR/sky, the `App.ts` split) have
 all shipped. What is left (section 5) is depth, not missing systems:
 
 1. **Industry** has one building and a flat demand target, so factories never densify.
-2. **Commutes** stay within three tiles of each building, so a highway only relieves the lots beside it.
-3. **Budget levers** stop at taxes: no bonds or service funding when in the red.
+2. **Budget levers** stop at taxes: no bonds or service funding when in the red.
+3. **Moving cars** turn at random at every junction instead of driving the commutes the sim routes.
 4. **Presentation** extras stay optional (GLB kits, SSAO).
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
@@ -277,8 +277,8 @@ from the New confirm; `test/testCities.ts` builds each and checks it.
 | City | Seed, budget, time | What it shows | Where it ends |
 |---|---|---|---|
 | `hamlet` | 11, $10,000, 2 years | The first hours: a crossroads, shops, a few factories, one plant past town, woods all round | 104 people, 70 jobs, power 174/400, treasury $15k |
-| `riverside` | 2026, $40,000, 2½ years | A street bridge and a highway bridge; the plants are all on the north bank and light the far one across the bridge; shore lots, a bridgehead park, a far-bank tower, factories across the lake | 276 people, both banks lit, waterfront valued above inland |
-| `metro` | 7, $120,000, 4 years in 3 phases | Zone areas with looped auto streets, a highway, a trolley line crossing it at grade, downtown, mixed use, industry, six plants, four towers, police, fire, parks, a downtown of office blocks | 986 people, 724 jobs, power 1734/2400, one 36-tile trolley line, 5 dead ends (all scripted road ends) |
+| `riverside` | 2026, $40,000, 2½ years | A street bridge and a highway bridge; the plants are all on the north bank and light the far one across the bridge; shore lots, a bridgehead park, a far-bank tower, factories across the lake | 308 people, both banks lit, waterfront valued above inland, the south bank's commuters on the street bridge |
+| `metro` | 7, $120,000, 4 years in 3 phases | Zone areas with looped auto streets, a highway, a trolley line crossing it at grade, downtown, mixed use, industry, six plants, four towers, police, fire, parks, a downtown of office blocks | 1,014 people, 705 jobs, power 1743/2400, one 36-tile trolley line, 5 dead ends (all scripted road ends) |
 | `troubled` | 101, $30,000, 3 years | Blocks four lots deep, a plant among the houses, factories next door, no police, a tower with no street, a police station on a dark street, taxes raised to 16/14/14 | 150 lots with no road, power 399/400 with dark houses, approval 0 |
 | `sprawl` | 314, $60,000, 3½ years | A highway across the map with cul-de-sacs, a shopping strip, an industrial park; one plant at the west end until month 30 | Before the second plant the dark lots are the far (east) ones; after it all are lit; water 597/600 |
 
@@ -414,6 +414,35 @@ found:
 cross the highway, trolleys cross, and Inspect says level crossing. A jammed
 street clears when it is upgraded or given a street behind it.
 
+### Gap U — Commutes **shipped**
+
+Every trip stayed within three tiles of the building that made it. A highway
+only helped the lots beside it, a bridge's mid-span carried nothing, and the
+one street out of a district was no busier than its back streets.
+
+| Slice | What shipped |
+|---|---|
+| U1 Routing | `commutes.ts`: every road tile knows its distance to a workplace street (road steps, a highway tile half a step, as police and fire drive). Each home's commuters enter at its street and roll downhill to work, splitting evenly between equally short routes, so a grid shares the flow and a district's way out carries all of it. The search runs once per round over a compact road graph, and the roll reuses the search's own order. |
+| U2 Jobs with room | Workplaces take commuters in proportion to their jobs. One that draws more than its share looks farther away the next round (up to 10 rounds), so the overflow drives on to jobs elsewhere instead of every commuter stopping at the first shop street on the edge of a job district. |
+| U3 Traffic | When a workplace is on a home's network, half its trips (`COMMUTE_SHARE`) commute, loading every tile on the way at `COMMUTE_LOAD` (0.15: 400 residents make 30 commute trips, adding about 4.5 to the one street out of their district on top of its own lots' trips). Homes with no jobs to reach keep every trip local, so the street calibration and the older tests are unchanged. |
+
+| Measure | Before | After |
+|---|---|---|
+| Riverside street-bridge mid-span pressure | 0, 0, 1 | 2, 2, 3 (the south bank's commuters) |
+| Jammed roads (Metro, Riverside, Sprawl) | 69, 8, 34 | 73, 12, 26 |
+| Happiness (Metro, Riverside, Sprawl) | 86, 89, 78 | 84, 88, 81 |
+| Metro office blocks | 13 | 11 |
+| Traffic tick on Metro (Node) | 0.7 ms | 1.65 ms |
+
+Metro's highway barely changes (mean 0.6 → 0.7) because it runs between the
+homes and the shops across it: its commuters cross it rather than drive it.
+The routing tests show a parallel highway taking the whole commute of a
+street it shortens.
+
+**Exit:** Open Traffic in `?city=riverside`: the street bridge carries the
+south bank to work. A street between homes and far-off jobs is busy along
+its whole length, not just at either end.
+
 ---
 
 ## 4. Explicitly still out of scope (Phase I)
@@ -436,7 +465,7 @@ The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped. Next, each found
 the test cities or the audits and small enough for one PR:
 
 1. **Industry that grows.** Industrial demand only drifts back to 20 each month, so it never reaches the 35 needed for a bigger building, and industry has one building anyway. Drive it from the jobs the city lacks (as housing demand reads jobs) and add a factory tier. Measure with Troubled and Metro.
-2. **Commutes.** Trips stay within three tiles of each building, so a highway only relieves the lots beside it, and Metro's downtown office streets sit at the cap of 20 whatever is built nearby. Send a share of each home's trips toward the nearest jobs over the road graph (a coarse flow, not per car) so that highways and trolley lines carry cross-town traffic.
+2. **Cars that commute.** The sim routes commuters to work (Gap U), but the cars on screen pick a random turn at every junction. Start cars at homes in proportion to their commuters and steer them downhill on the same distance field, so the moving cars match the Traffic map.
 3. **Budget levers.** When the budget is in the red the only lever is taxes. Add service funding (coverage and upkeep scale together) or a small bond with interest, shown in Budget.
 4. **Buildings that shrink with land value.** An office block keeps its size after its own traffic wears the land value down (Metro has one on land worth 37). Let the top tier step down when value stays under its bar.
 5. **Faster scenario tests.** The five test cities add about 20 s to Jest. Build each once per run (already cached per file) and consider a separate job for the long builds.
@@ -454,6 +483,7 @@ the test cities or the audits and small enough for one PR:
 - Services: hover a park to see its coverage disc, a plant or tower to see the network it feeds, or a police/fire tool over a lot to see the streets it reaches; Budget lists civic and road upkeep; water raises land value on covered lots.
 - Roads: drag a street straight across a river (status names the bridge tiles), drag one across a highway (the highway stays), and watch Traffic drop on a jammed street after a parallel street is joined up. Drag a highway over a street (the preview charges $15 a tile for the upgrade).
 - Transit: in `?city=metro`, trolleys cross the highway at (44, 18) on rails set into it; Inspect there says level crossing and shows transit 100. Zone a big area in the open and its streets close into loops.
+- Commutes: in `?city=riverside` open Traffic and find the street bridge carrying the south bank's commuters; lay a long street between a row of houses and a block of shops and it reads busy along its whole length.
 - Water: from an angled camera, hover the edge of a bridge deck (the cursor sits on the deck); beach lots show dry ground to the water's edge; Value shows the waterfront premium.
 - Terrain: drag a street across a hillside (the ground levels under it, no grass through the deck); hills shade with the sun at Dawn/Dusk; tilt the camera low at the map edge to see the skirt.
 - Placement: with Road, drag an L across a lake so it turns on the water (blue bridge tiles, the turn tile red, status gives cost and bridges), press Esc before releasing (nothing is built), then release a line on land; Shift-drag paints freehand; hover water with a zone brush (red cursor); shops along a street face it; cars curve through corners.
