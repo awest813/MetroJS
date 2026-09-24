@@ -268,9 +268,10 @@ function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherFore
   if (!stats.bankruptcyWarning && net < 0 && stats.money >= 0) {
     const months = Math.floor(stats.money / -net);
     if (months < DEFICIT_WARNING_MONTHS) {
+      const shown = Math.max(1, months);
       out.push({
         id: 'deficit',
-        message: `The budget is $${(-net).toLocaleString()}/mo in the red — money runs out in about ${Math.max(1, months)} month${months === 1 ? '' : 's'}. Raise taxes or cut upkeep.`,
+        message: `The budget is $${(-net).toLocaleString()}/mo in the red — money runs out in about ${shown} month${shown === 1 ? '' : 's'}. Raise taxes or cut upkeep.`,
       });
     }
   }

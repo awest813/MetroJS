@@ -1,5 +1,6 @@
 import type { Tool } from '../tools/Tool';
 import type { ToolController } from '../tools/ToolController';
+import { keyBelongsToField } from './keys';
 
 /** Rail groups, laid out two to a row: look/clear, roads, zones, services. */
 const TOOL_GROUPS: ReadonlyArray<ReadonlyArray<string>> = [
@@ -74,7 +75,7 @@ export class Toolbar {
     this._controller = controller;
 
     window.addEventListener('keydown', (event) => {
-      if (_isTypingTarget(event.target)) return;
+      if (keyBelongsToField(event)) return;
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       const tool = TOOL_KEYS[event.key.toLowerCase()];
       if (!tool) return;
@@ -147,10 +148,3 @@ export class Toolbar {
   }
 }
 
-function _isTypingTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    (target instanceof HTMLElement && target.isContentEditable)
-  );
-}

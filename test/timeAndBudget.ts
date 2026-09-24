@@ -4,6 +4,7 @@ import { SimulationClock } from '../openpublica/src/sim/SimulationClock';
 import { MONTH_SECONDS } from '../openpublica/src/data/constants';
 import { MAX_FRAME_SECONDS, simSecondsForFrame } from '../openpublica/src/ui/SpeedBar';
 import { formatRunway } from '../openpublica/src/ui/chromeCopy';
+import { keyBelongsToField } from '../openpublica/src/ui/keys';
 
 describe('calendar', () => {
   it('should count the days of each month across its 30 simulated seconds', () => {
@@ -73,5 +74,41 @@ describe('budget runway', () => {
     const b = sim.budget;
     expect(b.income).toBe(b.resIncome + b.comIncome + b.indIncome);
     expect(b.expenses).toBe(b.roadExpenses + b.serviceExpenses);
+  });
+});
+
+describe('shortcut keys and focused fields', () => {
+  // Jest runs in node: stand in minimal DOM element classes.
+  class FakeElement { isContentEditable = false; }
+  class FakeInput extends FakeElement { constructor(public type: string) { super(); } }
+  class FakeTextArea extends FakeElement {}
+  class FakeSelect extends FakeElement {}
+  const g = globalThis as Record<string, unknown>;
+  const names = ['HTMLElement', 'HTMLInputElement', 'HTMLTextAreaElement', 'HTMLSelectElement'];
+  beforeAll(() => {
+    g.HTMLElement = FakeElement;
+    g.HTMLInputElement = FakeInput;
+    g.HTMLTextAreaElement = FakeTextArea;
+    g.HTMLSelectElement = FakeSelect;
+  });
+  afterAll(() => { for (const n of names) delete g[n]; });
+  const press = (target: object | null, key: string): boolean =>
+    keyBelongsToField({ target: target as EventTarget | null, key });
+
+  it('should leave shortcuts working on a focused slider, except the keys that move it', () => {
+    const slider = new FakeInput('range');
+    expect(press(slider, 'r')).toBe(false);
+    expect(press(slider, 's')).toBe(false);
+    expect(press(slider, 'ArrowLeft')).toBe(true);
+    expect(press(slider, 'Home')).toBe(true);
+  });
+
+  it('should give every key to text fields and menus, and none to buttons or the page', () => {
+    expect(press(new FakeInput('text'), 'r')).toBe(true);
+    expect(press(new FakeTextArea(), 'r')).toBe(true);
+    expect(press(new FakeSelect(), 'r')).toBe(true);
+    expect(press(new FakeInput('button'), 'r')).toBe(false);
+    expect(press(new FakeElement(), 'r')).toBe(false);
+    expect(press(null, 'r')).toBe(false);
   });
 });

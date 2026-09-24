@@ -56,7 +56,6 @@ export class WeatherRenderer {
       window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
     this._rain = this._makeRain();
     this._snow = this._makeSnow();
-    this._attachSnow();
     this._apply();
   }
 
@@ -71,9 +70,10 @@ export class WeatherRenderer {
     this._apply();
   }
 
-  /** Roll in a month's weather (at once on load). */
+  /** Roll in a month's weather (at once on load). The same look again is a no-op. */
   setWeather(weather: Weather, instant = false): void {
     const next = weatherLook(weather);
+    if (!instant && sameLook(next, this._to)) return;
     if (instant) {
       this._from = next;
       this._t = 1;
@@ -110,6 +110,7 @@ export class WeatherRenderer {
   }
 
   private _apply(): void {
+    this._attachSnow();
     applyDaylight(this._lights, this._day, this._look);
     this._baseFill = this._lights.fill.intensity;
     for (const plugin of this._snowPlugins.values()) plugin.amount = this._look.snowCover;
@@ -236,6 +237,10 @@ export class WeatherRenderer {
     ps.emitRate = 0;
     return ps;
   }
+}
+
+function sameLook(a: WeatherLook, b: WeatherLook): boolean {
+  return a === b || JSON.stringify(a) === JSON.stringify(b);
 }
 
 /** A thin vertical streak, bright in the middle. */

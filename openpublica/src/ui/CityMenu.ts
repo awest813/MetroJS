@@ -1,4 +1,5 @@
 import { cityFileNote } from './chromeCopy';
+import { keyBelongsToField } from './keys';
 
 /**
  * Save / load / new city, with in-chrome confirms (no window.confirm).
@@ -135,7 +136,7 @@ export class CityMenu {
     });
 
     window.addEventListener('keydown', (event) => {
-      if (_isTypingTarget(event.target)) return;
+      if (keyBelongsToField(event)) return;
       if ((event.ctrlKey || event.metaKey) && (event.key === 's' || event.key === 'S')) {
         event.preventDefault();
         this._hideConfirms();
@@ -194,10 +195,3 @@ function _makeConfirm(message: string, okLabel: string): HTMLDivElement {
   return confirm;
 }
 
-function _isTypingTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    (target instanceof HTMLElement && target.isContentEditable)
-  );
-}

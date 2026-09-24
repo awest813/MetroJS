@@ -1,5 +1,6 @@
 import type { AudioBus } from '../audio/AudioBus';
 import { SETTINGS_SHORTCUTS } from './chromeCopy';
+import { keyBelongsToField } from './keys';
 import {
   type QualityLevel,
   readStoredQuality,
@@ -61,14 +62,7 @@ export class SettingsPanel {
     syncSound(handlers.audio.muted);
 
     window.addEventListener('keydown', (event) => {
-      const target = event.target;
-      if (
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        (target instanceof HTMLElement && target.isContentEditable)
-      ) {
-        return;
-      }
+      if (keyBelongsToField(event)) return;
       if (event.key === 'm' || event.key === 'M') {
         handlers.audio.unlock();
         handlers.audio.toggleMute();

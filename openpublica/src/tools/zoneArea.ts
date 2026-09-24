@@ -4,7 +4,7 @@ import type { TileCoord } from '../data/types';
 import type { CityMap } from '../sim/CityMap';
 import type { CitySim } from '../sim/CitySim';
 import { RoadType, TerrainType, ZoneType } from '../sim/CityTile';
-import { ROAD_STEPS, isLandRoad } from '../sim/roadConnections';
+import { ROAD_STEPS, bridgeProblem, isLandRoad } from '../sim/roadConnections';
 import { groveStrengths, isWooded } from '../sim/woods';
 import { ROAD_COST } from './RoadTool';
 import type { ZoneBrushTool } from './ZoneBrushTool';
@@ -58,6 +58,14 @@ function canPave(map: CityMap, x: number, y: number): boolean {
     tile.terrain !== TerrainType.Water &&
     tile.roadType === RoadType.None &&
     tile.buildingId === null;
+}
+
+/**
+ * A new street may go here and the road tool will build it: paveable, and not
+ * joining a bridge span from the side (bridges take no side streets).
+ */
+function canPaveStreet(map: CityMap, x: number, y: number): boolean {
+  return canPave(map, x, y) && bridgeProblem(map, x, y) === null;
 }
 
 /** A lot the area would zone: dry, no road, no building. */
@@ -186,7 +194,7 @@ function stubToNetwork(map: CityMap, rect: Rect, streets: readonly TileCoord[]):
           if (run.length > 0 && (!best || run.length < best.length)) best = run;
           break;
         }
-        if (step > MAX_STUB || !canPave(map, x, y)) break;
+        if (step > MAX_STUB || !canPaveStreet(map, x, y)) break;
         run.push({ x, y });
       }
     }
@@ -240,7 +248,7 @@ export function autoStreetLayout(map: CityMap, anchor: TileCoord, target: TileCo
     return n;
   };
 
-  const paveable = (tiles: TileCoord[]): TileCoord[] => tiles.filter((t) => canPave(map, t.x, t.y));
+  const paveable = (tiles: TileCoord[]): TileCoord[] => tiles.filter((t) => canPaveStreet(map, t.x, t.y));
 
   const bare = scoreLayout(map, rect, new Set());
   if (bare.unserved === 0) return [];

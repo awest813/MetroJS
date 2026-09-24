@@ -13,7 +13,10 @@ export interface WeatherLook {
   /** Colour the sky and fog blend toward, and how far. */
   readonly skyTint: Rgb;
   readonly skyBlend: number;
-  /** Linear fog range in world units (the map is 64 across). */
+  /**
+   * Linear fog range in world units (the map is 64 across, the default camera
+   * about 78 away). Only fog itself hides the city; rain and snow haze it.
+   */
   readonly fogStart: number;
   readonly fogEnd: number;
   /** Babylon shadow darkness: 0 black, 1 none. Overcast skies cast faint shadows. */
@@ -44,19 +47,19 @@ const LOOKS: Readonly<Record<WeatherKind, WeatherLook>> = {
   clear: CLEAR,
   cloudy: {
     ...CLEAR, sunScale: 0.62, fillScale: 1.05, skyTint: { r: 0.62, g: 0.66, b: 0.70 }, skyBlend: 0.45,
-    fogStart: 60, fogEnd: 200, shadowDarkness: 0.68,
+    fogStart: 65, fogEnd: 210, shadowDarkness: 0.68,
   },
   rain: {
     ...CLEAR, sunScale: 0.5, fillScale: 0.95, skyTint: { r: 0.50, g: 0.55, b: 0.60 }, skyBlend: 0.6,
-    fogStart: 40, fogEnd: 160, shadowDarkness: 0.78, rain: 0.7,
+    fogStart: 55, fogEnd: 190, shadowDarkness: 0.78, rain: 0.7,
   },
   storm: {
     ...CLEAR, sunScale: 0.36, fillScale: 0.85, skyTint: { r: 0.30, g: 0.33, b: 0.38 }, skyBlend: 0.72,
-    fogStart: 30, fogEnd: 130, shadowDarkness: 0.85, rain: 1, lightning: true,
+    fogStart: 45, fogEnd: 170, shadowDarkness: 0.85, rain: 1, lightning: true,
   },
   snow: {
     ...CLEAR, sunScale: 0.62, fillScale: 1.12, skyTint: { r: 0.80, g: 0.82, b: 0.86 }, skyBlend: 0.6,
-    fogStart: 35, fogEnd: 150, shadowDarkness: 0.7, snow: 0.8, snowCover: 0.8,
+    fogStart: 50, fogEnd: 180, shadowDarkness: 0.7, snow: 0.8, snowCover: 0.8,
   },
   fog: {
     ...CLEAR, sunScale: 0.55, skyTint: { r: 0.74, g: 0.76, b: 0.78 }, skyBlend: 0.75,
@@ -64,7 +67,7 @@ const LOOKS: Readonly<Record<WeatherKind, WeatherLook>> = {
   },
   heat: {
     ...CLEAR, sunScale: 1.1, skyTint: { r: 0.88, g: 0.80, b: 0.64 }, skyBlend: 0.22,
-    fogStart: 55, fogEnd: 190, shadowDarkness: 0.34,
+    fogStart: 60, fogEnd: 200, shadowDarkness: 0.34,
   },
 };
 

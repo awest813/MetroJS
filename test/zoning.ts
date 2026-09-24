@@ -250,6 +250,18 @@ describe('streets through big zones', () => {
     }
   });
 
+  it('should not plan a side street onto a bridge span', () => {
+    const sim = makeSim();
+    // A north–south bridge on x = 8 across a channel.
+    sim.batch(() => {
+      for (let y = 0; y < 24; y++) sim.getTile(8, y)!.terrain = TerrainType.Water;
+      for (let y = 0; y < 24; y++) sim.placeRoad(8, y, RoadType.Street);
+    });
+    const streets = autoStreetLayout(sim.map, { x: 2, y: 2 }, { x: 7, y: 13 });
+    expect(streets.length).toBeGreaterThan(0);
+    for (const t of streets) expect(t.x).toBeLessThan(7);
+  });
+
   it('should say how many wooded tiles the area clears', () => {
     const sim = makeSim(32);
     const a = { x: 0, y: 0 };

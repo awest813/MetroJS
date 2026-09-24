@@ -102,6 +102,20 @@ describe('weather in the sim', () => {
     }
   });
 
+  it('should announce new weather only when it changes', () => {
+    const sim = CitySim.createCity(8, 8, 314);
+    let calls = 0;
+    sim.onWeatherChanged = () => { calls += 1; };
+    let changes = 0;
+    for (let m = 0; m < 36; m++) {
+      const a = weatherFor(314, m);
+      const b = weatherFor(314, m + 1);
+      if (a.kind !== b.kind || a.temperature !== b.temperature) changes += 1;
+      sim.tick(MONTH_SECONDS);
+    }
+    expect(calls).toBe(changes);
+  });
+
   it('should load a heatwave onto power and water, and snow onto power', () => {
     const clear = underWeather('clear');
     const heat = underWeather('heat');

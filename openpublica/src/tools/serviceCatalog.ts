@@ -115,7 +115,8 @@ function formatNetwork(kind: 'power' | 'water', network: NetworkInfo | null | un
   const source = kind === 'power' ? 'plant' : 'tower';
   const lots = `${network.served} lot${network.served === 1 ? '' : 's'}`;
   const short = network.shortfall > 0 ? ` · ${network.shortfall} short — add a ${source} on this grid` : '';
-  return `${kind} grid ${network.load}/${network.supply} load · feeds ${lots}${short}`;
+  // Weather scales each lot's load, so the sum can be fractional.
+  return `${kind} grid ${Math.round(network.load)}/${network.supply} load · feeds ${lots}${short}`;
 }
 
 /**

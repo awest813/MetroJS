@@ -62,6 +62,22 @@ import {
 /** Lots a utility network reaches but cannot serve. */
 const SHORT_TINT = { r: 0.95, g: 0.25, b: 0.2 };
 
+/** The box around every road and building, or null on an empty map. */
+function developedBounds(sim: CitySim): { x0: number; y0: number; x1: number; y1: number } | null {
+  let box: { x0: number; y0: number; x1: number; y1: number } | null = null;
+  sim.map.forEach((tile) => {
+    if (tile.roadType === RoadType.None && tile.buildingId === null) return;
+    if (!box) box = { x0: tile.x, y0: tile.y, x1: tile.x, y1: tile.y };
+    else {
+      box.x0 = Math.min(box.x0, tile.x);
+      box.y0 = Math.min(box.y0, tile.y);
+      box.x1 = Math.max(box.x1, tile.x);
+      box.y1 = Math.max(box.y1, tile.y);
+    }
+  });
+  return box;
+}
+
 /** A new city on a random map. */
 function freshCity(): CitySim {
   const terrainSeed = (Math.random() * 0x7fffffff) | 0;
@@ -477,6 +493,13 @@ export class App {
     });
     if (testCity) {
       view.rebuildAll(sim);
+      weatherView.setWeather(sim.weather, true); // snow onto the rebuilt ground at once
+      const built = developedBounds(sim);
+      if (built) {
+        const cx = Math.round((built.x0 + built.x1) / 2);
+        const cy = Math.round((built.y0 + built.y1) / 2);
+        cameraController.frameArea(built.x0, built.y0, built.x1, built.y1, view.surfaceY(cx, cy));
+      }
       hud.update(sim.stats, sim.clock, sim);
       budgetPanel.update(sim.stats, sim.budget);
       budgetPanel.syncTaxSliders(sim.stats);

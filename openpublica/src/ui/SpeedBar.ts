@@ -1,3 +1,5 @@
+import { keyBelongsToField } from './keys';
+
 export type SimSpeed = 0 | 1 | 2 | 4;
 
 /**
@@ -63,14 +65,7 @@ export class SpeedBar {
     this._sync();
 
     window.addEventListener('keydown', (event) => {
-      const target = event.target;
-      if (
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        (target instanceof HTMLElement && target.isContentEditable)
-      ) {
-        return;
-      }
+      if (keyBelongsToField(event)) return;
       if (event.key === 'p' || event.key === 'P') {
         this.setSpeed(this._speed === 0 ? this._resume : 0);
         return;

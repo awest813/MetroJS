@@ -111,7 +111,7 @@ mouse. This slice names the traffic, transit, and service fields it changes.
 | E3 Road tools | Highway / trolley paint upgrades streets; nothing downgrades a highway or trolley line without a bulldoze, so crossing strokes leave intersections. Failure copy names the reason. |
 | E4 Services on roads | Police and fire (`roadDispatch`) need power **and** a street; reach is `policeRadius` / `fireRadius` = 14 road steps (highways ½ step, lots up to 2 tiles off the curb, never across water). Placement preview paints reachable tiles, not a disc. Advisory flags stations with no street. |
 | E5 Transit | Only trolley lines of `MIN_TROLLEY_LINE_TILES` (4) connected tiles radiate transit; the renderer runs one trolley per 8 line tiles on those lines only. |
-| E6 Bridges | A road on water is a bridge (no save change: water terrain + road type). Straight spans only: no turns, junctions, or side streets over water. 5× build cost, 3× upkeep, no driveways. Level decks between abutments (never below water + 0.2) with railings, girders, and piers; overlay, cursor, and cars sit on the deck. Budget shows "Roads now". |
+| E6 Bridges | A road on water is a bridge (no save change: water terrain + road type). Straight spans only: no turns, junctions, or side streets over water. 5× build cost, 3× upkeep, no driveways. Level decks between abutments (never below water + 0.2) with railings, girders, and piers; overlay, cursor, and cars sit on the deck. Budget shows road upkeep, bridges included. |
 
 **Exit:** Adding a parallel street visibly lowers a jammed street's pressure; a
 fire station across an unbridged river covers nothing there until a bridge is
@@ -283,7 +283,7 @@ Building them turned up six sim faults, now fixed:
 | Density saturated at 100 on any street of small houses (6 per resident over radius 4), so crime ran 69–85 before police and the first village churned (population 96 → 28 → 80) | hamlet | 2 per resident: a street of houses settles near 50 (crime about 40, under the stress line of 50); rowhouse and main-street blocks still reach 100 and need police |
 | Demand at 0 stressed every building of a zone at once, so the whole town left in the same month (128 → 0) and regrew from starter demand | hamlet | Demand alone thins a zone by 5% a month (at least one), least valued first; a town settles where its jobs are. Power, road, smog, and crime still drive buildings out on their own |
 | Factories counted their own smog: each workshop fouled its neighbours past 60 and the district emptied and regrew (17 → 7 → 15 workshops) | troubled | Smog stresses and blocks homes and shops, not industry (58 workshops hold) |
-| The street between two rows of small houses, the plat the zone tool lays, read 13 traffic (jammed at 8); every real city sat near 0 happiness and had no street trees | metro | Trip rates 0.3 rounded up per house, 4 per shop, 6 per workshop → 0.15 per resident, 2, 3: small houses 4, rowhouses 8, shops on both sides 13. Happiness loses 80 × the jammed share of roads (short networks count as 20) instead of 2 per jammed tile. Metro 0 → 91 |
+| The street between two rows of small houses, the plat the zone tool lays, read 13 traffic (jammed at 8); every real city sat near 0 happiness and had no street trees | metro | Trip rates 0.3 rounded up per house, 4 per shop, 6 per workshop → 0.15 per resident, 2, 3: small houses 4, rowhouses 8, shops on both sides 13. Happiness loses 80 × the jammed share of roads (short networks count as 20) instead of 2 per jammed tile. Metro 0 → about 90 |
 | A zone area drawn a tile or two off a road laid an island street grid, and its houses stayed dark | riverside | The grid lays a straight stub of up to 4 tiles to the nearest road (never a bridge) when it would not otherwise join one |
 | Month end published power load and the census from before buildings left, so the HUD disagreed with a reload of the same city (load 202 vs 194) | every save round trip | Power and the census are refreshed at month end |
 
@@ -336,6 +336,22 @@ storms flash (not with reduced motion) and thunder; rain hisses. Low quality
 drops the falling rain and snow and the lightning. Reloading no longer leaks
 a terrain material.
 
+### Audit of the branch **shipped**
+
+A review of every pass on this branch (roads through weather) turned up:
+
+| Fault | Fix |
+|---|---|
+| After dragging a tax or sun slider it kept focus, and every shortcut handler treated any input as a text field: R, P, M, the speed keys, and Ctrl+S did nothing until you clicked elsewhere | One `ui/keys.keyBelongsToField` for all handlers: text fields and menus keep every key, a slider keeps only the keys that move it (so Home still frames the camera, not the tax to 0%) |
+| In a heatwave or snow, hovering a plant printed its load unrounded ("48.300000000000004/400") | Rounded |
+| The deficit advisory could say "about 1 months" | Singular |
+| Every month re-ran a three-second weather transition, even into the same look | Only a changed look rolls in; the sim announces weather only when it changes |
+| A deep zone area beside a bridge planned side streets onto the span, which the road tool then refused | Planned streets and stubs skip tiles that would branch off a bridge |
+| Test cities opened framed on the whole map, the town a speck at one edge | Framed on the town; Home still frames the map |
+| Snow reached a test city's rebuilt ground up to two seconds late | Laid at once |
+| Rain, storms, and snow fogged the city at the default camera distance | Their fog starts past the default distance; only Fog hides the city |
+| Docs said Budget shows "Roads now" and that plants and towers show a coverage disc | Corrected |
+
 ---
 
 ## 4. Explicitly still out of scope (Phase I)
@@ -374,7 +390,7 @@ GLB (C4) and SSAO (C5) stay optional. C3 skirt is optional.
 - Network tab still has no `tiles.png` / `sprites/`.
 - Play: grow a city, toggle Smog, Frame, Save/Load, mute, Dawn/Dusk.
 - First minutes: Road is selected; HUD coach steps street → lots → plant; fire/water nags wait until population 40.
-- Services: hover a plant/park/tower to see its coverage disc, or a police/fire tool over a lot to see the streets it reaches; Budget lists civic and road upkeep; water raises land value on covered lots.
+- Services: hover a park to see its coverage disc, a plant or tower to see the network it feeds, or a police/fire tool over a lot to see the streets it reaches; Budget lists civic and road upkeep; water raises land value on covered lots.
 - Roads: drag a street straight across a river (status names the bridge tiles), drag one across a highway (the highway stays), and watch Traffic drop on a jammed street after a parallel street is joined up.
 - Water: from an angled camera, hover the edge of a bridge deck (the cursor sits on the deck); beach lots show dry ground to the water's edge; Value shows the waterfront premium.
 - Terrain: drag a street across a hillside (the ground levels under it, no grass through the deck); hills shade with the sun at Dawn/Dusk; tilt the camera low at the map edge to see the skirt.

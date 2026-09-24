@@ -5,6 +5,7 @@ import {
   Vector3,
 } from '@babylonjs/core';
 import { MAP_SIZE } from '../data/constants';
+import { keyBelongsToField } from '../ui/keys';
 
 /** Named camera presets (keys 1 / 2 / 3). */
 export type CameraViewMode = 'iso' | 'top' | 'orbit';
@@ -68,13 +69,8 @@ export class CameraController {
     this._configurePointers();
     this.applyPreset('iso');
 
-    const isTypingTarget = (target: EventTarget | null): boolean =>
-      target instanceof HTMLInputElement ||
-      target instanceof HTMLTextAreaElement ||
-      (target instanceof HTMLElement && target.isContentEditable);
-
     window.addEventListener('keydown', (event) => {
-      if (isTypingTarget(event.target)) return;
+      if (keyBelongsToField(event)) return;
 
       if (event.code === 'Space') {
         event.preventDefault();
@@ -185,6 +181,13 @@ export class CameraController {
   /** Pan the look-at point to a tile without changing orbit angles. */
   lookAtTile(x: number, y: number, groundY = 0): void {
     this.camera.setTarget(new Vector3(x + 0.5, groundY, y + 0.5));
+  }
+
+  /** Centre on a block of tiles and pull back far enough to see it (Home still frames the map). */
+  frameArea(x0: number, y0: number, x1: number, y1: number, groundY = 0): void {
+    this.camera.setTarget(new Vector3((x0 + x1 + 1) / 2, groundY, (y0 + y1 + 1) / 2));
+    const span = Math.max(x1 - x0 + 1, y1 - y0 + 1);
+    this.camera.radius = Math.max(24, Math.min(this.camera.upperRadiusLimit ?? 90, span * 1.5));
   }
 
   private _configurePointers(): void {

@@ -17,7 +17,7 @@ export const TROLLEY_AVENUE_COST = ROAD_COST[RoadType.TrolleyAvenue];
  * Paints `RoadType.TrolleyAvenue`, upgrading streets it crosses. A line needs
  * a few connected tiles before a trolley runs it (see TransitSystem).
  *
- * Monthly maintenance ($5/tile) is handled separately by EconomySystem.
+ * Monthly maintenance ($8/tile) is handled separately by EconomySystem.
  */
 export class TrolleyAvenueTool extends RoadTool {
   constructor() {

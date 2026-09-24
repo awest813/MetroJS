@@ -596,6 +596,7 @@ export class CitySim {
   tick(deltaSeconds: number): void {
     const changedTiles: Array<{ x: number; y: number }> = [];
     this._syncWeather();
+    const weatherBefore = this._weather;
     const startMonth = this.clock.monthsPassed;
     let monthsDone = 0;
     const month = this.growth.tick(
@@ -626,7 +627,9 @@ export class CitySim {
     this.growth.recomputeCensus(this.stats, this.map);
     // Growth used last month's smog. Publish this month's traffic before the HUD.
     this._syncPublishedState(true, true);
-    if (this.onWeatherChanged) this.onWeatherChanged();
+    const w = this._weather;
+    const newWeather = w.kind !== weatherBefore.kind || w.temperature !== weatherBefore.temperature;
+    if (newWeather && this.onWeatherChanged) this.onWeatherChanged();
     if (this.onMonth) this.onMonth();
     if (this.onPowerChanged) this.onPowerChanged();
     if (this.onLandValueChanged) this.onLandValueChanged();
