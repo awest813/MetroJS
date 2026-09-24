@@ -15,9 +15,8 @@ checked against five scripted test cities (Gap N). The first audit's four
 open items (city health, honest feedback, PBR/sky, the `App.ts` split) have
 all shipped. What is left (section 5) is depth, not missing systems:
 
-1. **Industry** has one building and a flat demand target, so factories never densify.
-2. **Budget levers** stop at taxes: no bonds or service funding when in the red.
-3. **Presentation** extras stay optional (GLB kits, SSAO).
+1. **Growth past the grid**: a city keeps growing once its plants are at capacity, so the newest lots go dark and leave, and the next ones grow dark in turn.
+2. **Presentation** extras stay optional (GLB kits, SSAO).
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
 
@@ -275,11 +274,11 @@ from the New confirm; `test/testCities.ts` builds each and checks it.
 
 | City | Seed, budget, time | What it shows | Where it ends |
 |---|---|---|---|
-| `hamlet` | 11, $10,000, 2 years | The first hours: a crossroads, shops, a few factories, one plant past town, woods all round | 104 people, 70 jobs, power 174/400, treasury $15k |
-| `riverside` | 2026, $40,000, 2½ years | A street bridge and a highway bridge; the plants are all on the north bank and light the far one across the bridge; shore lots, a bridgehead park, a far-bank tower, factories across the lake | 308 people, both banks lit, waterfront valued above inland, the south bank's commuters on the street bridge |
-| `metro` | 7, $120,000, 4 years in 3 phases | Zone areas with looped auto streets, a highway, a trolley line crossing it at grade, downtown, mixed use, industry, six plants, four towers, police, fire, parks, a downtown of office blocks | 1,014 people, 705 jobs, power 1743/2400, one 36-tile trolley line, 5 dead ends (all scripted road ends) |
+| `hamlet` | 11, $10,000, 2 years | The first hours: a crossroads, shops, a few factories, one plant past town, woods all round | 140 people, 120 jobs (its workshops grown into factories), power 260/400, treasury $17k |
+| `riverside` | 2026, $40,000, 2½ years | A street bridge and a highway bridge; the plants are all on the north bank and light the far one across the bridge; shore lots, a bridgehead park, a far-bank tower, factories across the lake | 460 people, 468 jobs (works along the highway), both banks lit by three north-bank plants, waterfront valued above inland, the south bank's commuters on the street bridge |
+| `metro` | 7, $120,000, 4 years in 3 phases | Zone areas with looped auto streets, a highway, a trolley line crossing it at grade, downtown, mixed use, industry, six plants, four towers, police, fire, parks, a downtown of office blocks | 1,070 people, 981 jobs, power 2075/2400, one 36-tile trolley line, 5 dead ends (all scripted road ends) |
 | `troubled` | 101, $30,000, 3 years | Blocks four lots deep, a plant among the houses, factories next door, no police, a tower with no street, a police station on a dark street, taxes raised to 16/14/14 | 150 lots with no road, power 399/400 with dark houses, approval 0 |
-| `sprawl` | 314, $60,000, 3½ years | A highway across the map with cul-de-sacs, a shopping strip, an industrial park; one plant at the west end until month 30 | Before the second plant the dark lots are the far (east) ones; after it all are lit; water 597/600 |
+| `sprawl` | 314, $60,000, 3½ years | A highway across the map with cul-de-sacs, a shopping strip, an industrial park; one plant at the west end until month 30, a second at the far end, a third at month 36 as the park turns into factories | Before the second plant the dark lots are the far (east) ones; after the third all are lit, then the city grows into it (616 people, power 1198/1200) |
 
 Building them turned up six sim faults, now fixed:
 
@@ -444,6 +443,53 @@ street it shortens.
 south bank to work, and cars shuttle across it. A street between homes and
 far-off jobs is busy along its whole length, not just at either end.
 
+### Gap V — Industry grows **shipped**
+
+Industrial demand drifted back to 20 every month whatever the city needed,
+industry had one 5-job building, and three of five test cities ended with
+houses emptying for want of work (Metro: 1,014 people, 705 jobs). Industry's
+own smog keeps its land value near 0, so the land-value bars that grow homes
+and shops could never grow a factory.
+
+| Slice | What shipped |
+|---|---|
+| V1 Demand | `nextIndustrialDemand`: demand heads for a target of 20 plus 2 points per percent of residents without a job (10% idle → 40, 20% → 60), taxes moving the target 4 a point. It rises 4 a month and falls 8, so it chases unemployment without running away: a flat +4 while anyone lacked a job drove every workshop into a factory and overshot jobs past residents. |
+| V2 Tiers | Factory (12 jobs, sawtooth roof, two stacks) and Industrial Works (24 jobs, hall, tank, conveyor, tall stack). `industrialTier` / `lotTier`: industry grows on demand, not land value — a factory needs the mid bar (35), and works need the top bar (60) and a highway within `FREIGHT_REACH` (3 tiles) for their freight, so heavy industry lines highways. More jobs mean more power, water, traffic, and smog, all through the existing systems. |
+
+| City | People, jobs before | After |
+|---|---|---|
+| Hamlet | 104, 70 | 140, 120 (8 factories, no highway so no works; smog 41 trips the smog advisory) |
+| Riverside | 308, 220 | 460, 468 (11 factories, 9 works on the highway) |
+| Metro | 1,014, 705 | 1,070, 981 (35 factories; jammed roads 73 → 86, happiness 84 → 81) |
+| Sprawl | 404, 342 | 616, 604 (34 factories) |
+
+Riverside and Sprawl outgrew their plants, as a player's city would: each
+script adds a plant (Riverside a third on the north bank; Sprawl a third at
+month 36, after its second has lit the far end).
+
+**Exit:** In `?city=riverside` the industrial strip along the highway is
+works and factories; Hamlet's, with no highway, stops at factories.
+
+### Gap W — Budget levers **shipped**
+
+In the red, the only lever was taxes. `budgetLevers.ts` adds three more,
+all in Budget:
+
+| Lever | What it does |
+|---|---|
+| Safety funding (50–120%) | Police and fire upkeep and reach scale together (`fundedReach`: 14 road steps at 100%, 7 at 50%, 17 at 120%). The placement preview and hints show the funded reach. |
+| Road funding (50–100%) | Road upkeep (bridges and snow included) scales down, but worn roads carry less: traffic × `roadWearFactor` (1.5 at half funding). |
+| Bonds | $10,000 now, repaid as $12,000 over 24 months ($500/mo), up to 3 at once. Repayments are their own Budget row and count in the net and the runway. |
+
+Plants and water towers always run at full cost. Levers are saved (`levers`
+in the save; older saves load at full funding with no bonds). The bankrupt
+advisory points to a bond; the deficit one to taxes or funding (a bond only
+delays a deficit). Measured in the browser on Metro: safety at 70% cuts its
+cost $240 → $168; roads at 80% cut $1,519 → $1,215.
+
+**Exit:** Borrow in Budget and the treasury rises $10,000 with a $500/mo
+repayment line; cut Safety and the police preview shrinks.
+
 ---
 
 ## 4. Explicitly still out of scope (Phase I)
@@ -465,11 +511,10 @@ Unchanged from the 3D plan:
 The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped. Next, each found by
 the test cities or the audits and small enough for one PR:
 
-1. **Industry that grows.** Industrial demand only drifts back to 20 each month, so it never reaches the 35 needed for a bigger building, and industry has one building anyway. Drive it from the jobs the city lacks (as housing demand reads jobs) and add a factory tier. Measure with Troubled and Metro.
-2. **Budget levers.** When the budget is in the red the only lever is taxes. Add service funding (coverage and upkeep scale together) or a small bond with interest, shown in Budget.
-3. **Buildings that shrink with land value.** An office block keeps its size after its own traffic wears the land value down (Metro has one on land worth 37). Let the top tier step down when value stays under its bar.
-4. **Faster scenario tests.** The five test cities add about 20 s to Jest. Build each once per run (already cached per file) and consider a separate job for the long builds.
-5. **GLB kits (C4) and SSAO (C5)** stay optional; SSAO only after a filled-city frame-time check on High quality.
+1. **Grow within the grid.** A city keeps growing when its plants are at capacity: Sprawl grows into each new plant within months, then its newest lots go dark and leave (population 344 → 157 → 543 around its second plant). Hold new growth on a network whose supply is used up, as the lot hint already tells the player.
+2. **Buildings that shrink with land value.** An office block keeps its size after its own traffic wears the land value down. Let the top tier step down when value stays under its bar (and works when demand stays low).
+3. **Faster scenario tests.** The five test cities add about 20 s to Jest. Build each once per run (already cached per file) and consider a separate job for the long builds.
+4. **GLB kits (C4) and SSAO (C5)** stay optional; SSAO only after a filled-city frame-time check on High quality.
 
 ---
 
@@ -484,6 +529,7 @@ the test cities or the audits and small enough for one PR:
 - Roads: drag a street straight across a river (status names the bridge tiles), drag one across a highway (the highway stays), and watch Traffic drop on a jammed street after a parallel street is joined up. Drag a highway over a street (the preview charges $15 a tile for the upgrade).
 - Transit: in `?city=metro`, trolleys cross the highway at (44, 18) on rails set into it; Inspect there says level crossing and shows transit 100. Zone a big area in the open and its streets close into loops.
 - Commutes: in `?city=riverside` open Traffic and find the street bridge carrying the south bank's commuters; lay a long street between a row of houses and a block of shops and it reads busy along its whole length.
+- Industry and budget: in `?city=riverside` the highway's industrial strip is works and factories. In Budget, Borrow $10k adds $10,000 and a $500/mo repayment row; Safety at 70% shrinks a police station's placement preview; Roads at 80% cut road upkeep and raise Traffic.
 - Water: from an angled camera, hover the edge of a bridge deck (the cursor sits on the deck); beach lots show dry ground to the water's edge; Value shows the waterfront premium.
 - Terrain: drag a street across a hillside (the ground levels under it, no grass through the deck); hills shade with the sun at Dawn/Dusk; tilt the camera low at the map edge to see the skirt.
 - Placement: with Road, drag an L across a lake so it turns on the water (blue bridge tiles, the turn tile red, status gives cost and bridges), press Esc before releasing (nothing is built), then release a line on land; Shift-drag paints freehand; hover water with a zone brush (red cursor); shops along a street face it; cars curve through corners.

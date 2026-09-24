@@ -6,6 +6,7 @@ import type { CityStats } from './CitySim';
 import { RoadType, ZoneType, TerrainType } from './CityTile';
 import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
+import { bondPayments, payBonds, type Bond } from './budgetLevers';
 
 // ── Named constants ────────────────────────────────────────────────────────
 
@@ -92,8 +93,10 @@ const SERVICE_BUILDING_MONTHLY_COST = 50;
  *                 + highwayTileCount  × HIGHWAY_MAINTENANCE_PER_TILE
  *                 + trolleyTileCount  × TROLLEY_MAINTENANCE_PER_TILE
  *                 + (bridge tiles pay × BRIDGE_UPKEEP_MULTIPLIER)
- *                 + sum(service.monthlyCost)
+ *                 + sum(service.monthlyCost)   (police and fire × funding)
+ *                 + bond payments
  * ```
+ * Road upkeep is scaled by road funding as well as the weather.
  *
  * ## Treasury update
  * ```
@@ -104,14 +107,46 @@ const SERVICE_BUILDING_MONTHLY_COST = 50;
 export function serviceUpkeep(
   buildings: ReadonlyMap<string, BuildingInstance>,
   defs: ReadonlyMap<string, BuildingDef>,
+  /** Police and fire funding, percent: their stations cost this share of full upkeep. */
+  safetyFunding = 100,
 ): number {
   let total = 0;
   for (const instance of buildings.values()) {
     const def = defs.get(instance.defId);
-    if (def?.isService) total += def.monthlyCost ?? SERVICE_BUILDING_MONTHLY_COST;
+    if (!def?.isService) continue;
+    const cost = def.monthlyCost ?? SERVICE_BUILDING_MONTHLY_COST;
+    total += def.policeRadius || def.fireRadius ? cost * safetyFunding / 100 : cost;
   }
-  return total;
+  return Math.round(total);
 }
+
+/** Police and fire station upkeep alone, at this funding. */
+export function safetyUpkeep(
+  buildings: ReadonlyMap<string, BuildingInstance>,
+  defs: ReadonlyMap<string, BuildingDef>,
+  safetyFunding = 100,
+): number {
+  let total = 0;
+  for (const instance of buildings.values()) {
+    const def = defs.get(instance.defId);
+    if (def?.isService && (def.policeRadius || def.fireRadius)) {
+      total += (def.monthlyCost ?? SERVICE_BUILDING_MONTHLY_COST) * safetyFunding / 100;
+    }
+  }
+  return Math.round(total);
+}
+
+/** The budget levers beyond taxes (see `budgetLevers.ts`). */
+export interface BudgetLevers {
+  /** Police and fire funding, percent. */
+  readonly safetyFunding: number;
+  /** Road upkeep funding, percent. */
+  readonly roadFunding: number;
+  /** Bonds being repaid. */
+  readonly bonds: readonly Bond[];
+}
+
+export const FULL_FUNDING: BudgetLevers = { safetyFunding: 100, roadFunding: 100, bonds: [] };
 
 /** One month of tax take and upkeep, without charging the treasury. */
 export interface BudgetTally {
@@ -125,6 +160,10 @@ export interface BudgetTally {
   /** The part of `roadExpenses` the month's weather adds (snow clearing). */
   weatherRoadExpenses: number;
   serviceExpenses: number;
+  /** The part of `serviceExpenses` that is police and fire (scaled by their funding). */
+  safetyExpenses: number;
+  /** Bond repayments due. */
+  bondExpenses: number;
   expenses: number;
 }
 
@@ -139,6 +178,7 @@ export function tallyBudget(
   stats: CityStats,
   /** Weather multiplier on road upkeep (snow makes it dearer). */
   roadUpkeepFactor = 1,
+  levers: BudgetLevers = FULL_FUNDING,
 ): BudgetTally {
   let comJobs = 0;
   let indJobs = 0;
@@ -151,7 +191,8 @@ export function tallyBudget(
     if (def.zoneType === ZoneType.Industrial) indJobs += def.jobs;
   }
 
-  const serviceExpenses = serviceUpkeep(buildings, defs);
+  const serviceExpenses = serviceUpkeep(buildings, defs, levers.safetyFunding);
+  const safetyExpenses = safetyUpkeep(buildings, defs, levers.safetyFunding);
 
   const resIncome = Math.floor(stats.population * stats.resTaxRate * RES_INCOME_PER_PERSON_PER_PCT);
   const comIncome = Math.floor(comJobs * stats.comTaxRate * COM_INCOME_PER_JOB_PER_PCT);
@@ -161,8 +202,10 @@ export function tallyBudget(
   map.forEach((tile) => {
     roadUpkeepTotal += roadUpkeep(tile.roadType, tile.terrain === TerrainType.Water);
   });
-  const baseRoads = Math.floor(roadUpkeepTotal);
-  const roadExpenses = Math.floor(roadUpkeepTotal * Math.max(1, roadUpkeepFactor));
+  const funded = roadUpkeepTotal * levers.roadFunding / 100;
+  const baseRoads = Math.floor(funded);
+  const roadExpenses = Math.floor(funded * Math.max(1, roadUpkeepFactor));
+  const bondExpenses = bondPayments(levers.bonds);
 
   return {
     income: resIncome + comIncome + indIncome,
@@ -172,13 +215,24 @@ export function tallyBudget(
     roadExpenses,
     weatherRoadExpenses: roadExpenses - baseRoads,
     serviceExpenses,
-    expenses: roadExpenses + serviceExpenses,
+    safetyExpenses,
+    bondExpenses,
+    expenses: roadExpenses + serviceExpenses + bondExpenses,
   };
 }
 
-export class EconomySystem {
+export class EconomySystem implements BudgetLevers {
   /** Weather multiplier on road upkeep (snow clearing). */
   roadUpkeepFactor = 1;
+
+  /** Police and fire funding, percent (set through `CitySim.setSafetyFunding`). */
+  safetyFunding = 100;
+
+  /** Road upkeep funding, percent (set through `CitySim.setRoadFunding`). */
+  roadFunding = 100;
+
+  /** Bonds being repaid, paid down at each month end. */
+  readonly bonds: Bond[] = [];
 
   /**
    * Run one monthly budget cycle.
@@ -197,7 +251,8 @@ export class EconomySystem {
     defs: ReadonlyMap<string, BuildingDef>,
     stats: CityStats,
   ): void {
-    const tally = tallyBudget(map, buildings, defs, stats, this.roadUpkeepFactor);
+    const tally = tallyBudget(map, buildings, defs, stats, this.roadUpkeepFactor, this);
+    payBonds(this.bonds);
 
     stats.monthlyIncome     = tally.income;
     stats.serviceExpenses   = tally.serviceExpenses;

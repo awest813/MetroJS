@@ -1,6 +1,7 @@
 // ⚠️  This file must NOT import anything from @babylonjs/core.
 
 import type { BuildingDef } from '../sim/BuildingDef';
+import { fundedReach } from '../sim/budgetLevers';
 import { PlaceServiceTool } from './PlaceServiceTool';
 
 export type ServiceCoverage = 'power' | 'police' | 'fire' | 'water' | 'park';
@@ -93,13 +94,15 @@ export function serviceSpecForDef(defId: string): ServiceSpec | undefined {
   return BY_DEF.get(defId);
 }
 
-/** Reach of a disc or dispatch service (parks, police, fire); utilities run along streets instead. */
-export function serviceRadius(def: BuildingDef | undefined): number {
+/**
+ * Reach of a disc or dispatch service (parks, police, fire); utilities run
+ * along streets instead. Police and fire reach scales with their funding.
+ */
+export function serviceRadius(def: BuildingDef | undefined, safetyFunding = 100): number {
   if (!def) return 0;
-  return def.policeRadius
-    || def.fireRadius
-    || def.parkRadius
-    || 0;
+  const dispatch = def.policeRadius || def.fireRadius;
+  if (dispatch) return fundedReach(dispatch, safetyFunding);
+  return def.parkRadius || 0;
 }
 
 /** Supply and use of the utility network a plant or tower feeds. */
@@ -129,6 +132,7 @@ export function formatServiceHint(
   powered: boolean,
   hasRoad = true,
   network?: NetworkInfo | null,
+  safetyFunding = 100,
 ): string | null {
   if (!def) return null;
   if (def.powerCapacity) {
@@ -140,13 +144,14 @@ export function formatServiceHint(
     if (!powered) return 'dark — the tower pumps once a powered street reaches it';
     return formatNetwork('water', network);
   }
-  const radius = serviceRadius(def);
+  const radius = serviceRadius(def, safetyFunding);
   if (radius <= 0) return null;
   if (def.parkRadius) return `park radius ${radius}`;
   const kind = def.policeRadius ? 'police' : 'fire';
   if (!hasRoad) return `no street — ${kind} crews can't drive out until one touches this lot`;
   if (!powered) return `dark — ${kind} coverage off until powered`;
-  return `${kind} reach ${radius} road tiles`;
+  const funding = safetyFunding === 100 ? '' : ` at ${safetyFunding}% funding`;
+  return `${kind} reach ${radius} road tiles${funding}`;
 }
 
 export function createServiceTools(): PlaceServiceTool[] {

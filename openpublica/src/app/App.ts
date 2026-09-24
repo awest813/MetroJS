@@ -22,7 +22,8 @@ import { Toolbar } from '../ui/Toolbar';
 import { OverlayBar } from '../ui/OverlayBar';
 import { CameraBar } from '../ui/CameraBar';
 import { CityHUD } from '../ui/CityHUD';
-import { BudgetPanel } from '../ui/BudgetPanel';
+import { BudgetPanel, formatBonds } from '../ui/BudgetPanel';
+import { BOND_AMOUNT } from '../sim/budgetLevers';
 import { formatInspectStatus } from '../ui/inspectStatus';
 import { SpeedBar, simSecondsForFrame, type SimSpeed } from '../ui/SpeedBar';
 import { LookPanel } from '../ui/LookPanel';
@@ -211,7 +212,7 @@ export class App {
     cameraController.onModeChange(() => redrawLook());
     const roadLineMode = new RoadLineMode(sim, toolController, (tool, summary, path) => {
       hud.update(sim.stats, sim.clock, sim);
-      budgetPanel.update(sim.stats, sim.budget);
+      budgetPanel.update(sim.stats, sim.budget, sim.levers);
       if (summary.applied === 0) {
         audio.play(FAIL_VOICE, 'fail');
         statusEl.textContent = path.length === 1
@@ -225,7 +226,7 @@ export class App {
     });
     const zoneAreaMode = new ZoneAreaMode(sim, toolController, (tool, summary, plan, anchor, target) => {
       hud.update(sim.stats, sim.clock, sim);
-      budgetPanel.update(sim.stats, sim.budget);
+      budgetPanel.update(sim.stats, sim.budget, sim.levers);
       if (summary.applied === 0) {
         audio.play(FAIL_VOICE, 'fail');
         statusEl.textContent = anchor.x === target.x && anchor.y === target.y
@@ -292,7 +293,7 @@ export class App {
         })));
         return;
       }
-      const radius = serviceRadius(def);
+      const radius = serviceRadius(def, sim.levers.safetyFunding);
       if (spec.dispatch) {
         view.previewDispatch(coord.x, coord.y, radius, spec.preview);
       } else {
@@ -411,10 +412,10 @@ export class App {
     });
 
     const budgetPanel = new BudgetPanel(budgetEl);
-    budgetPanel.update(sim.stats, sim.budget);
+    budgetPanel.update(sim.stats, sim.budget, sim.levers);
     sim.onMonth = () => {
       hud.update(sim.stats, sim.clock, sim);
-      budgetPanel.update(sim.stats, sim.budget);
+      budgetPanel.update(sim.stats, sim.budget, sim.levers);
       syncAmbient();
     };
     budgetPanel.onTaxChange((res, com, ind) => {
@@ -424,7 +425,24 @@ export class App {
       sim.previewEconomy();
       sim.evaluate();
       hud.update(sim.stats, sim.clock, sim);
-      budgetPanel.update(sim.stats, sim.budget);
+      budgetPanel.update(sim.stats, sim.budget, sim.levers);
+    });
+
+    budgetPanel.onFundingChange((safety, roads) => {
+      if (safety !== sim.levers.safetyFunding) sim.setSafetyFunding(safety);
+      if (roads !== sim.levers.roadFunding) sim.setRoadFunding(roads);
+      hud.update(sim.stats, sim.clock, sim);
+      budgetPanel.update(sim.stats, sim.budget, sim.levers);
+      previewCoverage(hoverCoord);
+    });
+    budgetPanel.onBorrow(() => {
+      if (sim.issueBond()) {
+        statusEl.textContent = `Borrowed $${BOND_AMOUNT.toLocaleString()}. ${formatBonds(sim.levers)}; repayments show in Budget.`;
+      } else {
+        statusEl.textContent = 'At the bond limit — repay one before borrowing again.';
+      }
+      hud.update(sim.stats, sim.clock, sim);
+      budgetPanel.update(sim.stats, sim.budget, sim.levers);
     });
 
     view.picker.onPick((coord, via, mods) => {
@@ -437,7 +455,7 @@ export class App {
       view.highlight.show(coord, view.surface);
       previewCoverage(coord);
       hud.update(sim.stats, sim.clock, sim);
-      budgetPanel.update(sim.stats, sim.budget);
+      budgetPanel.update(sim.stats, sim.budget, sim.levers);
 
       const tile     = sim.getTile(coord.x, coord.y);
       const pickData = view.buildings.selectBuilding(coord.x, coord.y);
@@ -467,6 +485,7 @@ export class App {
         tile?.powered ?? false,
         stationHasRoad(sim.map, coord.x, coord.y),
         networkAt(inspectDef, coord.x, coord.y),
+        sim.levers.safetyFunding,
       );
       if (placing && result === 'applied') placementNote = serviceHint;
       const growthHint = tile ? formatGrowthHint(tile, sim.map, sim.stats) : null;
@@ -506,8 +525,8 @@ export class App {
         cameraController.frameArea(built.x0, built.y0, built.x1, built.y1, view.surfaceY(cx, cy));
       }
       hud.update(sim.stats, sim.clock, sim);
-      budgetPanel.update(sim.stats, sim.budget);
-      budgetPanel.syncTaxSliders(sim.stats);
+      budgetPanel.update(sim.stats, sim.budget, sim.levers);
+      budgetPanel.syncSliders(sim.stats, sim.levers);
       statusEl.textContent = `${testCity.summary} New starts a fresh map.`;
     }
     previewCoverage(null);

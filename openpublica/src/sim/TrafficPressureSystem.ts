@@ -146,6 +146,9 @@ export class TrafficPressureSystem {
   /** The commutes routed by the last tick, for the renderer's cars to follow (read only). */
   commutes: Commutes | null = null;
 
+  /** Traffic multiplier from underfunded road upkeep (`roadWearFactor`); 1 at full funding. */
+  roadWear = 1;
+
   /**
    * Recompute traffic pressure for every road tile.
    *
@@ -257,7 +260,7 @@ export class TrafficPressureSystem {
     map.forEach((tile) => {
       if (tile.roadType === RoadType.None) return;
       // Any road someone drives on reads at least 1, so a lone house's street is not empty.
-      const perLane = load[tile.y * w + tile.x] / roadCapacity(tile.roadType);
+      const perLane = load[tile.y * w + tile.x] * this.roadWear / roadCapacity(tile.roadType);
       const pressure = perLane > 0 ? Math.max(1, Math.round(perLane)) : 0;
       tile.trafficPressure = Math.max(0, Math.min(MAX_TRAFFIC_PRESSURE, pressure));
       tile.noise           = Math.min(100, tile.trafficPressure * NOISE_PER_PRESSURE);

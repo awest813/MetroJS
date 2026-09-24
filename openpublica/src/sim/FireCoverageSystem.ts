@@ -5,6 +5,7 @@ import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 import type { CityStats } from './CitySim';
 import { forEachDispatchedTile } from './roadDispatch';
+import { fundedReach } from './budgetLevers';
 
 /**
  * Writes `tile.fireCoverage` [0–100] from powered stations with fireRadius.
@@ -21,6 +22,8 @@ export class FireCoverageSystem {
     buildings: ReadonlyMap<string, BuildingInstance>,
     defs: ReadonlyMap<string, BuildingDef>,
     stats: CityStats,
+    /** Fire funding, percent: reach scales with it. */
+    funding = 100,
   ): void {
     map.forEach((tile) => {
       tile.fireCoverage = 0;
@@ -33,7 +36,7 @@ export class FireCoverageSystem {
       const station = map.getTile(instance.x, instance.y);
       if (!station?.powered) continue;
 
-      forEachDispatchedTile(map, instance.x, instance.y, def.fireRadius, (tile, coverage) => {
+      forEachDispatchedTile(map, instance.x, instance.y, fundedReach(def.fireRadius, funding), (tile, coverage) => {
         if (coverage > tile.fireCoverage) tile.fireCoverage = coverage;
       });
     }

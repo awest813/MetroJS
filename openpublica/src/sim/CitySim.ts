@@ -19,7 +19,18 @@ import { CrimeSystem } from './CrimeSystem';
 import { EvaluationSystem } from './EvaluationSystem';
 import { tileKey } from './ZoneGrowthSystem';
 import { STARTER_RESIDENTIAL_DEMAND } from './zoneGrowthHints';
-import { STARTING_MONEY, tallyBudget, type BudgetTally } from './EconomySystem';
+import { STARTING_MONEY, tallyBudget, type BudgetLevers, type BudgetTally } from './EconomySystem';
+import {
+  BOND_AMOUNT,
+  MAX_BONDS,
+  ROAD_FUNDING_MAX,
+  ROAD_FUNDING_MIN,
+  SAFETY_FUNDING_MAX,
+  SAFETY_FUNDING_MIN,
+  clampFunding,
+  newBond,
+  roadWearFactor,
+} from './budgetLevers';
 import { WEATHER_EFFECTS, weatherFor, weatherLabel, weatherOfKind, type Weather, type WeatherKind } from './weather';
 import { DEFAULT_TERRAIN_SEED } from './TerrainGenerator';
 import { composeHappiness } from './happiness';
@@ -499,8 +510,9 @@ export class CitySim {
 
   private _refreshCityHealth(applyCrimeHappiness: boolean, notify = true): void {
     this.density.tick(this.map, this.growth.buildings, this.growth.defs);
-    this.police.tick(this.map, this.growth.buildings, this.growth.defs);
-    this.fire.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+    const safety = this.growth.economy.safetyFunding;
+    this.police.tick(this.map, this.growth.buildings, this.growth.defs, safety);
+    this.fire.tick(this.map, this.growth.buildings, this.growth.defs, this.stats, safety);
     this.water.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
     this.crime.tick(this.map, this.stats);
     if (applyCrimeHappiness) composeHappiness(this.map, this.stats, true);
@@ -537,11 +549,63 @@ export class CitySim {
     this._syncWeather();
     const tally = tallyBudget(
       this.map, this.growth.buildings, this.growth.defs, this.stats, this.growth.economy.roadUpkeepFactor,
+      this.growth.economy,
     );
     this.budget = tally;
     this.stats.serviceExpenses = tally.serviceExpenses;
     this.stats.projectedIncome = tally.income;
     this.stats.projectedExpenses = tally.expenses;
+  }
+
+  /** The budget levers beyond taxes: police and fire funding, road funding, and bonds. */
+  get levers(): BudgetLevers {
+    return this.growth.economy;
+  }
+
+  /**
+   * Fund police and fire at this percent (50–120, in tens): their upkeep and
+   * their reach scale together.
+   */
+  setSafetyFunding(percent: number): void {
+    this.growth.economy.safetyFunding = clampFunding(percent, SAFETY_FUNDING_MIN, SAFETY_FUNDING_MAX);
+    this.refreshDerivedState({ notify: true });
+  }
+
+  /**
+   * Fund road upkeep at this percent (50–100, in tens): cheaper, but worn
+   * roads carry less, so traffic reads heavier.
+   */
+  setRoadFunding(percent: number): void {
+    this.growth.economy.roadFunding = clampFunding(percent, ROAD_FUNDING_MIN, ROAD_FUNDING_MAX);
+    this.traffic.roadWear = roadWearFactor(this.growth.economy.roadFunding);
+    this.refreshDerivedState({ notify: true });
+  }
+
+  /**
+   * Borrow {@link BOND_AMOUNT} now, repaid with interest over the bond's
+   * term. False when the city already carries {@link MAX_BONDS}.
+   */
+  issueBond(): boolean {
+    const bonds = this.growth.economy.bonds;
+    if (bonds.length >= MAX_BONDS) return false;
+    bonds.push(newBond());
+    this.stats.money += BOND_AMOUNT;
+    this.stats.bankruptcyWarning = this.stats.money < 0;
+    this.previewEconomy();
+    this.evaluate();
+    return true;
+  }
+
+  /** Put saved levers back (a load); derived state is refreshed by the caller. */
+  restoreLevers(levers: Partial<BudgetLevers>): void {
+    const economy = this.growth.economy;
+    economy.safetyFunding = clampFunding(levers.safetyFunding ?? 100, SAFETY_FUNDING_MIN, SAFETY_FUNDING_MAX);
+    economy.roadFunding = clampFunding(levers.roadFunding ?? 100, ROAD_FUNDING_MIN, ROAD_FUNDING_MAX);
+    economy.bonds.splice(0, economy.bonds.length, ...(levers.bonds ?? [])
+      .filter((b) => b.owed > 0 && b.payment > 0)
+      .slice(0, MAX_BONDS)
+      .map((b) => ({ owed: b.owed, payment: b.payment })));
+    this.traffic.roadWear = roadWearFactor(economy.roadFunding);
   }
 
   /**

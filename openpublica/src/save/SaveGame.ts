@@ -50,6 +50,13 @@ export interface SavedStats {
   advisory:          string;
 }
 
+/** Serialised budget levers beyond taxes. */
+export interface SavedLevers {
+  safetyFunding: number;
+  roadFunding:   number;
+  bonds:         Array<{ owed: number; payment: number }>;
+}
+
 /** Top-level save-game document stored in localStorage. */
 export interface SaveGame {
   /** Schema version — used by the migration system. */
@@ -68,6 +75,11 @@ export interface SaveGame {
    */
   monthAccumulator?: number;
   stats:             SavedStats;
+  /**
+   * Police and fire funding, road funding (percent), and bonds being repaid.
+   * Older saves omit this; load uses full funding and no bonds.
+   */
+  levers?:           SavedLevers;
   tiles:             SavedTile[];
   buildings:         SavedBuilding[];
 }

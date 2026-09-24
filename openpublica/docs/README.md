@@ -100,6 +100,8 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Time: the HUD date counts days; a hidden tab no longer ages the city
 - [x] Weather: seeded seasonal weather each month (heatwaves load power and water, snow costs plowing and heating, rain washes smog) with sky, fog, rain, snow cover, lightning, and rain sound; `?weather=<kind>` pins it
 - [x] Shops grow up: small shops, shop rows, and office blocks on dear land (traffic by jobs)
+- [x] Industry grows: workshops become factories while residents lack jobs, and works where a highway is close for freight
+- [x] Budget levers: police-and-fire and road funding sliders (upkeep and service scale together) and bonds with interest
 - [x] Test cities: `?city=hamlet|riverside|metro|troubled|sprawl` (or New → Or open a test city) builds a scripted city with the player tools and seeded growth; `test/testCities.ts` checks each
 
 Follow [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md) for optional GLB/SSAO. Untextured PBR, sky dome, `CityView` rebuild-on-load, city-health, mayor Score/advisory, highways, water, zoning plats/downtown, building degradation, opening coach, and per-service upkeep/coverage preview are in the HUD.

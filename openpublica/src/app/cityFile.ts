@@ -31,8 +31,8 @@ export function mountCityMenu(
       if (status === 'loaded') {
         opts.view.rebuildAll(opts.sim);
         opts.hud.update(opts.sim.stats, opts.sim.clock, opts.sim);
-        opts.budget.update(opts.sim.stats, opts.sim.budget);
-        opts.budget.syncTaxSliders(opts.sim.stats);
+        opts.budget.update(opts.sim.stats, opts.sim.budget, opts.sim.levers);
+        opts.budget.syncSliders(opts.sim.stats, opts.sim.levers);
         opts.onLoaded?.();
         opts.statusEl.textContent = 'City loaded.';
       } else if (status === 'size-mismatch') {

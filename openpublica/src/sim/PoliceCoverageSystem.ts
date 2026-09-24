@@ -4,6 +4,7 @@ import type { CityMap } from './CityMap';
 import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 import { forEachDispatchedTile } from './roadDispatch';
+import { fundedReach } from './budgetLevers';
 
 /**
  * Writes `tile.policeCoverage` [0–100] from powered stations with policeRadius.
@@ -16,6 +17,8 @@ export class PoliceCoverageSystem {
     map: CityMap,
     buildings: ReadonlyMap<string, BuildingInstance>,
     defs: ReadonlyMap<string, BuildingDef>,
+    /** Police funding, percent: reach scales with it. */
+    funding = 100,
   ): void {
     map.forEach((tile) => {
       tile.policeCoverage = 0;
@@ -28,7 +31,7 @@ export class PoliceCoverageSystem {
       const station = map.getTile(instance.x, instance.y);
       if (!station?.powered) continue;
 
-      forEachDispatchedTile(map, instance.x, instance.y, def.policeRadius, (tile, coverage) => {
+      forEachDispatchedTile(map, instance.x, instance.y, fundedReach(def.policeRadius, funding), (tile, coverage) => {
         if (coverage > tile.policeCoverage) tile.policeCoverage = coverage;
       });
     }

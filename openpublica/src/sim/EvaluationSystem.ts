@@ -262,7 +262,7 @@ function topAdvisory(stats: CityStats, census: Census, forecast?: WeatherForecas
 function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherForecast): Advisory[] {
   const out: Advisory[] = [];
   if (stats.bankruptcyWarning) {
-    out.push({ id: 'bankrupt', message: 'Treasury is bankrupt — cut spending or raise taxes.' });
+    out.push({ id: 'bankrupt', message: 'Treasury is bankrupt — take a bond in Budget, then raise taxes or trim funding.' });
   }
   const net = stats.projectedIncome - stats.projectedExpenses;
   if (!stats.bankruptcyWarning && net < 0 && stats.money >= 0) {
@@ -271,7 +271,7 @@ function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherFore
       const shown = Math.max(1, months);
       out.push({
         id: 'deficit',
-        message: `The budget is $${(-net).toLocaleString()}/mo in the red — money runs out in about ${shown} month${shown === 1 ? '' : 's'}. Raise taxes or cut upkeep.`,
+        message: `The budget is $${(-net).toLocaleString()}/mo in the red — money runs out in about ${shown} month${shown === 1 ? '' : 's'}. Raise taxes or trim police, fire, or road funding.`,
       });
     }
   }

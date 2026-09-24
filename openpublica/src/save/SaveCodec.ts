@@ -71,6 +71,11 @@ export class SaveCodec {
         approval:          sim.stats.approval,
         advisory:          sim.stats.advisory,
       },
+      levers: {
+        safetyFunding: sim.levers.safetyFunding,
+        roadFunding:   sim.levers.roadFunding,
+        bonds:         sim.levers.bonds.map((b) => ({ owed: b.owed, payment: b.payment })),
+      },
       tiles,
       buildings,
     };
@@ -133,6 +138,8 @@ export class SaveCodec {
     sim.stats.waterAverage      = s.waterAverage      ?? 0;
     sim.stats.approval          = s.approval          ?? 100;
     sim.stats.advisory          = s.advisory          ?? '';
+
+    sim.restoreLevers(save.levers ?? {});
 
     // ── Clock ────────────────────────────────────────────────────────────────
     sim.clock.restore(save.clockTotalSeconds ?? 0);

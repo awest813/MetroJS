@@ -519,6 +519,10 @@ input:focus-visible {
   margin-bottom: 4px;
 }
 
+.budget-row[hidden] {
+  display: none;
+}
+
 .budget-key {
   color: var(--muted);
 }
@@ -569,13 +573,13 @@ input:focus-visible {
 .tax-label {
   font-size: 11px;
   color: var(--muted);
-  width: 28px;
+  width: 38px;
   flex-shrink: 0;
 }
 
 .tax-head {
   display: grid;
-  grid-template-columns: 1fr 28px 42px;
+  grid-template-columns: 1fr 30px 42px;
   gap: 6px;
   font-size: 10px;
   color: var(--muted);
@@ -631,9 +635,50 @@ input:focus-visible {
 .tax-rate {
   font-size: 11px;
   color: #c8d8e8;
-  width: 28px;
+  width: 30px;
   text-align: right;
   flex-shrink: 0;
+}
+
+.fund-cost {
+  color: var(--danger);
+}
+
+.bond-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 8px;
+}
+
+.bond-btn {
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  border: 1px solid var(--btn-border);
+  border-radius: 6px;
+  font-size: 11px;
+  padding: 3px 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.bond-btn:hover:not(:disabled) {
+  border-color: #2080d0;
+}
+
+.bond-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.bond-status {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+  /* Beside the button when it fits, else whole on the next line. */
+  flex: 1 0 auto;
+  white-space: nowrap;
 }
 
 /* ── Camera bar ───────────────────────────────── */
