@@ -34,7 +34,7 @@ import { explainToolFailure, formatStrokeStatus } from '../tools/toolFeedback';
 import { formatGrowthHint } from '../sim/zoneGrowthHints';
 import { applyDaylight } from '../render/daylight';
 import { CityView } from './CityView';
-import { mountCityMenu } from './cityFile';
+import { mountCityMenu, requestedTestCity } from './cityFile';
 import { PlannedDragInput, RoadLineMode, ZoneAreaMode } from './plannedDrag';
 import { planRoadLine } from '../tools/roadLine';
 import { formatAreaResult } from '../tools/zoneArea';
@@ -60,6 +60,14 @@ import {
 
 /** Lots a utility network reaches but cannot serve. */
 const SHORT_TINT = { r: 0.95, g: 0.25, b: 0.2 };
+
+/** A new city on a random map. */
+function freshCity(): CitySim {
+  const terrainSeed = (Math.random() * 0x7fffffff) | 0;
+  const sim = CitySim.createCity(MAP_SIZE, MAP_SIZE, terrainSeed);
+  generateTerrain(sim.map, terrainSeed);
+  return sim;
+}
 
 /**
  * Top-level application coordinator.
@@ -88,10 +96,10 @@ export class App {
       );
     }
 
-    const terrainSeed = (Math.random() * 0x7fffffff) | 0;
-    const sim = CitySim.createCity(MAP_SIZE, MAP_SIZE, terrainSeed);
-    generateTerrain(sim.map, terrainSeed);
-    const heights = HeightField.fromMap(sim.map, terrainSeed);
+    // `?city=<id>` opens a scripted test city; otherwise a fresh random map.
+    const testCity = requestedTestCity();
+    const sim = testCity ? testCity.build().sim : freshCity();
+    const heights = HeightField.fromMap(sim.map, sim.terrainSeed);
 
     const audio = new AudioBus();
     const unlockAudio = (): void => {
@@ -451,6 +459,13 @@ export class App {
       statusEl,
       onLoaded: () => previewCoverage(null),
     });
+    if (testCity) {
+      view.rebuildAll(sim);
+      hud.update(sim.stats, sim.clock);
+      budgetPanel.update(sim.stats);
+      budgetPanel.syncTaxSliders(sim.stats);
+      statusEl.textContent = `${testCity.summary} New starts a fresh map.`;
+    }
     previewCoverage(null);
     new SettingsPanel(settingsEl, {
       audio,

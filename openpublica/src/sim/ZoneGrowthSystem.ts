@@ -29,6 +29,8 @@ import {
   targetBuildingDef,
   tileHasAdjacentRoad,
   zoneBuildingIsStressed,
+  zoneStress,
+  demandExodusCap,
   STRESS_MONTHS_TO_CHANGE,
   ABANDON_COOLDOWN_MONTHS,
 } from './zoneGrowthHints';
@@ -65,6 +67,9 @@ export class ZoneGrowthSystem {
 
   /** Candidate defs for each zone type. */
   private readonly _defsByZone: Map<ZoneType, BuildingDef[]>;
+
+  /** Dice for growth rolls; test cities swap in a seeded one so they build the same every time. */
+  random: () => number = () => Math.random();
 
   /** How many seconds have elapsed since the last monthly tick. */
   private _secondsAccumulator = 0;
@@ -315,7 +320,7 @@ export class ZoneGrowthSystem {
         this._hasAdjacentActiveZone(map, tile.x, tile.y)) ? 1.3 : 1.0;
       const poweredBoost = tile.powered ? POWERED_ROAD_GROWTH_BOOST : 1;
       const chance = growthChance(tile.landValue, demand, mixedBoost, poweredBoost);
-      if (Math.random() > chance) return;
+      if (this.random() > chance) return;
 
       const bucket = this._defsByZone.get(tile.zoneType);
       const def = bucket ? targetBuildingDef(bucket, tile.landValue, demand) : undefined;
@@ -323,7 +328,7 @@ export class ZoneGrowthSystem {
 
       // Weighted draw without replacement: a higher weight ranks higher on average.
       const pull = this._hasBuiltNeighbour(map, tile.x, tile.y) ? NEIGHBOUR_GROWTH_PULL : 1;
-      winners.push({ tile, def, rank: Math.random() ** (1 / (chance * pull)) });
+      winners.push({ tile, def, rank: this.random() ** (1 / (chance * pull)) });
     });
 
     winners.sort((a, b) => b.rank - a.rank);
@@ -367,7 +372,7 @@ export class ZoneGrowthSystem {
       const bucket = this._defsByZone.get(tile.zoneType);
       const next = bucket ? nextDevelopmentDef(bucket, current, tile.landValue, demand) : undefined;
       if (!next) return;
-      if (Math.random() > growthChance(tile.landValue, demand, 1, POWERED_ROAD_GROWTH_BOOST)) return;
+      if (this.random() > growthChance(tile.landValue, demand, 1, POWERED_ROAD_GROWTH_BOOST)) return;
 
       this.buildings.set(tileKey(tile.x, tile.y), { defId: next.id, x: tile.x, y: tile.y });
       tile.buildingId = next.id;
@@ -390,6 +395,10 @@ export class ZoneGrowthSystem {
     changedTiles: Array<{ x: number; y: number }>,
   ): void {
     const leaving: Array<{ x: number; y: number }> = [];
+    const due: Array<{ tile: CityTile; def: BuildingDef }> = [];
+    /** Buildings whose only trouble is demand, by zone, and each zone's building count. */
+    const demandOnly = new Map<ZoneType, Array<{ tile: CityTile; def: BuildingDef }>>();
+    const zoneBuildings = new Map<ZoneType, number>();
 
     map.forEach((tile) => {
       if (tile.buildingId === null) {
@@ -402,15 +411,32 @@ export class ZoneGrowthSystem {
         tile.neglectMonths = 0;
         return;
       }
+      zoneBuildings.set(tile.zoneType, (zoneBuildings.get(tile.zoneType) ?? 0) + 1);
 
-      if (!zoneBuildingIsStressed(tile, map, stats)) {
+      const stress = zoneStress(tile, map, stats);
+      if (stress === null) {
         tile.neglectMonths = 0;
         return;
       }
 
-      tile.neglectMonths += 1;
+      tile.neglectMonths = Math.min(STRESS_MONTHS_TO_CHANGE, tile.neglectMonths + 1);
       if (tile.neglectMonths < STRESS_MONTHS_TO_CHANGE) return;
+      if (stress !== 'demand') {
+        due.push({ tile, def });
+        return;
+      }
+      const list = demandOnly.get(tile.zoneType) ?? [];
+      list.push({ tile, def });
+      demandOnly.set(tile.zoneType, list);
+    });
 
+    // Demand alone thins a zone a few buildings a month, the least valued first.
+    for (const [zone, list] of demandOnly) {
+      list.sort((a, b) => a.tile.landValue - b.tile.landValue);
+      due.push(...list.slice(0, demandExodusCap(zoneBuildings.get(zone) ?? 0)));
+    }
+
+    for (const { tile, def } of due) {
       const smaller = this._pickSmallerDef(tile.zoneType, def);
       if (smaller) {
         const key = tileKey(tile.x, tile.y);
@@ -418,11 +444,11 @@ export class ZoneGrowthSystem {
         tile.buildingId = smaller.id;
         tile.neglectMonths = 0;
         changedTiles.push({ x: tile.x, y: tile.y });
-        return;
+        continue;
       }
 
       leaving.push({ x: tile.x, y: tile.y });
-    });
+    }
 
     for (const coord of leaving) {
       this.removeAt(coord.x, coord.y);

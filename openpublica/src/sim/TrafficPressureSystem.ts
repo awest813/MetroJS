@@ -11,18 +11,23 @@ import type { CityStats } from './CitySim';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-/**
- * Fraction of a residential building's population that generates road trips
- * each simulated month.  A value of 0.3 means 30 % of residents are modelled
- * as daily commuters that pressure nearby roads.
+/*
+ * Trip rates are set so a plain street reads right once it is built up: small
+ * houses on both sides come to about 4 (moderate), rowhouses on both sides to
+ * about 8 (jammed without a grid to share the load), and shops or workshops
+ * lining a lone street jam it. At the old rates (0.3 rounded up per house, 4
+ * per shop, 6 per workshop) every street of houses the zone tool lays jammed
+ * at 13, so any real city sat near zero happiness and lost its street trees.
  */
-const RESIDENTIAL_TRIP_RATE = 0.3;
+
+/** Road trips per resident each simulated month. */
+const RESIDENTIAL_TRIP_RATE = 0.15;
 
 /** Base traffic pressure injected per commercial building onto adjacent roads. */
-const COMMERCIAL_BASE_PRESSURE = 4;
+const COMMERCIAL_BASE_PRESSURE = 2;
 
 /** Base traffic pressure injected per industrial building onto adjacent roads. */
-const INDUSTRIAL_BASE_PRESSURE = 6;
+const INDUSTRIAL_BASE_PRESSURE = 3;
 
 /**
  * Radius (in tiles) around each building within which its trips spread over
@@ -61,18 +66,15 @@ export function roadCapacity(type: RoadType): number {
 
 /** Monthly road trips a building generates (0 for services and parks). */
 export function buildingTrips(def: BuildingDef): number {
-  if (def.zoneType === ZoneType.Residential) {
-    // Residential: trips ≈ population × trip rate (at least 1 if anyone lives here).
-    return Math.ceil(def.population * RESIDENTIAL_TRIP_RATE);
-  }
+  if (def.zoneType === ZoneType.Residential) return def.population * RESIDENTIAL_TRIP_RATE;
   if (def.zoneType === ZoneType.Commercial) return COMMERCIAL_BASE_PRESSURE;
   if (def.zoneType === ZoneType.Industrial) return INDUSTRIAL_BASE_PRESSURE;
   if (def.zoneType === ZoneType.MixedUse) {
     // Mixed-use: residents generate commute trips and commercial activity
     // draws visitors — combine both contributions at a slight discount to
     // reflect the shorter distances in walkable main-street areas.
-    const resPressure = Math.ceil(def.population * RESIDENTIAL_TRIP_RATE);
-    const comPressure = Math.round(COMMERCIAL_BASE_PRESSURE * 0.75);
+    const resPressure = def.population * RESIDENTIAL_TRIP_RATE;
+    const comPressure = COMMERCIAL_BASE_PRESSURE * 0.75;
     return resPressure + comPressure;
   }
   // Service / no-zone buildings don't generate traffic.
@@ -189,7 +191,9 @@ export class TrafficPressureSystem {
     // 3. Pressure per lane, clamped, then noise. Happiness is composed after walk/transit.
     map.forEach((tile) => {
       if (tile.roadType === RoadType.None) return;
-      const pressure = Math.round(load[tile.y * w + tile.x] / roadCapacity(tile.roadType));
+      // Any road someone drives on reads at least 1, so a lone house's street is not empty.
+      const perLane = load[tile.y * w + tile.x] / roadCapacity(tile.roadType);
+      const pressure = perLane > 0 ? Math.max(1, Math.round(perLane)) : 0;
       tile.trafficPressure = Math.max(0, Math.min(MAX_TRAFFIC_PRESSURE, pressure));
       tile.noise           = Math.min(100, tile.trafficPressure * NOISE_PER_PRESSURE);
     });

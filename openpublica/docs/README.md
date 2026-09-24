@@ -35,7 +35,8 @@ openpublica/
 │   ├── app/      App entry point and coordinator (App.ts, main.ts)
 │   ├── sim/      Simulation logic — ZERO Babylon.js imports allowed here
 │   ├── render/   Babylon.js rendering layer (scene, terrain, picking, highlight)
-│   ├── tools/    Player tools (Inspect, Road, Residential, Bulldoze)
+│   ├── tools/    Player tools (Inspect, roads, zone brushes, Bulldoze, services)
+│   ├── scenarios/ Scripted test cities built with the player tools (?city=<id>)
 │   ├── ui/       HTML/CSS user interface (Toolbar, styles)
 │   ├── audio/    Procedural Web Audio (no sample files, no Babylon)
 │   ├── data/     Shared constants, enums, and types
@@ -55,6 +56,7 @@ The project enforces a strict boundary between simulation and rendering:
 |---|---|---|
 | Simulation | `src/sim/` | ❌ not allowed |
 | Tools | `src/tools/` | ❌ not allowed |
+| Test cities | `src/scenarios/` | ❌ not allowed |
 | Renderer | `src/render/` | ✅ only here |
 | Audio | `src/audio/` | ❌ (Web Audio only; original oscillators, never Micropolis clips) |
 | UI | `src/ui/` | ❌ not allowed |
@@ -92,6 +94,8 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Zoning: zone brushes drag rectangles with a live preview; deep areas lay their own streets (S toggles), lots with no street show amber; each month's new buildings follow demand and fill outward from existing ones
 - [x] Utilities run along the streets: a plant beside a street powers every street joined to it (400 load each, nearest lots first), and powered water towers feed mains the same way; hover a plant or tower to see its network, and the HUD shows power load against capacity
 - [x] Ground: empty zoned lots are tinted plots with lot lines, grown lots sit on lawn, pavement, or work yards, and zone colours stop at the water's edge; seeded woods cover open grass, raise land value beside them, and clear when zoned or paved
+- [x] Rail and menus: tools two to a row with their shortcut keys, every tool reachable at 1280×720, HUD clear of Budget, one-row tool strip on phones
+- [x] Test cities: `?city=hamlet|riverside|metro|troubled|sprawl` (or New → Or open a test city) builds a scripted city with the player tools and seeded growth; `test/testCities.ts` checks each
 
 Follow [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md) for optional GLB/SSAO. Untextured PBR, sky dome, `CityView` rebuild-on-load, city-health, mayor Score/advisory, highways, water, zoning plats/downtown, building degradation, opening coach, and per-service upkeep/coverage preview are in the HUD.
 

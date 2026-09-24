@@ -9,10 +9,12 @@ import { UNPOWERED_FACTOR } from './zoneGrowthHints';
 const DENSITY_RADIUS = 4;
 
 /**
- * Density contributed at a building tile per resident.
- * A 4-person house is 24 at centre before neighbours stack and clamp.
+ * Density contributed at a building tile per resident. A 4-person house is 8
+ * at centre; a street of them on both sides settles near 50, and rowhouse or
+ * main-street blocks reach 100. (At 6, every street of small houses hit 100,
+ * so crime drove out the first village before it could afford police.)
  */
-const DENSITY_PER_RESIDENT = 6;
+const DENSITY_PER_RESIDENT = 2;
 
 /**
  * Writes `tile.populationDensity` [0–100] from residential / mixed-use

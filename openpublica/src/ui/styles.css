@@ -243,6 +243,17 @@ input:focus-visible {
   border-color: #a04020 !important;
 }
 
+.confirm-test-city {
+  width: 100%;
+  margin-top: 6px;
+  padding: 4px 6px;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  border: 1px solid var(--btn-border);
+  border-radius: 6px;
+  font-size: 11px;
+}
+
 #budget-panel.budget-bankrupt .budget-fold {
   border-color: #6a3020;
 }

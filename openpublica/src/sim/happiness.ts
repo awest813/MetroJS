@@ -7,8 +7,15 @@ import { RoadType } from './CityTile';
 /** trafficPressure at or above this counts as an extreme road for happiness. */
 export const EXTREME_TRAFFIC_PRESSURE = 8;
 
-/** Happiness lost per extreme-traffic road tile. */
-export const HAPPINESS_PER_EXTREME_TRAFFIC = 2;
+/**
+ * Happiness lost if every road were jammed; a city loses its jammed share of
+ * this. (A flat 2 per jammed tile put every city with a busy downtown at
+ * zero, however large the rest of it.)
+ */
+export const JAM_HAPPINESS_WEIGHT = 80;
+
+/** A network shorter than this counts as this long, so one jammed village street stings but is not a jammed city. */
+export const JAM_MIN_ROADS = 20;
 
 /** Cap on the walkability happiness bonus. */
 export const WALK_MAX_HAPPINESS = 20;
@@ -42,13 +49,15 @@ export function composeHappiness(
   stats: HappinessInputs & { happiness: number },
   applyCrime: boolean,
 ): void {
+  let roads = 0;
   let extreme = 0;
   map.forEach((tile) => {
     if (tile.roadType === RoadType.None) return;
+    roads += 1;
     if (tile.trafficPressure >= EXTREME_TRAFFIC_PRESSURE) extreme += 1;
   });
 
-  let next = 100 - extreme * HAPPINESS_PER_EXTREME_TRAFFIC;
+  let next = 100 - Math.round((JAM_HAPPINESS_WEIGHT * extreme) / Math.max(roads, JAM_MIN_ROADS));
   next = Math.max(0, Math.min(100, next));
 
   const walkBonus = Math.min(

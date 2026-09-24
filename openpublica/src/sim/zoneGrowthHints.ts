@@ -69,11 +69,20 @@ export const POLLUTION_STRESS_THRESHOLD = 60;
 export const CRIME_STRESS_THRESHOLD = 50;
 
 /**
+ * Factories do not mind smog; homes and shops do. (When they did, every
+ * workshop fouled its neighbours past the threshold and an industrial
+ * district emptied and regrew in a loop.)
+ */
+export function smogStresses(zoneType: ZoneType): boolean {
+  return zoneType !== ZoneType.Industrial;
+}
+
+/**
  * Smog or crime already past the level that drives a building out. Nobody
  * builds there: a building would only stand four stressed months and leave.
  */
 export function lotTooHostile(tile: CityTile): 'smog' | 'crime' | null {
-  if (tile.pollution >= POLLUTION_STRESS_THRESHOLD) return 'smog';
+  if (tile.pollution >= POLLUTION_STRESS_THRESHOLD && smogStresses(tile.zoneType)) return 'smog';
   if (tile.crime >= CRIME_STRESS_THRESHOLD) return 'crime';
   return null;
 }
@@ -219,16 +228,41 @@ export function formatGrowthHint(
   return `waiting to grow, ${fill}`;
 }
 
+/** Why a zone-grown building is under stress this month. */
+export type ZoneStress = 'zone' | 'road' | 'power' | 'smog' | 'crime' | 'demand';
+
 /**
- * True when a zone-grown building should gain a neglect month.
+ * What is stressing a zone-grown building, or null when nothing is. Losing
+ * its zone, road, power, or clean air, or high crime, comes before a want of
+ * demand: those drive a building out on their own; demand alone thins a zone
+ * a few buildings a month ({@link demandExodusCap}).
  * Services are filtered by the caller. Crime is typically last month's value.
  */
+export function zoneStress(tile: CityTile, map: CityMap, stats: CityStats): ZoneStress | null {
+  if (tile.zoneType === ZoneType.None) return 'zone';
+  if (!tileHasAdjacentRoad(map, tile.x, tile.y)) return 'road';
+  if (!tile.powered) return 'power';
+  if (tile.pollution >= POLLUTION_STRESS_THRESHOLD && smogStresses(tile.zoneType)) return 'smog';
+  if (tile.crime >= CRIME_STRESS_THRESHOLD) return 'crime';
+  if (demandForZone(tile.zoneType, stats) <= 0) return 'demand';
+  return null;
+}
+
+/** True when a zone-grown building should gain a neglect month. */
 export function zoneBuildingIsStressed(tile: CityTile, map: CityMap, stats: CityStats): boolean {
-  if (tile.zoneType === ZoneType.None) return true;
-  if (!tileHasAdjacentRoad(map, tile.x, tile.y)) return true;
-  if (demandForZone(tile.zoneType, stats) <= 0) return true;
-  if (!tile.powered) return true;
-  if (tile.pollution >= POLLUTION_STRESS_THRESHOLD) return true;
-  if (tile.crime >= CRIME_STRESS_THRESHOLD) return true;
-  return false;
+  return zoneStress(tile, map, stats) !== null;
+}
+
+/** Share of a zone's buildings that may shrink or leave in one month for want of demand alone. */
+export const DEMAND_EXODUS_SHARE = 0.05;
+
+/**
+ * How many of a zone's `buildings` may downgrade or leave this month when
+ * demand alone is the trouble. With no cap every house in town reached its
+ * fourth stressed month together and the town emptied at once, then regrew
+ * from the starter demand: a boom and bust instead of a city that settles
+ * where its jobs are.
+ */
+export function demandExodusCap(buildings: number): number {
+  return Math.max(1, Math.ceil(buildings * DEMAND_EXODUS_SHARE));
 }

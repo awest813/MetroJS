@@ -1,7 +1,8 @@
 import { CitySim } from '../openpublica/src/sim/CitySim';
 import { CityMap } from '../openpublica/src/sim/CityMap';
 import { CrimeSystem } from '../openpublica/src/sim/CrimeSystem';
-import { composeHappiness } from '../openpublica/src/sim/happiness';
+import { EXTREME_TRAFFIC_PRESSURE, composeHappiness } from '../openpublica/src/sim/happiness';
+import { CRIME_STRESS_THRESHOLD } from '../openpublica/src/sim/zoneGrowthHints';
 import { PopulationDensitySystem } from '../openpublica/src/sim/PopulationDensitySystem';
 import { RoadType, TerrainType, ZoneType } from '../openpublica/src/sim/CityTile';
 import { dispatchDistances, stationHasRoad } from '../openpublica/src/sim/roadDispatch';
@@ -45,10 +46,10 @@ describe('PopulationDensitySystem', () => {
 
     system.tick(map, buildings, defs);
 
-    // 4 residents × 6 = 24 at the building tile.
-    expect(map.getTile(8, 8)!.populationDensity).toBe(24);
+    // 4 residents × 2 = 8 at the building tile.
+    expect(map.getTile(8, 8)!.populationDensity).toBe(8);
     expect(map.getTile(8, 9)!.populationDensity).toBeGreaterThan(0);
-    expect(map.getTile(8, 9)!.populationDensity).toBeLessThan(24);
+    expect(map.getTile(8, 9)!.populationDensity).toBeLessThan(8);
     expect(map.getTile(8, 13)!.populationDensity).toBe(0);
   });
 
@@ -62,17 +63,19 @@ describe('PopulationDensitySystem', () => {
 
     system.tick(map, buildings, defs);
 
-    // 4 × 0.75 × 6 = 18 at the dark house.
-    expect(map.getTile(4, 4)!.populationDensity).toBe(18);
+    // 4 × 0.75 × 2 = 6 at the dark house.
+    expect(map.getTile(4, 4)!.populationDensity).toBe(6);
   });
 
   it('should clamp stacked density at 100', () => {
     const map = new CityMap(8, 8);
     const system = new PopulationDensitySystem();
     const buildings = new Map<string, { defId: string; x: number; y: number }>();
-    for (let i = 0; i < 4; i++) {
-      map.getTile(3 + i, 4)!.powered = true;
-      buildings.set(`${3 + i},4`, { defId: 'rowhouse', x: 3 + i, y: 4 });
+    for (let y = 3; y <= 5; y++) {
+      for (let x = 3; x <= 5; x++) {
+        map.getTile(x, y)!.powered = true;
+        buildings.set(`${x},${y}`, { defId: 'rowhouse', x, y });
+      }
     }
     const defs = new Map([
       ['rowhouse', { id: 'rowhouse', name: '', zoneType: ZoneType.Residential, population: 8, jobs: 0 }],
@@ -363,13 +366,38 @@ describe('city health wiring', () => {
     expect(fires).toBe(1);
   });
 
+  it('should keep a street of houses calm and safe, and jam a rowhouse street', () => {
+    const built = (defId: string): CitySim => {
+      const sim = CitySim.createCity(32, 16);
+      sim.batch(() => {
+        for (let x = 2; x < 30; x++) sim.placeRoad(x, 8, RoadType.Street);
+        for (let x = 2; x < 30; x++) {
+          for (const y of [7, 9]) {
+            sim.getTile(x, y)!.zoneType = ZoneType.Residential;
+            sim.getTile(x, y)!.buildingId = defId;
+            sim.growth.buildings.set(`${x},${y}`, { defId, x, y });
+          }
+        }
+      });
+      sim.refreshDerivedState({ applyCrimeHappiness: true });
+      return sim;
+    };
+    const houses = built('small_house');
+    expect(houses.getTile(16, 8)!.trafficPressure).toBeGreaterThan(0);
+    expect(houses.getTile(16, 8)!.trafficPressure).toBeLessThan(EXTREME_TRAFFIC_PRESSURE);
+    expect(houses.getTile(16, 7)!.crime).toBeLessThan(CRIME_STRESS_THRESHOLD);
+    expect(built('rowhouse').getTile(16, 8)!.trafficPressure).toBeGreaterThanOrEqual(EXTREME_TRAFFIC_PRESSURE);
+  });
+
   it('should drop happiness as soon as a street is jammed', () => {
     const sim = CitySim.createCity(16, 16);
     for (let i = 0; i < 4; i++) {
       const x = 4 + i;
-      sim.growth.buildings.set(`${x},4`, { defId: 'small_shop', x, y: 4 });
-      sim.getTile(x, 4)!.buildingId = 'small_shop';
-      sim.getTile(x, 4)!.zoneType = ZoneType.Commercial;
+      for (const y of [4, 6]) {
+        sim.growth.buildings.set(`${x},${y}`, { defId: 'small_shop', x, y });
+        sim.getTile(x, y)!.buildingId = 'small_shop';
+        sim.getTile(x, y)!.zoneType = ZoneType.Commercial;
+      }
     }
     expect(sim.stats.happiness).toBe(100);
     for (let x = 4; x <= 7; x++) sim.placeRoad(x, 5, RoadType.Street);
@@ -406,8 +434,8 @@ describe('city health wiring', () => {
     const first = stats.happiness;
     composeHappiness(map, stats, true);
     expect(stats.happiness).toBe(first);
-    // 4 extreme roads (−8) + walk +5 + transit +3 − crime 5 = 95
-    expect(first).toBe(100 - 8 + 5 + 3 - 5);
+    // 4 jammed of 4 roads, counted as 20: −80 × 4/20 = −16; walk +5, transit +3, crime −5.
+    expect(first).toBe(100 - 16 + 5 + 3 - 5);
   });
 
   it('should deduct POLICE_STATION_COST via the police tool', () => {

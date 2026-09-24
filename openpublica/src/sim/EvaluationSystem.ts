@@ -5,7 +5,7 @@ import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 import type { CityStats } from './CitySim';
 import { RoadType, ZoneType } from './CityTile';
-import { tileHasAdjacentRoad } from './zoneGrowthHints';
+import { tileHasAdjacentRoad, zoneStress, type ZoneStress } from './zoneGrowthHints';
 import { stationHasRoad } from './roadDispatch';
 import { EXTREME_TRAFFIC_PRESSURE } from './happiness';
 
@@ -61,7 +61,7 @@ export class EvaluationSystem {
     defs: ReadonlyMap<string, BuildingDef>,
     stats: CityStats,
   ): void {
-    const census = survey(map, buildings, defs);
+    const census = survey(map, buildings, defs, stats);
     stats.approval = score(stats, census);
     stats.advisory = topAdvisory(stats, census);
   }
@@ -85,6 +85,9 @@ interface Census {
   industrialLots: number;
   mixedLots: number;
   strugglingCount: number;
+  /** The most common trouble among struggling buildings, and whether most of those are houses. */
+  strugglingCause: ZoneStress | null;
+  strugglingHomes: boolean;
   /** Zone buildings sitting in the dark (houses, shops, factories). */
   unpoweredHouses: number;
   /** Empty zoned lots that already touch a road. */
@@ -95,6 +98,7 @@ function survey(
   map: CityMap,
   buildings: ReadonlyMap<string, BuildingInstance>,
   defs: ReadonlyMap<string, BuildingDef>,
+  stats: CityStats,
 ): Census {
   let hasPlant = false;
   let buildingCount = 0;
@@ -129,6 +133,8 @@ function survey(
   let industrialLots = 0;
   let mixedLots = 0;
   let strugglingCount = 0;
+  let strugglingHomeCount = 0;
+  const causes = new Map<ZoneStress, number>();
   let unpoweredHouses = 0;
   let growableLots = 0;
   let hasRoad = false;
@@ -139,7 +145,12 @@ function survey(
     if (tile.zoneType === ZoneType.Commercial) commercialLots += 1;
     if (tile.zoneType === ZoneType.Industrial) industrialLots += 1;
     if (tile.zoneType === ZoneType.MixedUse) mixedLots += 1;
-    if (tile.neglectMonths >= 2 && tile.buildingId !== null) strugglingCount += 1;
+    if (tile.neglectMonths >= 2 && tile.buildingId !== null) {
+      strugglingCount += 1;
+      if (tile.zoneType === ZoneType.Residential) strugglingHomeCount += 1;
+      const cause = zoneStress(tile, map, stats);
+      if (cause) causes.set(cause, (causes.get(cause) ?? 0) + 1);
+    }
     if (
       tile.zoneType !== ZoneType.None &&
       tile.buildingId !== null &&
@@ -184,6 +195,8 @@ function survey(
     industrialLots,
     mixedLots,
     strugglingCount,
+    strugglingCause: [...causes].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null,
+    strugglingHomes: strugglingHomeCount * 2 > strugglingCount,
     unpoweredHouses,
     growableLots,
   };
@@ -209,6 +222,24 @@ function score(stats: CityStats, census: Census): number {
 
 function taxOverDefault(rate: number): number {
   return Math.max(0, rate - 9) * TAX_PER_POINT_OVER;
+}
+
+/** Why buildings are emptying, named by what troubles most of them. */
+function emptyingMessage(census: Census): string {
+  switch (census.strugglingCause) {
+    case 'demand':
+      return census.strugglingHomes
+        ? 'Houses are emptying — more homes than jobs. Zone shops or factories, or cut residential tax.'
+        : 'Shops and factories are emptying — not enough demand. Grow the population or cut taxes.';
+    case 'power':
+      return 'Buildings are emptying in the dark — connect their streets to a power plant with room to spare.';
+    case 'smog':
+      return 'Buildings are emptying in the smog — move plants and factories away from them, or add parks.';
+    case 'crime':
+      return 'Buildings are emptying to crime — add a powered police station on a street nearby.';
+    default:
+      return 'Buildings are emptying — restore power, demand, or road access.';
+  }
 }
 
 function topAdvisory(stats: CityStats, census: Census): string {
@@ -282,10 +313,7 @@ function listAdvisories(stats: CityStats, census: Census): Advisory[] {
     });
   }
   if (census.strugglingCount > 0) {
-    out.push({
-      id: 'abandon',
-      message: 'Buildings are emptying — restore power, demand, or road access.',
-    });
+    out.push({ id: 'abandon', message: emptyingMessage(census) });
   }
   if (stats.pollutionAverage >= 40) {
     out.push({ id: 'smog', message: 'Smog spike — industrial and plants are fouling the air.' });

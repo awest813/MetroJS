@@ -19,6 +19,9 @@ export class CityMenu {
       onSave: () => void;
       onLoad: () => void;
       onNewCity: () => void;
+      /** Scripted cities the New confirm offers instead of a fresh map. */
+      testCities?: ReadonlyArray<{ id: string; title: string; summary: string }>;
+      onTestCity?: (id: string) => void;
     },
   ) {
     this._hasSave = handlers.hasSave;
@@ -77,6 +80,27 @@ export class CityMenu {
       'Generate a new map? Unsaved work is lost. Your last Save is kept.',
       'New map',
     );
+    const testCities = handlers.testCities ?? [];
+    if (testCities.length > 0 && handlers.onTestCity) {
+      const pick = document.createElement('select');
+      pick.className = 'confirm-test-city';
+      pick.setAttribute('aria-label', 'Open a test city instead');
+      const prompt = document.createElement('option');
+      prompt.value = '';
+      prompt.textContent = 'Or open a test city…';
+      pick.appendChild(prompt);
+      for (const city of testCities) {
+        const option = document.createElement('option');
+        option.value = city.id;
+        option.textContent = city.title;
+        option.title = city.summary;
+        pick.appendChild(option);
+      }
+      pick.addEventListener('change', () => {
+        if (pick.value) handlers.onTestCity!(pick.value);
+      });
+      this._newConfirm.appendChild(pick);
+    }
     container.appendChild(this._loadConfirm);
     container.appendChild(this._newConfirm);
 

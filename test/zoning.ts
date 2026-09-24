@@ -39,6 +39,12 @@ function streetRow(sim: CitySim, y: number, x0 = 0, x1 = sim.map.width - 1): voi
   });
 }
 
+function makeSimWithStreet(): CitySim {
+  const sim = makeSim();
+  streetRow(sim, 3);
+  return sim;
+}
+
 /** Road tiles reachable from `start` over land roads. */
 function reachable(sim: CitySim, start: TileCoord): Set<string> {
   const seen = new Set([`${start.x},${start.y}`]);
@@ -216,6 +222,23 @@ describe('streets through big zones', () => {
     expect(plan.noStreet).toBeGreaterThan(0);
   });
 
+  it('should lay a short stub to a road a few tiles off instead of an island', () => {
+    const sim = makeSim();
+    streetRow(sim, 3);
+    // Drawn two tiles below the street: the grid alone would not touch it.
+    const plan = planZoneArea(createResidentialLowBrush(), { x: 2, y: 6 }, { x: 17, y: 13 }, sim, true);
+    new ToolController(createResidentialLowBrush()).applyTiles(plan.streets, sim, new RoadTool());
+    const network = reachable(sim, { x: 0, y: 3 });
+    for (const t of plan.streets) expect(network.has(`${t.x},${t.y}`)).toBe(true);
+    const stub = plan.streets.filter((t) => t.y < 6);
+    expect(stub.length).toBeGreaterThan(0);
+    expect(stub.length).toBeLessThanOrEqual(4);
+    // Too far for a stub: the area keeps its own grid and lays nothing outside.
+    const far = planZoneArea(createResidentialLowBrush(), { x: 2, y: 9 }, { x: 17, y: 16 }, makeSimWithStreet(), true);
+    expect(far.streets.length).toBeGreaterThan(0);
+    expect(far.streets.every((t) => t.y >= 9)).toBe(true);
+  });
+
   it('should never bridge or pave through a building', () => {
     const sim = makeSim();
     for (let y = 2; y <= 11; y++) sim.getTile(8, y)!.terrain = TerrainType.Water;
@@ -314,6 +337,15 @@ describe('growth pace', () => {
     expect(lotTooHostile(smoggy)).toBe('smog');
     expect(formatGrowthHint(smoggy, sim.map, sim.stats)).toMatch(/^too smoggy to settle/);
     expect(formatGrowthHint(risky, sim.map, sim.stats)).toMatch(/^too much crime to settle/);
+  });
+
+  it('should let factories settle in smog that keeps homes away', () => {
+    const lot = makeSim().getTile(2, 6)!;
+    lot.pollution = 90;
+    lot.zoneType = ZoneType.Industrial;
+    expect(lotTooHostile(lot)).toBeNull();
+    lot.zoneType = ZoneType.Residential;
+    expect(lotTooHostile(lot)).toBe('smog');
   });
 
   it('should tell a waiting lot how fast lots fill', () => {

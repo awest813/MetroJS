@@ -162,11 +162,44 @@ function connectedStreets(map: CityMap, streets: readonly TileCoord[]): TileCoor
   return largest;
 }
 
+/** Longest run of street a planned grid lays beyond its area to reach a road. */
+const MAX_STUB = 4;
+
+/**
+ * The shortest straight run of new street, out from the edge of the area,
+ * that joins a planned street to an existing land road: at most
+ * {@link MAX_STUB} tiles, never over water or through a building. Empty when
+ * no road is that close.
+ */
+function stubToNetwork(map: CityMap, rect: Rect, streets: readonly TileCoord[]): TileCoord[] {
+  let best: TileCoord[] | null = null;
+  for (const t of streets) {
+    for (const [dx, dy] of ROAD_STEPS) {
+      const nx = t.x + dx;
+      const ny = t.y + dy;
+      if (nx >= rect.x0 && nx <= rect.x1 && ny >= rect.y0 && ny <= rect.y1) continue;
+      const run: TileCoord[] = [];
+      for (let step = 1; step <= MAX_STUB + 1; step++) {
+        const x = t.x + dx * step;
+        const y = t.y + dy * step;
+        if (isLandRoad(map.getTile(x, y))) {
+          if (run.length > 0 && (!best || run.length < best.length)) best = run;
+          break;
+        }
+        if (step > MAX_STUB || !canPave(map, x, y)) break;
+        run.push({ x, y });
+      }
+    }
+  }
+  return best ?? [];
+}
+
 /**
  * Streets that give every lot in the area a frontage, or none when the lots
  * already have one. Lines run along the long side every third row; a spine
  * down one short side ties them to each other and, where it can, to the
- * existing roads. Never bridges, never through buildings.
+ * existing roads. A grid that would still be an island lays a short stub to
+ * a road a few tiles off. Never bridges, never through buildings.
  */
 export function autoStreetLayout(map: CityMap, anchor: TileCoord, target: TileCoord): TileCoord[] {
   const rect = rectOf(anchor, target);
@@ -219,13 +252,15 @@ export function autoStreetLayout(map: CityMap, anchor: TileCoord, target: TileCo
     for (let i = offset; i < lines; i += STREET_PITCH) streets.push(...paveable(lineTiles(i)));
     if (streets.length === 0) continue;
     let set = new Set(streets.map((t) => key(t.x, t.y)));
-    const joined = joinedToNetwork(map, set);
+    let joined = joinedToNetwork(map, set);
     if (streets.some((t) => !joined.has(key(t.x, t.y)))) {
       const atStart = spineContacts(true) >= spineContacts(false);
       for (const t of paveable(spineTiles(atStart))) {
         if (!set.has(key(t.x, t.y))) streets.push(t);
       }
+      joined = joinedToNetwork(map, new Set(streets.map((t) => key(t.x, t.y))));
     }
+    if (!streets.some((t) => joined.has(key(t.x, t.y)))) streets.push(...stubToNetwork(map, rect, streets));
     const kept = connectedStreets(map, streets);
     if (kept.length === 0) continue;
     set = new Set(kept.map((t) => key(t.x, t.y)));

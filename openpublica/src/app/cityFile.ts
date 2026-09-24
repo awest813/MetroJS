@@ -1,5 +1,6 @@
 import { CityMenu } from '../ui/CityMenu';
 import { SaveSystem } from '../save/SaveSystem';
+import { TEST_CITIES, testCityById, type TestCity } from '../scenarios/testCities';
 import type { CitySim } from '../sim/CitySim';
 import type { CityHUD } from '../ui/CityHUD';
 import type { BudgetPanel } from '../ui/BudgetPanel';
@@ -42,8 +43,24 @@ export function mountCityMenu(
         opts.statusEl.textContent = 'No save found.';
       }
     },
+    testCities: TEST_CITIES.map((city) => ({ id: city.id, title: city.title, summary: city.summary })),
     onNewCity: () => {
-      window.location.reload();
+      // A fresh random map, not the test city the address may name.
+      const url = new URL(window.location.href);
+      url.searchParams.delete('city');
+      if (url.href === window.location.href) window.location.reload();
+      else window.location.assign(url.href);
+    },
+    onTestCity: (id) => {
+      const url = new URL(window.location.href);
+      url.searchParams.set('city', id);
+      window.location.assign(url.href);
     },
   });
+}
+
+/** The scripted test city named by `?city=<id>` in the address, if any. */
+export function requestedTestCity(): TestCity | undefined {
+  const id = new URLSearchParams(window.location.search).get('city');
+  return id ? testCityById(id) : undefined;
 }

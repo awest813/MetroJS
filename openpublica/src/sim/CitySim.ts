@@ -538,6 +538,11 @@ export class CitySim {
 
     if (month.monthsRun === 0) return;
 
+    // Buildings that left or shrank at month end draw no power, which can
+    // light others: the HUD, census, and Power map must match what a reload
+    // of this city would compute.
+    this.power.tick(this.map, this.growth.buildings, this.growth.defs);
+    this.growth.recomputeCensus(this.stats, this.map);
     // Growth used last month's smog. Publish this month's traffic before the HUD.
     this._syncPublishedState(true, true);
     if (this.onMonth) this.onMonth();

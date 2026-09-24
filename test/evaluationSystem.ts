@@ -190,6 +190,22 @@ describe('EvaluationSystem', () => {
     expect(sim.stats.advisory).toMatch(/emptying/i);
   });
 
+  it('should name a want of jobs when houses empty for lack of demand', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    placeConnectedPlant(sim, 0, 0);
+    sim.stats.pollutionAverage = 0;
+    sim.placeRoad(10, 10, RoadType.Street);
+    sim.getTile(10, 11)!.zoneType = ZoneType.Residential;
+    sim.getTile(10, 11)!.buildingId = 'small_house';
+    sim.getTile(10, 11)!.powered = true;
+    sim.getTile(10, 11)!.neglectMonths = 2;
+    sim.growth.buildings.set('10,11', { defId: 'small_house', x: 10, y: 11 });
+    sim.stats.residentialDemand = 0;
+    sim.evaluate();
+    expect(sim.stats.advisory).toMatch(/Houses are emptying — more homes than jobs/);
+  });
+
   it('should warn when a station sits outside the plant radius', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;

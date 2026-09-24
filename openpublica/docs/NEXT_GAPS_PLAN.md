@@ -243,6 +243,53 @@ open land was bare green with nothing for the city to replace.
 | L2 Shore | Corners that touch water blend natural colours only, and a waterfront plat fades to the bank there, so no zone or yard colour tints the lake bed. |
 | L3 Woods | `sim/woods`: a seeded noise field marks groves on open grass (about 22% of it); zoning, paving, or building on a tile clears it. Lots beside the woods get +6 land value, two tiles away +3. The renderer plants 2–3 trees per grove tile and the odd lone tree, as thin instances with a low-poly canopy (drawn indices 9.5M → 0.9M on a fresh map). The zone preview says how many wooded tiles it clears; inspecting woods explains them. Low quality drops groves with street trees. |
 
+### Gap M — Menu and UI **shipped**
+
+A ninth audit measured the chrome at 1920×1080, 1400×900, 1280×720,
+1024×768, and a 390×844 phone. The left rail was a flex column that squeezed
+the tool list: at 1280×720 the toolbar was 20px tall with no tools showing,
+and at 1400×900 the zone and service tools were cut off. The HUD ran 22px
+under the Budget panel, and on a phone the tool strip covered the camera bar
+and minimap.
+
+| Slice | What shipped |
+|---|---|
+| M1 Rail | Tools sit two to a row in groups (look/clear, roads, zones, services) with their shortcut key on each button; the rail is 200px and the toolbar 301px tall at every desktop size, with no rail scroll. Tool names lost their emoji; buttons carry `aria-keyshortcuts`. Settings starts folded below 980px tall. |
+| M2 Layout | The HUD ends 10px short of Budget at every width. On a phone the tools are one 51px scrolling strip, and the camera bar, look panel, and open Settings sit above it. |
+| M3 Polish | Buttons, inputs, and selects use the UI face instead of the browser's Arial. Instanced buildings and cars no longer set shadow flags on each instance (about 100 console warnings on every load). |
+
+### Gap N — Test cities **shipped**
+
+The cities used for audits were hand-made saves in a scratch folder: two,
+both flawed (4×4 blocks whose middles had no street, plants among houses),
+and nothing in the repo could rebuild them. `src/scenarios/` now scripts five
+cities with the player's own tools and prices (`CityBuilder`: road lines,
+zone rectangles with auto streets, service clicks, months), grows them with
+seeded dice, and logs anything a tool refuses. Open one with `?city=<id>` or
+from the New confirm; `test/testCities.ts` builds each and checks it.
+
+| City | Seed, budget, time | What it shows | Where it ends |
+|---|---|---|---|
+| `hamlet` | 11, $10,000, 2 years | The first hours: a crossroads, shops, a few factories, one plant past town, woods all round | 124 people, 70 jobs, power 194/400, treasury $23k |
+| `riverside` | 2026, $40,000, 2½ years | A street bridge and a highway bridge; the plants are all on the north bank and light the far one across the bridge; shore lots, a bridgehead park, a far-bank tower, factories across the lake | 260 people, both banks lit, waterfront valued above inland |
+| `metro` | 7, $120,000, 4 years in 3 phases | Zone areas with auto streets, a highway, a trolley line, downtown, mixed use, industry, six plants, three towers, police, fire, parks | 948 people, 592 jobs, happiness 91, power 1562/2400 |
+| `troubled` | 101, $30,000, 3 years | Blocks four lots deep, a plant among the houses, factories next door, no police, a tower with no street, a police station on a dark street, taxes raised to 16/14/14 | 150 lots with no road, power 397/400 with dark houses, smog 77, approval 0 |
+| `sprawl` | 314, $60,000, 3½ years | A highway across the map with cul-de-sacs, a shopping strip, an industrial park; one plant at the west end until month 30 | Before the second plant the dark lots are the far (east) ones; after it all are lit; water 597/600 |
+
+Building them turned up six sim faults, now fixed:
+
+| Fault | Found in | Fix |
+|---|---|---|
+| Density saturated at 100 on any street of small houses (6 per resident over radius 4), so crime ran 69–85 before police and the first village churned (population 96 → 28 → 80) | hamlet | 2 per resident: a street of houses settles near 50 (crime about 40, under the stress line of 50); rowhouse and main-street blocks still reach 100 and need police |
+| Demand at 0 stressed every building of a zone at once, so the whole town left in the same month (128 → 0) and regrew from starter demand | hamlet | Demand alone thins a zone by 5% a month (at least one), least valued first; a town settles where its jobs are. Power, road, smog, and crime still drive buildings out on their own |
+| Factories counted their own smog: each workshop fouled its neighbours past 60 and the district emptied and regrew (17 → 7 → 15 workshops) | troubled | Smog stresses and blocks homes and shops, not industry (58 workshops hold) |
+| The street between two rows of small houses, the plat the zone tool lays, read 13 traffic (jammed at 8); every real city sat near 0 happiness and had no street trees | metro | Trip rates 0.3 rounded up per house, 4 per shop, 6 per workshop → 0.15 per resident, 2, 3: small houses 4, rowhouses 8, shops on both sides 13. Happiness loses 80 × the jammed share of roads (short networks count as 20) instead of 2 per jammed tile. Metro 0 → 91 |
+| A zone area drawn a tile or two off a road laid an island street grid, and its houses stayed dark | riverside | The grid lays a straight stub of up to 4 tiles to the nearest road (never a bridge) when it would not otherwise join one |
+| Month end published power load and the census from before buildings left, so the HUD disagreed with a reload of the same city (load 202 vs 194) | every save round trip | Power and the census are refreshed at month end |
+
+The emptying advisory now names its cause: more homes than jobs, the dark,
+smog, or crime.
+
 ---
 
 ## 4. Explicitly still out of scope (Phase I)
@@ -290,3 +337,5 @@ GLB (C4) and SSAO (C5) stay optional. C3 skirt is optional.
 - Frame cost: load a large city and check the scene holds a few hundred meshes, not tens of thousands; paint and bulldoze a road and reload the save (road pieces appear, vanish, and match after load).
 - Utilities: place a plant beside a street at the edge of town (the whole joined network previews yellow), watch Power in the HUD, hover the plant to see what it feeds, place one in an empty field (the status asks for a street), and add a water tower beside a powered street.
 - Ground: zone a rectangle over woods (the status says how many wooded tiles it clears; the trees go on release), inspect a grove tile, check the Value map for the woods premium, and look along a waterfront for zone colour in the water (there should be none).
+- UI: at 1280×720 every tool shows in the rail with its key; the HUD stops short of Budget; on a phone the tool strip is one row under the camera bar and minimap.
+- Test cities: open `?city=hamlet`, `riverside`, `metro`, `troubled`, and `sprawl` (or New → Or open a test city); each status line says what the city shows, the HUD and advisory match its row in Gap N, and New goes back to a fresh map.
