@@ -4,6 +4,7 @@ import { SimulationClock } from '../openpublica/src/sim/SimulationClock';
 import { CityMap } from '../openpublica/src/sim/CityMap';
 import { BASE_LAND_VALUE } from '../openpublica/src/sim/LandValueSystem';
 import { MONTH_SECONDS } from '../openpublica/src/data/constants';
+import { testCityById } from '../openpublica/src/scenarios/testCities';
 
 // ── CitySim ───────────────────────────────────────────────────────────────────
 
@@ -291,6 +292,27 @@ describe('CitySim', () => {
       sim.onMonth = () => { months += 1; };
       sim.tick(MONTH_SECONDS);
       expect(months).toBe(1);
+    });
+
+    it('should publish the traffic routed on the layout the month ended with', () => {
+      // A month end reuses the traffic its last step routed instead of routing
+      // it again; a fresh recompute must find nothing to change.
+      const { sim } = testCityById('hamlet')!.build();
+      sim.tick(MONTH_SECONDS);
+      const layers = (): number[] => {
+        const out: number[] = [];
+        sim.map.forEach((t) => out.push(t.trafficPressure, t.noise, t.walkability, t.transitAccess));
+        return out;
+      };
+      const published = layers();
+      const flow = Array.from(sim.traffic.commutes!.flow);
+      const stats = [sim.stats.walkability, sim.stats.transitAccess];
+      expect(published.some((v) => v > 0)).toBe(true);
+
+      sim.refreshDerivedState({ notify: false });
+      expect(layers()).toEqual(published);
+      expect(Array.from(sim.traffic.commutes!.flow)).toEqual(flow);
+      expect([sim.stats.walkability, sim.stats.transitAccess]).toEqual(stats);
     });
   });
 });

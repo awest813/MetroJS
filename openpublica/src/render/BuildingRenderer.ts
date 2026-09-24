@@ -117,6 +117,7 @@ export class BuildingRenderer {
     if (!placed || Math.abs(placed.facing - facing) < 1e-6) return;
     placed.facing = facing;
     placed.instance.rotation.y = facing;
+    placed.instance.freezeWorldMatrix();
     this._foundation(placed.defId, x, y, facing);
   }
 
@@ -137,6 +138,7 @@ export class BuildingRenderer {
       const placed = this._placed.get(_tileKey(coord.x, coord.y));
       if (!placed) continue;
       placed.instance.position.y = this._floorY(coord.x, coord.y);
+      placed.instance.freezeWorldMatrix();
       this._foundation(placed.defId, coord.x, coord.y, placed.facing);
     }
   }
@@ -194,6 +196,9 @@ export class BuildingRenderer {
       instance.y * TILE_SIZE + TILE_SIZE / 2,
     );
     mesh.rotation = new Vector3(0, facing, 0);
+    // Buildings stand still: compute the matrix once, not every frame. Moving
+    // one (a new facing, re-seated ground) freezes it again at its new place.
+    mesh.freezeWorldMatrix();
 
     const pickData: BuildingPickData = { buildingId: instance.defId, x: instance.x, y: instance.y };
     mesh.metadata = pickData; // colours and shadows come from the source mesh

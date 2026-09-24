@@ -490,9 +490,13 @@ export class CitySim {
    * One snapshot of derived map state.
    * Traffic first, then the smog and happiness that read it, then land value
    * (after water) so crime sees the values the player is about to see.
+   *
+   * `trafficFresh` skips traffic, walk, and transit when they already ran on
+   * the current roads and buildings (a month's last step runs them), which
+   * saves the costliest part of a month-end frame.
    */
-  private _syncPublishedState(applyCrimeHappiness: boolean, notify: boolean): void {
-    this._refreshTrafficLayers();
+  private _syncPublishedState(applyCrimeHappiness: boolean, notify: boolean, trafficFresh = false): void {
+    if (!trafficFresh) this._refreshTrafficLayers();
     this.pollution.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
     this.water.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
     this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
@@ -707,8 +711,10 @@ export class CitySim {
     // of this city would compute.
     this.power.tick(this.map, this.growth.buildings, this.growth.defs);
     this.growth.recomputeCensus(this.stats, this.map);
-    // Growth used last month's smog. Publish this month's traffic before the HUD.
-    this._syncPublishedState(true, true);
+    // Growth used last month's smog. Publish this month's traffic before the
+    // HUD: the month ended by routing it on this layout, and only power and the
+    // census (which traffic does not read) have run since.
+    this._syncPublishedState(true, true, true);
     const w = this._weather;
     const newWeather = w.kind !== weatherBefore.kind || w.temperature !== weatherBefore.temperature;
     if (newWeather && this.onWeatherChanged) this.onWeatherChanged();

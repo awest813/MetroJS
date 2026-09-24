@@ -44,6 +44,8 @@ export class WeatherRenderer {
   private _flash = 0;
   private _untilFlash = 4;
   private _untilScan = 0;
+  /** Rain and snow shaders still to compile (see {@link update}). */
+  private _cold = true;
   /** Called on each lightning flash (the app plays thunder). */
   onLightning: (() => void) | null = null;
 
@@ -94,6 +96,11 @@ export class WeatherRenderer {
 
   /** Per frame: transitions, the rain around the camera, lightning. */
   update(dtSeconds: number): void {
+    // Compile the rain and snow shaders while the city loads: asking whether
+    // a system is ready builds its effect once its shader code has arrived.
+    // Left to the first wet month, the compile stalled that frame (0.4 s in
+    // software rendering).
+    if (this._cold) this._cold = !(this._rain.isReady() && this._snow.isReady());
     const dt = Math.max(0, Math.min(0.25, dtSeconds));
     if (this._t < 1) {
       this._t = Math.min(1, this._t + dt / TRANSITION_SECONDS);

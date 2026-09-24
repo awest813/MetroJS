@@ -1,9 +1,10 @@
 import {
   Scene,
-  MeshBuilder,
+  CreateBoxVertexData,
   Color3,
   Mesh,
   Vector3,
+  VertexData,
   ShadowGenerator,
   PBRMaterial,
 } from '@babylonjs/core';
@@ -25,6 +26,7 @@ import {
   type RoadPieceKind,
 } from './roadLayout';
 import { deckBaseHeight, roadKitDirtyTiles } from './roadDeck';
+import { NO_BOTTOM, TOP_ONLY, keepBoxFaces, type BoxFace } from './boxFaces';
 import { coloredPbr } from './pbrSurfaces';
 import { ThinInstanceGroups } from './thinInstanceGroups';
 
@@ -39,6 +41,17 @@ export const EMBANKMENT_MIN_GAP = 0.035;
 
 /** Embankments run this deep below the lowest ground so no gap shows. */
 const EMBANKMENT_SINK = 0.04;
+
+/**
+ * Pieces that cast shadows: embankments standing over a slope, and bridges
+ * over the water. Decks, curbs, paint, and rails lie on the graded ground,
+ * where their shadows would be a texel wide at most, yet they were two thirds
+ * of the shadow pass's triangles in a full city.
+ */
+const CASTS_SHADOW: ReadonlySet<RoadPieceKind> = new Set(['berm', 'girder', 'pier', 'railing']);
+
+/** Paint and ties are too thin to show their sides; nothing shows its underside. */
+const TOP_ONLY_PIECES: ReadonlySet<RoadPieceKind> = new Set(['dash', 'crosswalk', 'tie']);
 
 /** Pieces stretched along a sloped arm so seams stay closed. */
 const STRETCH: ReadonlySet<RoadPieceKind> = new Set(['arm', 'rail', 'curb', 'railing', 'girder', 'berm']);
@@ -75,23 +88,23 @@ export class RoadRenderer {
     const railing = this._mat('road-railing', new Color3(0.80, 0.80, 0.77), 0.70, 0.15);
     const concrete = this._mat('road-concrete', new Color3(0.56, 0.55, 0.52), 0.92);
 
-    const streetDeck = this._unit('road-src-street', street);
+    const streetDeck = this._unit('road-src-street', street, 'deck');
     this._decks = {
       [RoadType.None]: streetDeck,
       [RoadType.Street]: streetDeck,
-      [RoadType.Highway]: this._unit('road-src-highway', highway),
-      [RoadType.TrolleyAvenue]: this._unit('road-src-trolley', trolley),
+      [RoadType.Highway]: this._unit('road-src-highway', highway, 'deck'),
+      [RoadType.TrolleyAvenue]: this._unit('road-src-trolley', trolley, 'deck'),
     };
     this._src = {
-      curb: this._unit('road-src-curb', curb),
-      dash: this._unit('road-src-dash', mark),
-      rail: this._unit('road-src-rail', rail),
-      tie: this._unit('road-src-tie', tie),
-      crosswalk: this._unit('road-src-walk', walk),
-      railing: this._unit('road-src-railing', railing),
-      girder: this._unit('road-src-girder', concrete),
-      pier: this._unit('road-src-pier', concrete),
-      berm: this._unit('road-src-berm', this._mat('road-berm', new Color3(0.46, 0.42, 0.35), 0.95)),
+      curb: this._unit('road-src-curb', curb, 'curb'),
+      dash: this._unit('road-src-dash', mark, 'dash'),
+      rail: this._unit('road-src-rail', rail, 'rail'),
+      tie: this._unit('road-src-tie', tie, 'tie'),
+      crosswalk: this._unit('road-src-walk', walk, 'crosswalk'),
+      railing: this._unit('road-src-railing', railing, 'railing'),
+      girder: this._unit('road-src-girder', concrete, 'girder'),
+      pier: this._unit('road-src-pier', concrete, 'pier'),
+      berm: this._unit('road-src-berm', this._mat('road-berm', new Color3(0.46, 0.42, 0.35), 0.95), 'berm'),
     };
   }
 
@@ -290,13 +303,28 @@ export class RoadRenderer {
     this._pieces.add(key, src, position, scaling, rotation);
   }
 
-  private _unit(name: string, mat: PBRMaterial): Mesh {
-    const mesh = MeshBuilder.CreateBox(name, { width: 1, height: 1, depth: 1 }, this._scene);
+  /** A unit box source for one kind of piece, with only the faces that show. */
+  private _unit(name: string, mat: PBRMaterial, kind: RoadPieceKind | 'deck'): Mesh {
+    const faces: readonly BoxFace[] = kind !== 'deck' && TOP_ONLY_PIECES.has(kind) ? TOP_ONLY : NO_BOTTOM;
+    const box = CreateBoxVertexData({ size: 1 });
+    const trimmed = keepBoxFaces({
+      positions: Array.from(box.positions!),
+      normals: Array.from(box.normals!),
+      uvs: box.uvs ? Array.from(box.uvs) : undefined,
+      indices: Array.from(box.indices!),
+    }, faces);
+    const data = new VertexData();
+    data.positions = trimmed.positions;
+    data.normals = trimmed.normals;
+    if (trimmed.uvs) data.uvs = trimmed.uvs;
+    data.indices = trimmed.indices;
+    const mesh = new Mesh(name, this._scene);
+    data.applyToMesh(mesh);
     mesh.material = mat;
     mesh.isPickable = false;
     mesh.receiveShadows = true;
     ThinInstanceGroups.prepare(mesh);
-    this._shadows?.addShadowCaster(mesh);
+    if (kind !== 'deck' && CASTS_SHADOW.has(kind)) this._shadows?.addShadowCaster(mesh);
     return mesh;
   }
 

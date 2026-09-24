@@ -1,7 +1,7 @@
 # OpenPublica — Next gaps (after Phases A–H)
 
 **Date:** 2026-09-24 (first written 2026-09-20)  
-**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–S below have shipped on top.
+**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AB below have shipped on top.
 
 This is an implementation plan for **what is still missing**, not a licence to rewrite sim formulas or import Micropolis art.
 
@@ -15,7 +15,7 @@ checked against five scripted test cities (Gap N). The first audit's four
 open items (city health, honest feedback, PBR/sky, the `App.ts` split) have
 all shipped. What is left (section 5) is depth, not missing systems:
 
-1. **Presentation** extras stay optional (GLB kits, SSAO). The test cities now end with traffic as their top advisory, which the player fixes with the road tools.
+1. **Presentation** extras stay optional (GLB kits, SSAO). SSAO passed its full-city frame check (Gap AB) as a half-resolution opt-in. The test cities now end with traffic as their top advisory, which the player fixes with the road tools.
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
 
@@ -85,7 +85,7 @@ Buildings **do** empty after sustained neglect. Status is city-local (HUD adviso
 | C2 Sky **shipped** | Inverted sky dome, vertex horizon→zenith; fog + sun slider still drive it | Full atmosphere / SSAO in C2 |
 | C3 Terrain read **shipped** | Grass/dirt variation from simplex; the earth skirt (Gap G); lawns, yards, and woods (Gap L) | Change lake topology |
 | C4 GLB (optional) | `@babylonjs/loaders` + `visualRef` + `ASSET_LICENSE.md`; procedural fallback | EA-looking kits |
-| C5 PostFX | SSAO/FXAA only after a filled-city frame-time check on High quality | Always-on SSAO |
+| C5 PostFX | SSAO/FXAA only after a filled-city frame-time check on High quality (**checked**, Gap AB: half-resolution SSAO fits as an opt-in) | Always-on SSAO |
 
 **Exit:** Horizon and materials read 3D without a second engine.
 
@@ -587,6 +587,57 @@ crime line and 33 struggling, so 9 it is.
 **Exit:** Zone a 15-wide area in the open: its lines meet at a cross street
 halfway along as well as at both ends.
 
+### Gap AB — Frame time in a full city **shipped**
+
+C5 asked for a filled-city frame-time check on High before SSAO. The test
+cities are not full (Metro builds on 9% of its land), so the check adds a
+stress map: seed 7, a street every 15 tiles each way, sixteen zone areas with
+their own streets and services, twelve months of growth, then every zoned lot
+topped up with its zone's biggest building (1,671 buildings on 1,546 road
+tiles, 26k thin instances). The container has no GPU (Chromium draws with
+SwiftShader on the CPU), so the check measures what carries over to other
+machines: JavaScript per frame (`scene.render()` back to back, render loop
+stopped), the GPU's workload (draw calls, triangles per pass), and each
+pass's share of SwiftShader's raster time (render plus a one-pixel readback),
+which only ranks costs. 1280×720, High, a 2.1 GHz Xeon core.
+
+| Slice | What shipped |
+|---|---|
+| AB1 Shadow casters | Of the road pieces, only embankments, girders, piers, and railings cast shadows. Decks, curbs, paint, and rails lie on graded ground, where their shadows were a texel wide at most, yet they were two thirds of the shadow pass (346k → 117k triangles). Bridges still shade the water through their girders. |
+| AB2 Road boxes | `keepBoxFaces` trims the unit boxes the road pieces share: paint, crosswalks, and ties keep only their tops, and no piece keeps its underside (the camera stays above the ground). Road triangles in the main pass: 275k → about 200k. |
+| AB3 Frozen buildings | Building instances compute their world matrix once, and again only when turned or re-seated: active-mesh evaluation at street level 3.7 → 1.5 ms. Thin instances would save the last 0.9 ms but lose per-building culling, so they stay instances. |
+| AB4 One traffic pass a month | A month's last step routes traffic on its final layout; publishing the month routed it again. It now reuses it (a test checks a fresh recompute changes nothing). |
+| AB5 Weather shaders at load | Rain and snow compile their shaders in the first frames. Left to the first wet month, the compile stalled that frame: 400–600 ms in Metro. |
+
+| Full city | Before | After |
+|---|---|---|
+| JavaScript per frame, overview (median) | 4.7–4.9 ms | 4.4 ms |
+| Draw calls | 78 | 73 |
+| Triangles per frame (main + shadow) | 530k + 346k | 451k + 117k |
+| SwiftShader raster (ranks costs only) | 1,607 ms | 1,283 ms |
+| Month-end frame at 4× (app work) | 169 ms | 135 ms |
+| Month-end sim alone (Node) | 38 ms | 28 ms |
+
+Metro: 444k → 354k triangles, 65 → 57 draw calls, and its worst frame over
+two months at 4× (with the first rain) 580 → 36 ms. The JavaScript side
+leaves over 10 ms of a 60 fps frame free on a slow core, and the month end is
+the only hitch. SwiftShader spends about 55% of the main pass on road pieces
+and 20% on buildings, and a quarter of the pixels saves only 15%: it is bound
+by vertices and instances, where real GPUs are bound by pixels, so the
+triangle count is the number to compare.
+
+**SSAO (C5).** Babylon's `SSAO2RenderingPipeline` (16 samples, blurred) takes
+the prepass route on WebGL2: no second geometry pass, the same triangles,
+four or five more draw calls, and no JavaScript cost. It adds 7% to the
+SwiftShader frame at half resolution and 21% at full, a floor on its share
+since SwiftShader underweights pixel work. It seats buildings and trees on
+the ground, but at the default strength it also greys open ground and
+shorelines. Verdict: ship it as an opt-in at half resolution, off by default,
+and time it on a real integrated GPU before turning it on for everyone.
+
+**Exit:** Open a full city on High at 4×: the only stutter is the month end,
+and the first rain falls without a stall.
+
 ---
 
 ## 4. Explicitly still out of scope (Phase I)
@@ -606,9 +657,11 @@ Unchanged from the 3D plan:
 ## 5. Recommended next PRs (mergeable)
 
 The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped, and so has the
-housekeeping after it (D4 faster tests). What is left is optional polish:
+housekeeping after it (D4 faster tests, the Gap AB frame check). What is left
+is optional polish:
 
-1. **GLB kits (C4) and SSAO (C5)** stay optional; SSAO only after a filled-city frame-time check on High quality.
+1. **SSAO opt-in (C5).** Gap AB measured it: SSAO2 through the prepass, at half resolution, adds no geometry pass. Ship it as a Look-panel toggle, off by default, with the strength tuned so open ground stays light, and time it on a real integrated GPU before making it the default.
+2. **GLB kits (C4)** stay optional.
 
 ---
 
@@ -639,4 +692,5 @@ housekeeping after it (D4 faster tests). What is left is optional polish:
 - Time: hide the tab for a minute and come back (the date moves on by about a quarter second, not two months); the HUD date counts days.
 - Weather: open `?city=metro&weather=snow`, `rain`, `storm`, `fog`, and `heat` (snow on roofs, plowed roads, amber HUD, Road upkeep (snow) in Budget; rain and storm grey the sky; heat raises Power and water load), then play a year at 4× and watch the seasons turn.
 - Shops: open `?city=metro`, look at the shopping districts (glass-banded office blocks among shop rows), and check Traffic there.
+- Frame time: load a full city on High and run it at 4× (the only stutter is the month end), and let Metro reach its first rain (no stall when it starts); a bridge still shades the water under it.
 - Test cities: open `?city=hamlet`, `riverside`, `metro`, `troubled`, and `sprawl` (or New → Or open a test city); each status line says what the city shows, the HUD and advisory match its row in Gap N, and New goes back to a fresh map.
