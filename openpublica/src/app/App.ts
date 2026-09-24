@@ -28,12 +28,19 @@ import { formatInspectStatus } from '../ui/inspectStatus';
 import { SpeedBar, simSecondsForFrame, type SimSpeed } from '../ui/SpeedBar';
 import { LookPanel } from '../ui/LookPanel';
 import { SettingsPanel } from '../ui/SettingsPanel';
-import { readStoredQuality, readStoredSun, type QualityLevel } from '../ui/settingsStore';
+import {
+  ambientOcclusionActive,
+  readStoredAmbientOcclusion,
+  readStoredQuality,
+  readStoredSun,
+  type QualityLevel,
+} from '../ui/settingsStore';
 import { AudioBus } from '../audio/AudioBus';
 import { BANKRUPT_VOICE, FAIL_VOICE, GROWTH_VOICE, sfxForTool } from '../audio/voices';
 import { explainToolFailure, formatStrokeStatus } from '../tools/toolFeedback';
 import { formatGrowthHint } from '../sim/zoneGrowthHints';
 import { WeatherRenderer } from '../render/WeatherRenderer';
+import { AmbientOcclusion } from '../render/AmbientOcclusion';
 import { parseWeatherKind } from '../sim/weather';
 import { CityView } from './CityView';
 import { mountCityMenu, requestedTestCity } from './cityFile';
@@ -169,10 +176,23 @@ export class App {
     sim.onWeatherChanged = () => weatherView.setWeather(sim.weather);
     weatherView.onLightning = () => audio.thunder();
 
+    // Opt-in, High only: see AmbientOcclusion and settingsStore.
+    const ambientOcclusion = new AmbientOcclusion(scene, camera);
+    let quality = readStoredQuality();
+    const syncAmbientOcclusion = (): void => {
+      ambientOcclusion.setEnabled(ambientOcclusionActive({
+        quality,
+        wanted: readStoredAmbientOcclusion(),
+        supported: AmbientOcclusion.supported,
+        mapShown: view.overlay.mode !== null,
+      }));
+    };
     const applyQuality = (level: QualityLevel): void => {
+      quality = level;
       scene.shadowsEnabled = level === 'high';
       view.applyQuality(level, sim);
       weatherView.setEffects(level === 'high');
+      syncAmbientOcclusion();
     };
     applyQuality(readStoredQuality());
 
@@ -370,6 +390,7 @@ export class App {
         } else if (view.overlay.isMode(mode)) {
           view.overlay.setMode(null);
         }
+        syncAmbientOcclusion();
       },
     });
 
@@ -539,6 +560,8 @@ export class App {
       audio,
       onSun: (day) => weatherView.setDay(day),
       onQuality: applyQuality,
+      onAmbientOcclusion: syncAmbientOcclusion,
+      ambientOcclusionSupported: AmbientOcclusion.supported,
     });
 
     setInterval(() => {

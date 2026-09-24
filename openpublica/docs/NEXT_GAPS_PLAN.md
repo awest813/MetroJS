@@ -1,7 +1,7 @@
 # OpenPublica — Next gaps (after Phases A–H)
 
 **Date:** 2026-09-24 (first written 2026-09-20)  
-**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AB below have shipped on top.
+**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AC below have shipped on top.
 
 This is an implementation plan for **what is still missing**, not a licence to rewrite sim formulas or import Micropolis art.
 
@@ -15,7 +15,7 @@ checked against five scripted test cities (Gap N). The first audit's four
 open items (city health, honest feedback, PBR/sky, the `App.ts` split) have
 all shipped. What is left (section 5) is depth, not missing systems:
 
-1. **Presentation** extras stay optional (GLB kits, SSAO). SSAO passed its full-city frame check (Gap AB) as a half-resolution opt-in. The test cities now end with traffic as their top advisory, which the player fixes with the road tools.
+1. **Presentation** extras: SSAO shipped as an opt-in after its full-city frame check (Gaps AB, AC); GLB kits stay optional. The test cities now end with traffic as their top advisory, which the player fixes with the road tools.
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
 
@@ -85,7 +85,7 @@ Buildings **do** empty after sustained neglect. Status is city-local (HUD adviso
 | C2 Sky **shipped** | Inverted sky dome, vertex horizon→zenith; fog + sun slider still drive it | Full atmosphere / SSAO in C2 |
 | C3 Terrain read **shipped** | Grass/dirt variation from simplex; the earth skirt (Gap G); lawns, yards, and woods (Gap L) | Change lake topology |
 | C4 GLB (optional) | `@babylonjs/loaders` + `visualRef` + `ASSET_LICENSE.md`; procedural fallback | EA-looking kits |
-| C5 PostFX | SSAO/FXAA only after a filled-city frame-time check on High quality (**checked**, Gap AB: half-resolution SSAO fits as an opt-in) | Always-on SSAO |
+| C5 PostFX **shipped (opt-in)** | SSAO/FXAA only after a filled-city frame-time check on High quality: checked in Gap AB, shipped in Gap AC as a Settings toggle, off by default | Always-on SSAO |
 
 **Exit:** Horizon and materials read 3D without a second engine.
 
@@ -633,10 +633,38 @@ SwiftShader frame at half resolution and 21% at full, a floor on its share
 since SwiftShader underweights pixel work. It seats buildings and trees on
 the ground, but at the default strength it also greys open ground and
 shorelines. Verdict: ship it as an opt-in at half resolution, off by default,
-and time it on a real integrated GPU before turning it on for everyone.
+and time it on a real integrated GPU before turning it on for everyone
+(shipped: Gap AC).
 
 **Exit:** Open a full city on High at 4×: the only stutter is the month end,
 and the first rain falls without a stall.
+
+### Gap AC — Ambient occlusion **shipped**
+
+Gap AB found SSAO affordable as an opt-in. Tuning it on the test cities
+turned up three problems with Babylon's defaults. Flat lawns and streets
+shaded themselves. The scene, now drawn off-screen, lost the canvas's
+antialiasing. And the shade muddied the data maps' colours.
+
+| Slice | What shipped |
+|---|---|
+| AC1 Setting | Settings → Ambient occlusion: off by default and stored in the browser. It draws only on Quality: high, and only where WebGL2 is available; otherwise the button is greyed out and its tooltip says why. `AmbientOcclusion` builds the pipeline when it turns on, and when it turns off it drops the pipeline and switches the prepass off. |
+| AC2 Look | Half-resolution SSAO2: radius half a tile, strength 2, 16 samples, bilateral blur, fading out by 120 units. `epsilon` 0.15, against Babylon's default of 0.02, stops flat ground shading itself. In a Metro street view, Babylon's `epsilon` (with radius 0.6, strength 1.2) darkened 278 of 400 sample points (mostly lawn and road). The tuned settings darken 194, mostly around the houses, and at the overview's distance it only deepens the blocks. |
+| AC3 Maps | A data map pauses it: the shade darkened the map colours around every building, turning the Traffic map's red streets brown. It comes back when the map closes. |
+| AC4 Edges | FXAA replaces the lost antialiasing. Multisampling the prepass's targets instead cost 63–82% of the frame in SwiftShader; FXAA cost too little to measure. |
+
+| Full city, SwiftShader (ranks costs only) | Off | On |
+|---|---|---|
+| Overview | 1,179 ms | 1,242 ms (+5%) |
+| Street level | 1,133 ms | 1,293 ms (+14%) |
+| Draw calls | 73 | 80 |
+
+JavaScript per frame does not change. It stays off by default until someone
+times it on a real integrated GPU.
+
+**Exit:** Settings → Ambient occlusion on, at Quality: high: buildings and
+trees sit darker where they meet the ground, and open lawns stay light; open
+the Traffic map and the shade goes, and it returns when the map closes.
 
 ---
 
@@ -657,10 +685,10 @@ Unchanged from the 3D plan:
 ## 5. Recommended next PRs (mergeable)
 
 The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped, and so has the
-housekeeping after it (D4 faster tests, the Gap AB frame check). What is left
-is optional polish:
+housekeeping after it (D4 faster tests, the Gap AB frame check, the Gap AC
+SSAO opt-in). What is left is optional:
 
-1. **SSAO opt-in (C5).** Gap AB measured it: SSAO2 through the prepass, at half resolution, adds no geometry pass. Ship it as a Look-panel toggle, off by default, with the strength tuned so open ground stays light, and time it on a real integrated GPU before making it the default.
+1. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
 2. **GLB kits (C4)** stay optional.
 
 ---
@@ -693,4 +721,5 @@ is optional polish:
 - Weather: open `?city=metro&weather=snow`, `rain`, `storm`, `fog`, and `heat` (snow on roofs, plowed roads, amber HUD, Road upkeep (snow) in Budget; rain and storm grey the sky; heat raises Power and water load), then play a year at 4× and watch the seasons turn.
 - Shops: open `?city=metro`, look at the shopping districts (glass-banded office blocks among shop rows), and check Traffic there.
 - Frame time: load a full city on High and run it at 4× (the only stutter is the month end), and let Metro reach its first rain (no stall when it starts); a bridge still shades the water under it.
+- Ambient occlusion: Settings → Ambient occlusion on (Quality: high): buildings and trees sit darker where they meet the ground, and open lawns stay light; open a map and the shade pauses; switch to Quality: low and the button greys out.
 - Test cities: open `?city=hamlet`, `riverside`, `metro`, `troubled`, and `sprawl` (or New → Or open a test city); each status line says what the city shows, the HUD and advisory match its row in Gap N, and New goes back to a fresh map.

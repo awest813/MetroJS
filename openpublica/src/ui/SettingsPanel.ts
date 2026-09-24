@@ -3,19 +3,23 @@ import { SETTINGS_SHORTCUTS } from './chromeCopy';
 import { keyBelongsToField } from './keys';
 import {
   type QualityLevel,
+  readStoredAmbientOcclusion,
   readStoredQuality,
   readStoredSun,
+  writeStoredAmbientOcclusion,
   writeStoredQuality,
   writeStoredSun,
 } from './settingsStore';
 
 /**
- * Presentation prefs: mute, quality, sun, and a short key list.
+ * Presentation prefs: mute, quality, ambient occlusion, sun, and a short key list.
  * Does not touch simulation numbers (taxes stay on Budget).
  */
 export class SettingsPanel {
   private readonly _soundBtn: HTMLButtonElement;
   private readonly _qualityBtn: HTMLButtonElement;
+  private readonly _aoBtn: HTMLButtonElement;
+  private readonly _aoSupported: boolean;
 
   constructor(
     container: HTMLElement,
@@ -23,8 +27,13 @@ export class SettingsPanel {
       audio: AudioBus;
       onSun: (day: number) => void;
       onQuality: (level: QualityLevel) => void;
+      /** The player turned ambient occlusion on or off (already stored). */
+      onAmbientOcclusion: (on: boolean) => void;
+      /** False where the browser cannot draw it (no WebGL2). */
+      ambientOcclusionSupported: boolean;
     },
   ) {
+    this._aoSupported = handlers.ambientOcclusionSupported;
     container.innerHTML = '';
     container.classList.add('rail-group');
     container.setAttribute('role', 'group');
@@ -74,11 +83,23 @@ export class SettingsPanel {
     this._qualityBtn.addEventListener('click', () => {
       const next: QualityLevel = this._qualityBtn.dataset.quality === 'low' ? 'high' : 'low';
       this._syncQuality(next);
+      this._syncAmbientOcclusion(readStoredAmbientOcclusion(), next);
       writeStoredQuality(next);
       handlers.onQuality(next);
     });
     body.appendChild(this._qualityBtn);
     this._syncQuality(readStoredQuality());
+
+    this._aoBtn = document.createElement('button');
+    this._aoBtn.type = 'button';
+    this._aoBtn.addEventListener('click', () => {
+      const next = this._aoBtn.dataset.on !== 'true';
+      writeStoredAmbientOcclusion(next);
+      this._syncAmbientOcclusion(next, this._qualityBtn.dataset.quality === 'low' ? 'low' : 'high');
+      handlers.onAmbientOcclusion(next);
+    });
+    body.appendChild(this._aoBtn);
+    this._syncAmbientOcclusion(readStoredAmbientOcclusion(), readStoredQuality());
 
     const sunRow = document.createElement('div');
     sunRow.className = 'look-sun settings-sun';
@@ -133,6 +154,22 @@ export class SettingsPanel {
     body.appendChild(keys);
 
     container.appendChild(fold);
+  }
+
+  private _syncAmbientOcclusion(on: boolean, quality: QualityLevel): void {
+    const usable = this._aoSupported && quality === 'high';
+    const btn = this._aoBtn;
+    btn.dataset.on = on ? 'true' : 'false';
+    btn.textContent = on ? 'Ambient occlusion: on' : 'Ambient occlusion: off';
+    btn.disabled = !usable;
+    const what = 'Soft shade where buildings and trees meet the ground (paused while a map shows); costs GPU time.';
+    btn.title = !this._aoSupported
+      ? 'Ambient occlusion needs WebGL2, which this browser lacks.'
+      : quality !== 'high'
+        ? 'Ambient occlusion needs Quality: high.'
+        : `${what} Click to turn it ${on ? 'off' : 'on'}.`;
+    btn.classList.toggle('active', on && usable);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   }
 
   private _syncQuality(level: QualityLevel): void {

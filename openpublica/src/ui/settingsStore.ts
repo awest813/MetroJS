@@ -40,3 +40,36 @@ export function writeStoredSun(day: number): void {
     /* private mode */
   }
 }
+
+export const AMBIENT_OCCLUSION_STORAGE_KEY = 'openpublica.ambientOcclusion';
+
+/** Ambient occlusion is opt-in: its GPU cost was only measured in software (Gap AB). */
+export function readStoredAmbientOcclusion(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(AMBIENT_OCCLUSION_STORAGE_KEY) === 'on';
+  } catch {
+    return false;
+  }
+}
+
+export function writeStoredAmbientOcclusion(on: boolean): void {
+  try {
+    globalThis.localStorage?.setItem(AMBIENT_OCCLUSION_STORAGE_KEY, on ? 'on' : 'off');
+  } catch {
+    /* private mode */
+  }
+}
+
+/**
+ * Ambient occlusion draws only on High quality, when asked for, where the
+ * browser can, and not under a data map: it would darken the map's colours
+ * around every building, and those colours are the data.
+ */
+export function ambientOcclusionActive(opts: {
+  quality: QualityLevel;
+  wanted: boolean;
+  supported: boolean;
+  mapShown: boolean;
+}): boolean {
+  return opts.supported && opts.wanted && opts.quality === 'high' && !opts.mapShown;
+}

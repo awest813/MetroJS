@@ -6,11 +6,15 @@ import {
   formatSignedMoney,
 } from '../openpublica/src/ui/chromeCopy';
 import {
+  AMBIENT_OCCLUSION_STORAGE_KEY,
   DEFAULT_DAY,
   QUALITY_STORAGE_KEY,
   SUN_STORAGE_KEY,
+  ambientOcclusionActive,
+  readStoredAmbientOcclusion,
   readStoredQuality,
   readStoredSun,
+  writeStoredAmbientOcclusion,
   writeStoredQuality,
   writeStoredSun,
 } from '../openpublica/src/ui/settingsStore';
@@ -87,5 +91,23 @@ describe('settingsStore', () => {
     expect(readStoredSun()).toBe(1);
     writeStoredSun(-2);
     expect(readStoredSun()).toBe(0);
+  });
+
+  it('should keep ambient occlusion off until the player turns it on', () => {
+    expect(readStoredAmbientOcclusion()).toBe(false);
+    writeStoredAmbientOcclusion(true);
+    expect(memory.get(AMBIENT_OCCLUSION_STORAGE_KEY)).toBe('on');
+    expect(readStoredAmbientOcclusion()).toBe(true);
+    writeStoredAmbientOcclusion(false);
+    expect(readStoredAmbientOcclusion()).toBe(false);
+  });
+
+  it('should draw ambient occlusion only on High, when wanted and supported, with no map on', () => {
+    const on = { quality: 'high' as const, wanted: true, supported: true, mapShown: false };
+    expect(ambientOcclusionActive(on)).toBe(true);
+    expect(ambientOcclusionActive({ ...on, quality: 'low' })).toBe(false);
+    expect(ambientOcclusionActive({ ...on, wanted: false })).toBe(false);
+    expect(ambientOcclusionActive({ ...on, supported: false })).toBe(false);
+    expect(ambientOcclusionActive({ ...on, mapShown: true })).toBe(false);
   });
 });
