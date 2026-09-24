@@ -48,6 +48,8 @@ export const BUILDING_SHAPES: Record<string, BuildingShape> = {
   shop_row:             { width: 0.80, depth: 0.60, height: 0.52 },
   office_block:         { width: 0.70, depth: 0.70, height: 1.16 },
   light_workshop:       { width: 0.75, depth: 0.75, height: 0.50 },
+  factory:              { width: 0.82, depth: 0.78, height: 0.62 },
+  industrial_works:     { width: 0.90, depth: 0.86, height: 0.95 },
   small_power_plant:    { width: 0.80, depth: 0.80, height: 0.60 },
   small_police_station: { width: 0.70, depth: 0.62, height: 0.55 },
   small_fire_station:   { width: 0.72, depth: 0.64, height: 0.48 },
@@ -175,6 +177,38 @@ const KITS: BuildingKit[] = [
       box('roof', 0.76, 0.06, 0.74, 0, 0.36, 0, { rx: 0.22 }),
       cylinder('stack', 0.09, 0.22, 0.22, 0.47, -0.18),
       box('trim', 0.18, 0.16, 0.03, 0, 0.10, 0.35),
+    ],
+  },
+  {
+    // A sawtooth-roofed shed with north lights and twin stacks.
+    defId: 'factory',
+    shape: BUILDING_SHAPES.factory,
+    parts: [
+      box('body', 0.80, 0.30, 0.74, 0, 0.15, 0),
+      box('roof', 0.80, 0.05, 0.26, 0, 0.36, -0.24, { rx: 0.35 }),
+      box('roof', 0.80, 0.05, 0.26, 0, 0.36, 0, { rx: 0.35 }),
+      box('roof', 0.80, 0.05, 0.26, 0, 0.36, 0.24, { rx: 0.35 }),
+      box('glass', 0.76, 0.05, 0.02, 0, 0.36, -0.12),
+      box('glass', 0.76, 0.05, 0.02, 0, 0.36, 0.12),
+      cylinder('stack', 0.10, 0.34, 0.28, 0.45, -0.24),
+      cylinder('stack', 0.08, 0.28, 0.14, 0.42, -0.26),
+      box('accent', 0.80, 0.03, 0.03, 0, 0.26, 0.375),
+      box('trim', 0.22, 0.18, 0.03, -0.18, 0.09, 0.38),
+    ],
+  },
+  {
+    // A tall hall, a storage tank, a conveyor, and a tall stack: heavy industry by the highway.
+    defId: 'industrial_works',
+    shape: BUILDING_SHAPES.industrial_works,
+    parts: [
+      box('body', 0.60, 0.42, 0.84, -0.14, 0.21, 0),
+      box('roof', 0.64, 0.05, 0.86, -0.14, 0.445, 0),
+      box('glass', 0.56, 0.06, 0.02, -0.14, 0.32, 0.425),
+      box('trim', 0.20, 0.18, 0.03, -0.24, 0.09, 0.43),
+      cylinder('accent', 0.26, 0.46, 0.30, 0.23, 0.22),
+      box('trim', 0.34, 0.04, 0.07, 0.16, 0.40, -0.02, { rz: -0.45 }),
+      cylinder('stack', 0.12, 0.62, 0.30, 0.64, -0.24),
+      cylinder('stack', 0.09, 0.40, 0.04, 0.60, -0.28),
     ],
   },
   {

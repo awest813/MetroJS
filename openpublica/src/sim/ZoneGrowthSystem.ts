@@ -27,6 +27,7 @@ import {
   monthlyGrowthBudget,
   nextDevelopmentDef,
   targetBuildingDef,
+  lotTier,
   tileHasAdjacentRoad,
   zoneBuildingIsStressed,
   zoneStress,
@@ -37,6 +38,26 @@ import {
 
 /** Maximum demand value (clamps residentialDemand, commercialDemand, industrialDemand). */
 const MAX_DEMAND = 100;
+
+/** Industrial demand's target while the city has jobs for everyone. */
+export const INDUSTRY_BASELINE = 20;
+
+/**
+ * Target points per unit share of residents without a job: 10% idle aims
+ * demand at 40 (factories), 20% at 60 (works beside a highway). As the new
+ * jobs fill, the target falls back below the factory bar, so industry grows
+ * to meet unemployment instead of running away.
+ */
+export const IDLE_SHARE_DEMAND = 200;
+
+/** Target points per point of industrial tax under (or over) 9%. */
+const INDUSTRY_TAX_DEMAND = 4;
+
+/**
+ * Most industrial demand rises toward its target in a month; it falls twice
+ * as fast, so factories stop converting soon after the jobs gap closes.
+ */
+export const INDUSTRY_DEMAND_STEP = 4;
 
 /** Cast the imported JSON to a typed array once at module load. */
 const BUILDING_DEFS: BuildingDef[] = rawDefs as BuildingDef[];
@@ -58,6 +79,21 @@ export function tileKey(x: number, y: number): string {
  * - After four consecutive stressed months, zone buildings downgrade or leave.
  * - Updates city stats (population, jobs) and demand values.
  */
+/**
+ * Next month's industrial demand: a step toward a target of the baseline
+ * plus the idle share of residents, lowered by taxes over 9% and raised by
+ * taxes under ({@link INDUSTRY_DEMAND_STEP} up, twice that down).
+ */
+export function nextIndustrialDemand(stats: Pick<CityStats, 'population' | 'jobs' | 'industrialDemand' | 'indTaxRate'>): number {
+  const idleShare = stats.population > 0 ? Math.max(0, stats.population - stats.jobs) / stats.population : 0;
+  const target = Math.max(0, Math.min(
+    MAX_DEMAND,
+    INDUSTRY_BASELINE + idleShare * IDLE_SHARE_DEMAND + (9 - stats.indTaxRate) * INDUSTRY_TAX_DEMAND,
+  ));
+  const step = Math.max(-2 * INDUSTRY_DEMAND_STEP, Math.min(INDUSTRY_DEMAND_STEP, target - stats.industrialDemand));
+  return Math.max(0, Math.min(MAX_DEMAND, Math.round(stats.industrialDemand + step)));
+}
+
 export class ZoneGrowthSystem {
   /** All placed buildings, keyed by "x,y". */
   readonly buildings: Map<string, BuildingInstance> = new Map();
@@ -250,7 +286,8 @@ export class ZoneGrowthSystem {
    * Rules (simple, readable):
    * - residential demand rises when jobs > workers (population).
    * - commercial demand rises when population grows.
-   * - industrial demand starts modestly positive and decays slowly toward 20.
+   * - industrial demand heads for a target set by the share of residents
+   *   without a job ({@link nextIndustrialDemand}).
    * - higher tax rates suppress demand (penalty); lower rates boost it.
    */
   /** Housing demand from last month's jobs. An empty city keeps the starter bar. */
@@ -272,7 +309,6 @@ export class ZoneGrowthSystem {
   /** Shop and factory demand from the census just taken, including this month's houses. */
   private _updateJobDemand(stats: CityStats): void {
     const comTaxMod = (9 - stats.comTaxRate) * 2;
-    const indTaxMod = (9 - stats.indTaxRate) * 2;
     const WALK_COM_DEMAND_DIVISOR = 25;
     const TRANSIT_COM_DEMAND_DIVISOR = 20;
     const popGrowthBoost = stats.population > 0 ? 3 : -1;
@@ -283,12 +319,7 @@ export class ZoneGrowthSystem {
       Math.min(MAX_DEMAND, stats.commercialDemand + popGrowthBoost + walkBoost + transitComBoost + comTaxMod),
     );
 
-    const industrialTarget = 20;
-    const industrialDelta = stats.industrialDemand < industrialTarget ? 2 : -1;
-    stats.industrialDemand = Math.max(
-      0,
-      Math.min(MAX_DEMAND, stats.industrialDemand + industrialDelta + indTaxMod),
-    );
+    stats.industrialDemand = nextIndustrialDemand(stats);
   }
 
   /**
@@ -323,7 +354,7 @@ export class ZoneGrowthSystem {
       if (this.random() > chance) return;
 
       const bucket = this._defsByZone.get(tile.zoneType);
-      const def = bucket ? targetBuildingDef(bucket, tile.landValue, demand) : undefined;
+      const def = bucket ? targetBuildingDef(bucket, tile.landValue, demand, lotTier(map, tile, demand)) : undefined;
       if (!def) return;
 
       // Weighted draw without replacement: a higher weight ranks higher on average.
@@ -370,7 +401,9 @@ export class ZoneGrowthSystem {
       const demand = demandForZone(tile.zoneType, stats);
       if (demand <= 0) return;
       const bucket = this._defsByZone.get(tile.zoneType);
-      const next = bucket ? nextDevelopmentDef(bucket, current, tile.landValue, demand) : undefined;
+      const next = bucket
+        ? nextDevelopmentDef(bucket, current, tile.landValue, demand, lotTier(map, tile, demand))
+        : undefined;
       if (!next) return;
       if (this.random() > growthChance(tile.landValue, demand, 1, POWERED_ROAD_GROWTH_BOOST)) return;
 

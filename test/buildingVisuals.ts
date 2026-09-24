@@ -1,4 +1,5 @@
 import { ZoneType } from '../openpublica/src/sim/CityTile';
+import rawDefs from '../openpublica/src/data/buildings.json';
 import {
   BUILDING_KITS,
   BUILDING_SHAPES,
@@ -68,6 +69,24 @@ describe('buildingVisuals kits', () => {
     const kit = BUILDING_KITS.light_workshop;
     expect(kit.parts.some((p) => p.slot === 'roof' && p.rx)).toBe(true);
     expect(kit.parts.some((p) => p.shape === 'cylinder' && p.slot === 'stack')).toBe(true);
+  });
+
+  it('should define a kit for every building in buildings.json', () => {
+    for (const def of rawDefs as Array<{ id: string }>) {
+      expect([def.id, kitForDef(def.id) !== null]).toEqual([def.id, true]);
+    }
+  });
+
+  it('should raise works above factories above workshops, with more stacks as they grow', () => {
+    expect(BUILDING_SHAPES.industrial_works.height).toBeGreaterThan(BUILDING_SHAPES.factory.height);
+    expect(BUILDING_SHAPES.factory.height).toBeGreaterThan(BUILDING_SHAPES.light_workshop.height);
+    const stacks = (id: string): number => BUILDING_KITS[id].parts.filter((p) => p.slot === 'stack').length;
+    expect(stacks('factory')).toBeGreaterThan(stacks('light_workshop'));
+    expect(BUILDING_KITS.factory.parts.filter((p) => p.slot === 'roof' && p.rx).length).toBe(3);
+    for (const id of ['factory', 'industrial_works']) {
+      const top = Math.max(...BUILDING_KITS[id].parts.map((p) => p.y + p.h / 2));
+      expect(top).toBeLessThanOrEqual(BUILDING_SHAPES[id].height + 1e-9);
+    }
   });
 
   it('should give the power plant two stacks', () => {

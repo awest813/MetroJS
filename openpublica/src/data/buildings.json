@@ -45,6 +45,24 @@
     "pollutionRadius": 6
   },
   {
+    "id": "factory",
+    "name": "Factory",
+    "zoneType": 3,
+    "population": 0,
+    "jobs": 12,
+    "pollutionOutput": 45,
+    "pollutionRadius": 7
+  },
+  {
+    "id": "industrial_works",
+    "name": "Industrial Works",
+    "zoneType": 3,
+    "population": 0,
+    "jobs": 24,
+    "pollutionOutput": 55,
+    "pollutionRadius": 8
+  },
+  {
     "id": "small_power_plant",
     "name": "Small Power Plant",
     "zoneType": 0,

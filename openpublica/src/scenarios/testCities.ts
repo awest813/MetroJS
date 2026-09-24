@@ -85,6 +85,7 @@ const riverside: TestCity = {
     .zone(Residential, [37, 45], [42, 50])
     .place('plant', 62, 29)
     .place('plant', 62, 31)
+    .place('plant', 61, 29)
     .place('park', 35, 38)
     .place('tower', 37, 44)
     .months(30), 2026, 40_000, watch),
@@ -166,10 +167,10 @@ const troubled: TestCity = {
 const sprawl: TestCity = {
   id: 'sprawl',
   title: 'Sprawl',
-  summary: 'Sprawl: a highway strip across the map with cul-de-sacs; power runs short toward the far end until a second plant.',
+  summary: 'Sprawl: a highway strip across the map with cul-de-sacs; power runs short toward the far end until a second plant, and a third follows the factories.',
   covers: [
     'one long network: lots nearest the plant are served first, the far end goes dark',
-    'a second plant at the far end fixing the shortfall',
+    'a second plant at the far end fixing the shortfall, and a third as the industrial park grows into factories',
     'highway traffic and low walkability, no transit',
     'dead-end streets, a shopping strip, and factories across the highway',
   ],
@@ -186,7 +187,10 @@ const sprawl: TestCity = {
     b.place('tower', 33, 61).road(Street, [33, 60], [33, 60]);
     b.months(30);
     b.place('plant', 62, 60);
-    return b.months(12);
+    b.months(6);
+    // Jobs have caught up and the industrial park is turning into factories: a third plant.
+    b.place('plant', 61, 60);
+    return b.months(6);
   }, 314, 60_000, watch),
 };
 

@@ -26,6 +26,12 @@ export const DENSE_DEMAND = 35;
 export const TALL_LAND_VALUE = 70;
 export const TALL_DEMAND = 60;
 
+/**
+ * Tiles from a factory lot to a highway for the largest works: its freight
+ * needs one close by, so heavy industry grows along highways.
+ */
+export const FREIGHT_REACH = 3;
+
 /** Consecutive stressed months before a zone building downgrades or leaves. */
 export const STRESS_MONTHS_TO_CHANGE = 4;
 
@@ -110,6 +116,33 @@ export function developmentTier(landValue: number, demand: number): number {
   return 0;
 }
 
+/** True when a highway runs within {@link FREIGHT_REACH} tiles of the lot. */
+export function hasFreightAccess(map: CityMap, x: number, y: number): boolean {
+  for (let dy = -FREIGHT_REACH; dy <= FREIGHT_REACH; dy++) {
+    for (let dx = -FREIGHT_REACH; dx <= FREIGHT_REACH; dx++) {
+      if (map.getTile(x + dx, y + dy)?.roadType === RoadType.Highway) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Factory size. Industry grows on demand, not land value (its own smog keeps
+ * its land cheap): a factory needs the mid demand bar, and the largest works
+ * also need a highway within {@link FREIGHT_REACH} for their freight.
+ */
+export function industrialTier(demand: number, freight: boolean): number {
+  if (demand >= TALL_DEMAND && freight) return 2;
+  if (demand >= DENSE_DEMAND) return 1;
+  return 0;
+}
+
+/** The size a lot can support: by land value and demand, or for industry by demand and freight. */
+export function lotTier(map: CityMap, tile: CityTile, demand: number): number {
+  if (tile.zoneType === ZoneType.Industrial) return industrialTier(demand, hasFreightAccess(map, tile.x, tile.y));
+  return developmentTier(tile.landValue, demand);
+}
+
 export function rankedZoneDefs<T extends GrowthDef>(defs: readonly T[]): T[] {
   return defs
     .filter((def) => !def.isService)
@@ -117,16 +150,19 @@ export function rankedZoneDefs<T extends GrowthDef>(defs: readonly T[]): T[] {
     .sort((a, b) => buildingSize(a) - buildingSize(b) || a.id.localeCompare(b.id));
 }
 
-/** Largest def this lot can support. Low value or weak demand stays on the smallest building. */
+/**
+ * Largest def this lot can support. Low value or weak demand stays on the
+ * smallest building. Pass `tier` ({@link lotTier}) to use a zone's own bars.
+ */
 export function targetBuildingDef<T extends GrowthDef>(
   defs: readonly T[],
   landValue: number,
   demand: number,
+  tier = developmentTier(landValue, demand),
 ): T | undefined {
   const ranked = rankedZoneDefs(defs);
   if (ranked.length === 0) return undefined;
-  const tier = Math.min(developmentTier(landValue, demand), ranked.length - 1);
-  return ranked[tier];
+  return ranked[Math.min(tier, ranked.length - 1)];
 }
 
 /**
@@ -138,8 +174,9 @@ export function nextDevelopmentDef<T extends GrowthDef>(
   current: T,
   landValue: number,
   demand: number,
+  tier = developmentTier(landValue, demand),
 ): T | undefined {
-  const target = targetBuildingDef(defs, landValue, demand);
+  const target = targetBuildingDef(defs, landValue, demand, tier);
   if (!target || buildingSize(target) <= buildingSize(current)) return undefined;
   const ranked = rankedZoneDefs(defs);
   const index = ranked.findIndex((def) => def.id === current.id);

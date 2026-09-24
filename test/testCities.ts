@@ -6,6 +6,7 @@ import { MAP_SIZE } from '../openpublica/src/data/constants';
 import { waterfrontDistance } from '../openpublica/src/sim/shoreline';
 import { levelCrossingAxis, trolleyLines } from '../openpublica/src/sim/TransitSystem';
 import { ROAD_STEPS, isRoadTile } from '../openpublica/src/sim/roadConnections';
+import { hasFreightAccess } from '../openpublica/src/sim/zoneGrowthHints';
 
 /**
  * Scenario tests: each scripted test city is built once (with the player's
@@ -95,6 +96,12 @@ describe('test cities', () => {
 });
 
 describe('hamlet', () => {
+  it('should turn its workshops into factories while villagers lack jobs, with no highway for works', () => {
+    const { sim } = city('hamlet');
+    expect(tiles(sim, (t) => t.buildingId === 'factory').length).toBeGreaterThan(0);
+    expect(tiles(sim, (t) => t.buildingId === 'industrial_works')).toEqual([]);
+  });
+
   it('should be a small, lit, solvent village on one network', () => {
     const { sim } = city('hamlet');
     expect(sim.stats.population).toBeGreaterThan(50);
@@ -137,6 +144,14 @@ describe('riverside', () => {
     const span = tiles(sim, (t) => t.terrain === TerrainType.Water && t.roadType === RoadType.Street);
     const mid = span[Math.floor(span.length / 2)];
     expect(mid.trafficPressure).toBeGreaterThan(0);
+  });
+
+  it('should grow industrial works beside its highway, and only there', () => {
+    const { sim } = city('riverside');
+    const works = tiles(sim, (t) => t.buildingId === 'industrial_works');
+    expect(works.length).toBeGreaterThan(0);
+    expect(works.every((t) => hasFreightAccess(sim.map, t.x, t.y))).toBe(true);
+    expect(sim.stats.jobs).toBeGreaterThan(0.8 * sim.stats.population);
   });
 
   it('should value waterfront lots above inland ones', () => {
@@ -213,11 +228,13 @@ describe('troubled', () => {
 });
 
 describe('sprawl', () => {
-  it('should run short toward the far end until the second plant, then light it all', () => {
+  it('should run short toward the far end until more plants come, then light it all', () => {
     let beforeSecondPlant: { dark: number[]; lit: number[] } | null = null;
+    let afterThirdPlant = -1;
     let month = 0;
     const { sim } = testCityById('sprawl')!.build((s) => {
       month += 1;
+      if (month === 38) afterThirdPlant = darkBuildings(s).length;
       if (month !== 30) return;
       beforeSecondPlant = {
         dark: darkBuildings(s).map((t) => t.x),
@@ -228,8 +245,10 @@ describe('sprawl', () => {
     expect(before.dark.length).toBeGreaterThan(0);
     // The plant is at the west end: lots nearest it are served first.
     expect(mean(before.dark)).toBeGreaterThan(mean(before.lit));
-    expect(darkBuildings(sim)).toEqual([]);
-    expect(sim.stats.powerSupply).toBe(800);
+    // Two months after the third plant every lot is lit; the city then grows into the new supply.
+    expect(afterThirdPlant).toBe(0);
+    expect(sim.stats.powerSupply).toBe(1200);
+    expect(sim.stats.powerLoad).toBeGreaterThan(800);
   });
 
   it('should load the highway and leave nobody walking or riding', () => {
