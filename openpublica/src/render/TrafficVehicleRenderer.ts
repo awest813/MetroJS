@@ -8,6 +8,8 @@ import {
   TransformNode,
 } from '@babylonjs/core';
 import type { CityMap } from '../sim/CityMap';
+import type { Commutes } from '../sim/commutes';
+import { COMMUTE_LOAD } from '../sim/TrafficPressureSystem';
 import { TILE_SIZE } from '../data/constants';
 import type { HeightField } from '../sim/HeightField';
 import { roadProfile } from '../sim/roadConnections';
@@ -27,6 +29,8 @@ import {
   emptyGraph,
   nodesWithEdges,
   parseNodeKey,
+  pickCarStart,
+  pickCommuteNext,
   pickNext,
   summarizeTraffic,
   trolleyLineLengths,
@@ -35,6 +39,7 @@ import {
   roadNetworkKey,
   vehiclePose,
   TURN_SPAN,
+  type CarTrip,
   type NodeKey,
   type RoadGraph,
 } from './roadGraph';
@@ -69,6 +74,8 @@ interface Actor {
   t: number;
   speed: number;
   lane: number;
+  /** A car's commute direction (null: it wanders); trolleys keep null. */
+  trip: CarTrip;
   root: TransformNode;
 }
 
@@ -77,7 +84,9 @@ interface Actor {
  * render-only road graph. Busy edges slow cars down; highways let them go
  * faster; trolleys keep their own pace on the rails. Vehicles ride the deck
  * height, so they climb hills and cross bridges instead of sampling the
- * lake bed. Sim state is never written.
+ * lake bed. Cars appear where the Traffic map is busy, and the commuters
+ * among them drive the sim's commute routes to work and back. Sim state is
+ * never read beyond the map and the last commutes, and never written.
  */
 export class TrafficVehicleRenderer {
   private readonly _scene: Scene;
@@ -94,6 +103,7 @@ export class TrafficVehicleRenderer {
   /** {@link roadNetworkKey} of the map the graphs were built from. */
   private _networkKey = '';
   private readonly _decks = new Map<NodeKey, number>();
+  private _commutes: Commutes | null = null;
   private _seq = 0;
 
   constructor(scene: Scene, shadowGenerator: ShadowGenerator | null = null) {
@@ -163,6 +173,11 @@ export class TrafficVehicleRenderer {
     this._rehome(this._cars, this._graph);
     this._rehome(this._trolleys, this._trolleyGraph);
     this.syncDensity(map);
+  }
+
+  /** The commutes the sim routed last; commuting cars follow them. */
+  setCommutes(commutes: Commutes | null): void {
+    this._commutes = commutes;
   }
 
   /** Re-read deck heights after the ground under some roads was re-graded. */
@@ -258,6 +273,7 @@ export class TrafficVehicleRenderer {
       t: 0,
       speed: BASE_CAR_SPEED,
       lane: id % 2 === 0 ? 1 : -1,
+      trip: null,
       root,
     };
     if (!this._placeOnGraph(this._graph, actor)) {
@@ -286,6 +302,7 @@ export class TrafficVehicleRenderer {
       t: 0,
       speed: BASE_TROLLEY_SPEED,
       lane: 0,
+      trip: null,
       root,
     };
     if (!this._placeOnGraph(this._trolleyGraph, actor)) {
@@ -296,10 +313,21 @@ export class TrafficVehicleRenderer {
   }
 
   private _placeOnGraph(graph: RoadGraph, actor: Actor): boolean {
-    const starts = nodesWithEdges(graph);
-    if (starts.length === 0) return false;
-    const from = starts[Math.floor(Math.random() * starts.length)];
-    const to = pickNext(graph, null, from, Math.random);
+    let from: NodeKey;
+    let to: NodeKey | null;
+    if (actor.kind === 'car' && this._map) {
+      const start = pickCarStart(graph, this._map, this._commutes, COMMUTE_LOAD, Math.random);
+      if (!start) return false;
+      from = start.node;
+      const hop = pickCommuteNext(graph, this._map, this._commutes, null, from, start.trip, Math.random);
+      to = hop.next;
+      actor.trip = hop.trip;
+    } else {
+      const starts = nodesWithEdges(graph);
+      if (starts.length === 0) return false;
+      from = starts[Math.floor(Math.random() * starts.length)];
+      to = pickNext(graph, null, from, Math.random);
+    }
     if (!to) return false;
     actor.prev = null;
     actor.from = from;
@@ -363,7 +391,13 @@ export class TrafficVehicleRenderer {
   /** The hop after `to`, kept if still on the graph, otherwise picked now. */
   private _nextHop(graph: RoadGraph, actor: Actor): NodeKey | null {
     if (actor.next && edgeExists(graph, actor.to, actor.next)) return actor.next;
-    actor.next = pickNext(graph, actor.from, actor.to, Math.random);
+    if (actor.kind === 'car' && this._map) {
+      const hop = pickCommuteNext(graph, this._map, this._commutes, actor.from, actor.to, actor.trip, Math.random);
+      actor.next = hop.next;
+      actor.trip = hop.trip;
+    } else {
+      actor.next = pickNext(graph, actor.from, actor.to, Math.random);
+    }
     return actor.next;
   }
 

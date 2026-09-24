@@ -15,6 +15,8 @@ import {
   edgePressure,
   edgeSpeedTilesPerSec,
   nodeKey,
+  pickCarStart,
+  pickCommuteNext,
   pickNext,
   summarizeTraffic,
   trolleyLineLengths,
@@ -22,6 +24,7 @@ import {
   undirectedEdgeCount,
   vehicleTargetCount,
 } from '../openpublica/src/render/roadGraph';
+import { routeCommutes } from '../openpublica/src/sim/commutes';
 
 function paintLine(map: CityMap, coords: Array<[number, number]>, type: RoadType = RoadType.Street): void {
   for (const [x, y] of coords) {
@@ -159,5 +162,60 @@ describe('roadGraph', () => {
       movers = movers.map((m, k) => ({ ...m, t: next[k] }));
     }
     expect(movers[0].t - movers[1].t).toBeGreaterThanOrEqual(FOLLOW_GAP - 1e-9);
+  });
+});
+
+describe('commuting cars', () => {
+  /** A street along y = 1 from x = 0 to 9: homes on the west, a shop at the east end. */
+  function commuteStreet(): { map: CityMap; commutes: ReturnType<typeof routeCommutes> } {
+    const map = new CityMap(10, 3);
+    paintLine(map, Array.from({ length: 10 }, (_, x) => [x, 1] as [number, number]));
+    const commutes = routeCommutes(map, [{ x: 1, y: 0, trips: 2 }, { x: 2, y: 2, trips: 2 }], [{ x: 8, y: 2, jobs: 5 }]);
+    return { map, commutes };
+  }
+  const k = nodeKey;
+
+  it('should drive to work down the commute and home back up it, turning round at each end', () => {
+    const { map, commutes } = commuteStreet();
+    const graph = buildRoadGraph(map);
+    const hop = (prev: string | null, at: string, trip: 'to-work' | 'home') =>
+      pickCommuteNext(graph, map, commutes, prev, at, trip, () => 0.5);
+    expect(hop(k(2, 1), k(3, 1), 'to-work')).toEqual({ next: k(4, 1), trip: 'to-work' });
+    expect(hop(k(6, 1), k(5, 1), 'home')).toEqual({ next: k(4, 1), trip: 'home' });
+    // At the shop's street: turn for home.
+    expect(hop(k(7, 1), k(8, 1), 'to-work')).toEqual({ next: k(7, 1), trip: 'home' });
+    // Back where the first homes' commuters join (nobody drives in from x = 0): turn for work.
+    expect(hop(k(2, 1), k(1, 1), 'home')).toEqual({ next: k(2, 1), trip: 'to-work' });
+  });
+
+  it('should let a car with no trip, or no commutes to follow, turn at random', () => {
+    const { map, commutes } = commuteStreet();
+    const graph = buildRoadGraph(map);
+    expect(pickCommuteNext(graph, map, commutes, k(4, 1), k(5, 1), null, () => 0).trip).toBeNull();
+    expect(pickCommuteNext(graph, map, null, k(4, 1), k(5, 1), 'to-work', () => 0).next).toBe(k(6, 1));
+  });
+
+  it('should start cars where the traffic is, and commuters only where commuters drive', () => {
+    const { map, commutes } = commuteStreet();
+    const graph = buildRoadGraph(map);
+    map.getTile(5, 1)!.trafficPressure = 12;
+    let seed = 7;
+    const rng = (): number => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    const counts = new Map<string, number>();
+    let commuters = 0;
+    for (let i = 0; i < 2000; i++) {
+      const start = pickCarStart(graph, map, commutes, 0.25, rng)!;
+      counts.set(start.node, (counts.get(start.node) ?? 0) + 1);
+      if (start.trip !== null) {
+        commuters += 1;
+        const at = start.node.split(',').map(Number);
+        expect(commutes.flow[at[1] * map.width + at[0]]).toBeGreaterThan(0);
+      }
+    }
+    expect(counts.get(k(5, 1))!).toBeGreaterThan(5 * (counts.get(k(0, 1)) ?? 0));
+    expect(commuters).toBeGreaterThan(0);
   });
 });

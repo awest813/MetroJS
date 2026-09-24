@@ -184,6 +184,7 @@ export class App {
     sim.onLandValueChanged = () => view.overlay.refresh(sim.map);
     sim.onTrafficChanged = () => {
       view.overlay.refresh(sim.map);
+      view.traffic.setCommutes(sim.traffic.commutes);
       view.traffic.rebuildGraph(sim.map, view.heights);
       view.vegetation.refreshStreets(sim.map);
     };

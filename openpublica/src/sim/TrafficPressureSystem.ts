@@ -8,7 +8,7 @@ import { ROAD_STEPS, isLandRoad } from './roadConnections';
 import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 import type { CityStats } from './CitySim';
-import { routeCommutes, type Commuter, type Workplace } from './commutes';
+import { routeCommutes, type Commuter, type Commutes, type Workplace } from './commutes';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -143,6 +143,9 @@ export function buildingTrips(def: BuildingDef): number {
  * - O(buildings × SPREAD_RADIUS²) — fast on 128×128 maps.
  */
 export class TrafficPressureSystem {
+  /** The commutes routed by the last tick, for the renderer's cars to follow (read only). */
+  commutes: Commutes | null = null;
+
   /**
    * Recompute traffic pressure for every road tile.
    *
@@ -189,6 +192,7 @@ export class TrafficPressureSystem {
       if (jobs > 0) workplaces.push({ x: instance.x, y: instance.y, jobs });
     }
     const commutes = routeCommutes(map, homes, workplaces);
+    this.commutes = commutes;
 
     // 3. Each building's other trips spread over the roads it can drive to.
     for (const instance of buildings.values()) {

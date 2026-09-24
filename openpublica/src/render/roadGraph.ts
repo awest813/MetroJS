@@ -4,6 +4,8 @@
 import { RoadType, TerrainType } from '../sim/CityTile';
 import type { CityMap } from '../sim/CityMap';
 import { MIN_TROLLEY_LINE_TILES, railsJoin, trolleyLines } from '../sim/TransitSystem';
+import { NO_WORK, commuteStepUnits, type Commutes } from '../sim/commutes';
+import { roadCapacity } from '../sim/TrafficPressureSystem';
 
 export type NodeKey = string;
 
@@ -223,6 +225,113 @@ export function trolleyTargetCount(lineLengths: readonly number[]): number {
 /** Tile counts of each connected trolley line, level crossings included. */
 export function trolleyLineLengths(map: CityMap): number[] {
   return trolleyLines(map).map((line) => line.length);
+}
+
+/**
+ * Which way a car is driving the commute: to work (downhill on the sim's
+ * distance field), home (back up the routes commuters drive), or neither (it
+ * wanders, turning at random).
+ */
+export type CarTrip = 'to-work' | 'home' | null;
+
+/** Road pressure an empty road still counts as when choosing where cars appear. */
+export const QUIET_ROAD_WEIGHT = 0.5;
+
+function weightedPick<T>(items: readonly T[], weights: readonly number[], rng: () => number): T | null {
+  let total = 0;
+  for (const w of weights) total += w;
+  if (items.length === 0) return null;
+  if (total <= 0) return items[Math.min(items.length - 1, Math.floor(rng() * items.length))];
+  let r = rng() * total;
+  for (let i = 0; i < items.length; i++) {
+    r -= weights[i];
+    if (r < 0) return items[i];
+  }
+  return items[items.length - 1];
+}
+
+/**
+ * A node for a new car, busier roads more likely (the cars on screen follow
+ * the Traffic map), and the trip it starts on: a commuter, in the share of
+ * that road's traffic that commutes, heading to work or home at even odds.
+ */
+export function pickCarStart(
+  graph: RoadGraph,
+  map: CityMap,
+  commutes: Commutes | null,
+  commuteLoad: number,
+  rng: () => number,
+): { node: NodeKey; trip: CarTrip } | null {
+  const starts = nodesWithEdges(graph);
+  const weights = starts.map((key) => {
+    const n = parseNodeKey(key);
+    return (map.getTile(n.x, n.y)?.trafficPressure ?? 0) + QUIET_ROAD_WEIGHT;
+  });
+  const node = weightedPick(starts, weights, rng);
+  if (!node) return null;
+  if (!commutes) return { node, trip: null };
+  const n = parseNodeKey(node);
+  const tile = map.getTile(n.x, n.y);
+  const index = n.y * map.width + n.x;
+  // Pressure is per lane, so a highway's commuters share its lanes too.
+  const commuting = tile ? commutes.flow[index] * commuteLoad / roadCapacity(tile.roadType) : 0;
+  const share = tile && tile.trafficPressure > 0 ? Math.min(1, commuting / tile.trafficPressure) : 0;
+  if (commutes.toWork[index] === NO_WORK || rng() >= share) return { node, trip: null };
+  return { node, trip: rng() < 0.5 ? 'to-work' : 'home' };
+}
+
+/**
+ * Next hop for a car on a commute. To work: a neighbour one step nearer work,
+ * as the sim routed the commute. Home: a neighbour commuters drove in from,
+ * one step farther from work. Either way weighted by the commute flow on it,
+ * and never straight back where it came from if there is another way. A car
+ * that reaches work turns for home, and one back among the homes turns for
+ * work, so commuters shuttle along the routes the Traffic map shows. A car
+ * with no trip, or off the commute routes, turns at random.
+ */
+export function pickCommuteNext(
+  graph: RoadGraph,
+  map: CityMap,
+  commutes: Commutes | null,
+  prev: NodeKey | null,
+  current: NodeKey,
+  trip: CarTrip,
+  rng: () => number,
+): { next: NodeKey | null; trip: CarTrip } {
+  const random = (): { next: NodeKey | null; trip: CarTrip } => ({ next: pickNext(graph, prev, current, rng), trip });
+  if (!commutes || trip === null) return random();
+  const here = parseNodeKey(current);
+  const hereTile = map.getTile(here.x, here.y);
+  const at = here.y * map.width + here.x;
+  const dist = commutes.toWork[at];
+  if (!hereTile || dist === NO_WORK) return random();
+  const nbrs = graph.adj.get(current) ?? [];
+
+  const choices = (dir: Exclude<CarTrip, null>): NodeKey[] => nbrs.filter((key) => {
+    const n = parseNodeKey(key);
+    const tile = map.getTile(n.x, n.y);
+    const i = n.y * map.width + n.x;
+    const d = commutes.toWork[i];
+    if (!tile || d === NO_WORK) return false;
+    if (dir === 'to-work') return d + commuteStepUnits(tile.roadType) === dist;
+    return commutes.flow[i] > 0 && dist + commuteStepUnits(hereTile.roadType) === d;
+  });
+  const pick = (options: NodeKey[]): NodeKey | null => {
+    const forward = options.length > 1 && prev !== null ? options.filter((k) => k !== prev) : options;
+    const weights = forward.map((key) => {
+      const n = parseNodeKey(key);
+      return commutes.flow[n.y * map.width + n.x];
+    });
+    return weightedPick(forward, weights, rng);
+  };
+
+  const ahead = choices(trip);
+  if (ahead.length > 0) return { next: pick(ahead), trip };
+  // Reached work (or home): turn round for the other end.
+  const turned: Exclude<CarTrip, null> = trip === 'to-work' ? 'home' : 'to-work';
+  const back = choices(turned);
+  if (back.length > 0) return { next: pick(back), trip: turned };
+  return random();
 }
 
 /**

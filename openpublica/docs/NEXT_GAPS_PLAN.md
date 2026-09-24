@@ -17,8 +17,7 @@ all shipped. What is left (section 5) is depth, not missing systems:
 
 1. **Industry** has one building and a flat demand target, so factories never densify.
 2. **Budget levers** stop at taxes: no bonds or service funding when in the red.
-3. **Moving cars** turn at random at every junction instead of driving the commutes the sim routes.
-4. **Presentation** extras stay optional (GLB kits, SSAO).
+3. **Presentation** extras stay optional (GLB kits, SSAO).
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
 
@@ -425,6 +424,7 @@ one street out of a district was no busier than its back streets.
 | U1 Routing | `commutes.ts`: every road tile knows its distance to a workplace street (road steps, a highway tile half a step, as police and fire drive). Each home's commuters enter at its street and roll downhill to work, splitting evenly between equally short routes, so a grid shares the flow and a district's way out carries all of it. The search runs once per round over a compact road graph, and the roll reuses the search's own order. |
 | U2 Jobs with room | Workplaces take commuters in proportion to their jobs. One that draws more than its share looks farther away the next round (up to 10 rounds), so the overflow drives on to jobs elsewhere instead of every commuter stopping at the first shop street on the edge of a job district. |
 | U3 Traffic | When a workplace is on a home's network, half its trips (`COMMUTE_SHARE`) commute, loading every tile on the way at `COMMUTE_LOAD` (0.15: 400 residents make 30 commute trips, adding about 4.5 to the one street out of their district on top of its own lots' trips). Homes with no jobs to reach keep every trip local, so the street calibration and the older tests are unchanged. |
+| U4 Cars | `pickCarStart`: new cars appear on busy roads (weighted by pressure), and a road's commute share of them start as commuters. `pickCommuteNext`: a commuter drives downhill to work on the sim's final distance field, weighted by flow, turns at work, drives back up the routes commuters came in on, and turns again among the homes. Other cars still turn at random. The renderer only reads `sim.traffic.commutes`. |
 
 | Measure | Before | After |
 |---|---|---|
@@ -433,6 +433,7 @@ one street out of a district was no busier than its back streets.
 | Happiness (Metro, Riverside, Sprawl) | 86, 89, 78 | 84, 88, 81 |
 | Metro office blocks | 13 | 11 |
 | Traffic tick on Metro (Node) | 0.7 ms | 1.65 ms |
+| Mean pressure under the 48 cars on screen (Metro, Riverside; road mean 4.1, 2.5) | 3.9, 2.5 | 7.3, 4.0 |
 
 Metro's highway barely changes (mean 0.6 → 0.7) because it runs between the
 homes and the shops across it: its commuters cross it rather than drive it.
@@ -440,8 +441,8 @@ The routing tests show a parallel highway taking the whole commute of a
 street it shortens.
 
 **Exit:** Open Traffic in `?city=riverside`: the street bridge carries the
-south bank to work. A street between homes and far-off jobs is busy along
-its whole length, not just at either end.
+south bank to work, and cars shuttle across it. A street between homes and
+far-off jobs is busy along its whole length, not just at either end.
 
 ---
 
@@ -465,11 +466,10 @@ The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped. Next, each found
 the test cities or the audits and small enough for one PR:
 
 1. **Industry that grows.** Industrial demand only drifts back to 20 each month, so it never reaches the 35 needed for a bigger building, and industry has one building anyway. Drive it from the jobs the city lacks (as housing demand reads jobs) and add a factory tier. Measure with Troubled and Metro.
-2. **Cars that commute.** The sim routes commuters to work (Gap U), but the cars on screen pick a random turn at every junction. Start cars at homes in proportion to their commuters and steer them downhill on the same distance field, so the moving cars match the Traffic map.
-3. **Budget levers.** When the budget is in the red the only lever is taxes. Add service funding (coverage and upkeep scale together) or a small bond with interest, shown in Budget.
-4. **Buildings that shrink with land value.** An office block keeps its size after its own traffic wears the land value down (Metro has one on land worth 37). Let the top tier step down when value stays under its bar.
-5. **Faster scenario tests.** The five test cities add about 20 s to Jest. Build each once per run (already cached per file) and consider a separate job for the long builds.
-6. **GLB kits (C4) and SSAO (C5)** stay optional; SSAO only after a filled-city frame-time check on High quality.
+2. **Budget levers.** When the budget is in the red the only lever is taxes. Add service funding (coverage and upkeep scale together) or a small bond with interest, shown in Budget.
+3. **Buildings that shrink with land value.** An office block keeps its size after its own traffic wears the land value down (Metro has one on land worth 37). Let the top tier step down when value stays under its bar.
+4. **Faster scenario tests.** The five test cities add about 20 s to Jest. Build each once per run (already cached per file) and consider a separate job for the long builds.
+5. **GLB kits (C4) and SSAO (C5)** stay optional; SSAO only after a filled-city frame-time check on High quality.
 
 ---
 

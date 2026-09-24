@@ -55,11 +55,18 @@ export interface Workplace {
 export interface Commutes {
   /** Commute trips over each road tile (index y × width + x), counting where they enter and arrive. */
   readonly flow: Float64Array;
+  /**
+   * Each road tile's distance to work in the final round, in half steps
+   * ({@link commuteStepUnits}), or {@link NO_WORK}. Commuters drive from a
+   * tile to a neighbour whose distance plus that neighbour's step equals it.
+   */
+  readonly toWork: Int32Array;
   /** Per commuter, in order: true when a workplace was reachable and its trips were routed. */
   readonly routed: readonly boolean[];
 }
 
-function stepUnits(type: RoadType): number {
+/** Distance units of driving onto a tile of this road type (a street is 2, a highway 1). */
+export function commuteStepUnits(type: RoadType): number {
   return type === RoadType.Highway ? HIGHWAY_RESPONSE_STEP * UNITS_PER_STEP : UNITS_PER_STEP;
 }
 
@@ -84,7 +91,7 @@ function roadNet(map: CityMap): RoadNet {
     if (tile.roadType === RoadType.None) return;
     nodeAt[tile.y * w + tile.x] = tiles.length;
     tiles.push(tile.y * w + tile.x);
-    steps.push(stepUnits(tile.roadType));
+    steps.push(commuteStepUnits(tile.roadType));
   });
   const next = new Int32Array(tiles.length * 4).fill(-1);
   tiles.forEach((index, node) => {
@@ -220,10 +227,12 @@ export function routeCommutes(
   for (const home of homes) totalTrips += home.trips;
 
   let nodeFlow: Float64Array = new Float64Array(net.tiles.length);
+  let nodeDist: Int32Array = new Int32Array(net.tiles.length).fill(NO_WORK);
   let routed: boolean[] = homes.map(() => false);
   const lastRound = Math.max(1, rounds) - 1;
   for (let round = 0; round <= lastRound; round++) {
     const { dist, order } = searchNet(net, offsets);
+    nodeDist = dist;
     const entering = new Float64Array(net.tiles.length);
     routed = homes.map((home, i) => {
       // Leave by the street nearest to work.
@@ -253,6 +262,10 @@ export function routeCommutes(
   }
 
   const flow = new Float64Array(net.nodeAt.length);
-  net.tiles.forEach((index, node) => { flow[index] = nodeFlow[node]; });
-  return { flow, routed };
+  const toWork = new Int32Array(net.nodeAt.length).fill(NO_WORK);
+  net.tiles.forEach((index, node) => {
+    flow[index] = nodeFlow[node];
+    toWork[index] = nodeDist[node];
+  });
+  return { flow, toWork, routed };
 }

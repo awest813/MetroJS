@@ -61,6 +61,7 @@ export class CityView {
     this.overlay = new OverlayRenderer(scene);
     this.overlay.build(sim.map, heights);
     this.traffic = new TrafficVehicleRenderer(scene, shadows);
+    this.traffic.setCommutes(sim.traffic.commutes);
     this.traffic.rebuildGraph(sim.map, heights);
     this.roads = new RoadRenderer(scene, shadows);
     this.roads.rebuild(sim.map, heights);
@@ -145,6 +146,7 @@ export class CityView {
     }
 
     this.refreshPowerVisuals(sim);
+    this.traffic.setCommutes(sim.traffic.commutes);
     this.traffic.rebuildGraph(sim.map, this.heights);
     this.onRedraw();
   }

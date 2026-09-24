@@ -86,7 +86,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] City menu + Settings: save/load confirms, mute/quality/sun, Ctrl+S, budget net (Look is minimap + Frame)
 - [x] MIT `simplex-noise` + `alea` for seeded hills and tree jitter (lakes still use `terrainHash`)
 - [x] Network traffic: trips leave by a lot's street and split across connected roads; highways carry double
-- [x] Commutes: half of each home's trips drive the network to the nearest jobs with room, loading district exits, bridges, and any highway that shortens the trip
+- [x] Commutes: half of each home's trips drive the network to the nearest jobs with room, loading district exits, bridges, and any highway that shortens the trip; cars appear where the traffic is, and commuters drive those routes to work and back
 - [x] Police and fire drive the streets (road-step reach, faster on highways); trolley lines of 4+ tiles give transit, take a share of nearby trips, and cross highways at grade
 - [x] Bridges: drag a road straight across water (5× build, 3× upkeep) with piers, railings, and level decks
 - [x] Shorelines follow tile edges: every dry tile renders above the water, thin spits/notches are smoothed at generation, and waterfront lots get a land-value premium
