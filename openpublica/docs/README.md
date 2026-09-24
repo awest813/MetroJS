@@ -104,7 +104,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Budget levers: police-and-fire and road funding sliders (upkeep and service scale together) and bonds with interest
 - [x] Growth within the grid: new buildings wait for power instead of darkening the far end of a full grid; Inspect and the advisory say so
 - [x] Buildings shrink: the biggest sizes step down, a few a month, when their land value falls well under the bar that grew them or industry declines
-- [x] Test cities: `?city=hamlet|riverside|metro|troubled|sprawl` (or New → Or open a test city) builds a scripted city with the player tools and seeded growth; `test/testCities.ts` checks each
+- [x] Test cities: `?city=hamlet|riverside|metro|troubled|sprawl` (or New → Or open a test city) builds a scripted city with the player tools and seeded growth; `test/testCity.<id>.ts` checks each
 
 Follow [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md) for optional GLB/SSAO. Untextured PBR, sky dome, `CityView` rebuild-on-load, city-health, mayor Score/advisory, highways, water, zoning plats/downtown, building degradation, opening coach, and per-service upkeep/coverage preview are in the HUD.
 

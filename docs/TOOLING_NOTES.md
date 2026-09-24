@@ -170,6 +170,9 @@ codebase but will prevent the use of native async/await, optional chaining, and 
 syntax in TypeScript files without polyfills. Bumping the target is tracked as **Step 1.4** in
 [docs/MODERNIZATION_PLAN.md](./MODERNIZATION_PLAN.md).
 
+Jest does not use this target: `tsconfig.jest.json` extends `tsconfig.json` with ES2020, since
+the tests run on Node and the ES5 build's downlevelled iterators slow the OpenPublica sim loops.
+
 ---
 
 ## Dependency inventory (2026-04-25)

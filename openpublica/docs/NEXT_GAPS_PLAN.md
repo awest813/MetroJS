@@ -96,6 +96,7 @@ Buildings **do** empty after sustained neglect. Status is city-local (HUD adviso
 | D1 `npm test` **shipped** | `openpublica` script that runs root Jest |
 | D2 Split `App.ts` **shipped** | `CityView` rebuilds meshes; `mountCityMenu` owns save/load |
 | D3 Render tests **shipped** | GPU stays out of Jest; every pure render module has tests (deck picking, sky colours, weather looks, road layout and decks, vegetation, kits, facing, foundations, skirt) |
+| D4 Faster tests **shipped** | Jest compiles to ES2020 (`tsconfig.jest.json`; the build's ES5 iterators made the sim loops much slower), and each test city has its own file (`test/testCity.<id>.ts`) so the five build in parallel. Each city builds once per run, recording a snapshot every month for the checks that used to build it again (`test/support/testCityChecks.ts`). Full run, warm, 4 cores: 44 s → 22 s; Metro is the longest file at about 15 s. |
 
 ### Gap E — Roads, traffic, road services, bridges **shipped**
 
@@ -188,7 +189,7 @@ then emptied as crime caught up, and what grew was scattered across the area.
 
 | Slice | What shipped |
 |---|---|
-| I1 Batching | `CitySim.batch` defers derived-state refresh to one pass (every refresh recomputes from the map, so results match). `ToolController.applyTiles` applies a list in one batch and reports the changed tiles together; `CityView.syncPaintedTiles` keeps per-tile work local and runs map-wide refreshes once. 1,296 lots: 2.1 s → 3 ms in the sim (ES2020; Jest's ES5 build runs these loops about 10× slower); a 107-tile area releases in about one SwiftShader frame. |
+| I1 Batching | `CitySim.batch` defers derived-state refresh to one pass (every refresh recomputes from the map, so results match). `ToolController.applyTiles` applies a list in one batch and reports the changed tiles together; `CityView.syncPaintedTiles` keeps per-tile work local and runs map-wide refreshes once. 1,296 lots: 2.1 s → 3 ms in the sim (ES2020; Jest compiles to ES2020 too, see D4); a 107-tile area releases in about one SwiftShader frame. |
 | I2 Areas | Zone brushes and Dezone drag a rectangle (`planZoneArea`): each tile is tinted zone, no street (amber), street, clear, already zoned, or skipped (building, funds); the status line gives lots, streets, cost, and lots that will wait. Release applies it through the tools. Esc cancels, Shift paints freehand. Road lines and zone areas share `PlannedDragInput`. |
 | I3 Streets | `autoStreetLayout`: where lots would have no street, the area lays one every third line along its long side (two-lot blocks), plus a spine down a short side when needed to reach the existing roads (Gap T ties long lines at both ends). Pieces cut off by water are dropped, and it never bridges or paves through buildings. It only paves when each new street tile gives at least half a lot a new frontage, so an existing grid is left alone. S toggles it. |
 | I4 Pace | `monthlyGrowthBudget`: each zone type fills at most 4 + demand/4 lots a month, scaled up by city size (doubling per 1,000 residents plus jobs). When more lots pass their roll, lots beside buildings are 8× likelier to be kept, so zones fill outward. A 45×45 zone now grows about 15 a month instead of 264–580 in month 1, with about 1.6–1.9 neighbours within two tiles of each building instead of 1.1. The lot hint shows the pace. |
@@ -269,7 +270,7 @@ and nothing in the repo could rebuild them. `src/scenarios/` now scripts five
 cities with the player's own tools and prices (`CityBuilder`: road lines,
 zone rectangles with auto streets, service clicks, months), grows them with
 seeded dice, and logs anything a tool refuses. Open one with `?city=<id>` or
-from the New confirm; `test/testCities.ts` builds each and checks it.
+from the New confirm; `test/testCity.<id>.ts` builds each once and checks it.
 
 | City | Seed, budget, time | What it shows | Where it ends |
 |---|---|---|---|
@@ -604,11 +605,10 @@ Unchanged from the 3D plan:
 
 ## 5. Recommended next PRs (mergeable)
 
-The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped. What is left is
-housekeeping and optional polish:
+The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped, and so has the
+housekeeping after it (D4 faster tests). What is left is optional polish:
 
-1. **Faster scenario tests.** The five test cities add about 30 s to Jest (Metro alone runs 54 months). Build each once per run (already cached per file) and consider a separate job for the long builds.
-2. **GLB kits (C4) and SSAO (C5)** stay optional; SSAO only after a filled-city frame-time check on High quality.
+1. **GLB kits (C4) and SSAO (C5)** stay optional; SSAO only after a filled-city frame-time check on High quality.
 
 ---
 
