@@ -31,7 +31,8 @@ export class SettingsPanel {
 
     const fold = document.createElement('details');
     fold.className = 'settings-fold';
-    fold.open = !window.matchMedia('(max-width: 900px)').matches;
+    // Open only where the rail has room: phones and short laptop screens start folded.
+    fold.open = !window.matchMedia('(max-width: 900px), (max-height: 979px)').matches;
 
     const summary = document.createElement('summary');
     summary.textContent = 'Settings';

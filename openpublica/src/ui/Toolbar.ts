@@ -1,13 +1,22 @@
 import type { Tool } from '../tools/Tool';
 import type { ToolController } from '../tools/ToolController';
 
+/** Rail groups, laid out two to a row: look/clear, roads, zones, services. */
 const TOOL_GROUPS: ReadonlyArray<ReadonlyArray<string>> = [
-  ['inspect'],
-  ['road', 'highway', 'trolleyAvenue', 'bulldoze'],
+  ['inspect', 'bulldoze'],
+  ['road', 'highway', 'trolleyAvenue'],
   ['zoneResidentialLow', 'zoneCommercialLow', 'zoneIndustrialLight', 'zoneMixedUse', 'zoneClear'],
-  ['placePowerPlant'],
-  ['placePark', 'placePoliceStation', 'placeFireStation', 'placeWaterTower'],
+  ['placePowerPlant', 'placeWaterTower', 'placePark', 'placePoliceStation', 'placeFireStation'],
 ];
+
+/** Short button text; status lines keep each tool's full label. */
+const BUTTON_LABELS: Readonly<Record<string, string>> = {
+  trolleyAvenue: 'Trolley',
+  placePowerPlant: 'Plant',
+  placeWaterTower: 'Water',
+  placePoliceStation: 'Police',
+  placeFireStation: 'Fire',
+};
 
 const TOOL_TITLES: Readonly<Record<string, string>> = {
   inspect: 'Inspect a tile (key I)',
@@ -43,6 +52,10 @@ const TOOL_KEYS: Readonly<Record<string, string>> = {
   f: 'placeFireStation',
   w: 'placeWaterTower',
 };
+
+const KEY_FOR_TOOL: ReadonlyMap<string, string> = new Map(
+  Object.entries(TOOL_KEYS).map(([key, tool]) => [tool, key]),
+);
 
 /**
  * Left-rail tool buttons. Owns no game state.
@@ -103,8 +116,21 @@ export class Toolbar {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.dataset.tool = tool.name;
-      btn.textContent = tool.label;
+      const name = document.createElement('span');
+      name.className = 'tool-name';
+      name.textContent = BUTTON_LABELS[tool.name] ?? tool.label;
+      btn.appendChild(name);
+      const key = KEY_FOR_TOOL.get(tool.name);
+      if (key) {
+        const badge = document.createElement('span');
+        badge.className = 'tool-key';
+        badge.textContent = key.toUpperCase();
+        badge.setAttribute('aria-hidden', 'true');
+        btn.appendChild(badge);
+        btn.setAttribute('aria-keyshortcuts', key.toUpperCase());
+      }
       btn.title = TOOL_TITLES[tool.name] ?? tool.label;
+      btn.setAttribute('aria-label', tool.label);
       btn.setAttribute('aria-pressed', 'false');
       btn.addEventListener('click', () => this.select(tool.name));
       wrap.appendChild(btn);

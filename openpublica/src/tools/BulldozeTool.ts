@@ -9,7 +9,7 @@ export const BULLDOZE_COST = 1;
 /** Clears the road, zone, and building from a tile. */
 export class BulldozeTool implements Tool {
   readonly name = 'bulldoze';
-  readonly label = '🚧 Bulldoze';
+  readonly label = 'Bulldoze';
   readonly stroke = true;
 
   canApply(coord: TileCoord, sim: CitySim): boolean {

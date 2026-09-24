@@ -196,9 +196,7 @@ export class BuildingRenderer {
     mesh.rotation = new Vector3(0, facing, 0);
 
     const pickData: BuildingPickData = { buildingId: instance.defId, x: instance.x, y: instance.y };
-    mesh.metadata = pickData;
-    mesh.useVertexColors = true;
-    mesh.receiveShadows = true;
+    mesh.metadata = pickData; // colours and shadows come from the source mesh
 
     this._foundation(instance.defId, instance.x, instance.y, facing);
     this._placed.set(key, { instance: mesh, defId: instance.defId, zoneType, variant, facing });

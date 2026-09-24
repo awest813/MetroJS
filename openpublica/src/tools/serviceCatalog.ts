@@ -29,7 +29,7 @@ export const WATER_TOWER_COST = 350;
 
 export const POWER_PLANT_SERVICE: ServiceSpec = {
   toolName: 'placePowerPlant',
-  label: '⚡ Power Plant',
+  label: 'Power Plant',
   defId: 'small_power_plant',
   cost: POWER_PLANT_COST,
   coverage: 'power',
@@ -38,7 +38,7 @@ export const POWER_PLANT_SERVICE: ServiceSpec = {
 
 export const PARK_SERVICE: ServiceSpec = {
   toolName: 'placePark',
-  label: '🌳 Park',
+  label: 'Park',
   defId: 'small_park',
   cost: PARK_COST,
   coverage: 'park',

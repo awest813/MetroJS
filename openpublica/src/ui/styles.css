@@ -16,7 +16,8 @@
   --muted: #7a99b8;
   --danger: #d0542f;
   --ok: #2ea84f;
-  --rail-width: 148px;
+  --rail-width: 200px;
+  --strip-h: 52px;
   --status-h: 34px;
   --gap: 10px;
   --radius: 10px;
@@ -46,6 +47,13 @@ body {
   outline: none;
 }
 
+/* Controls use the UI face, not the browser's default (Arial). */
+button,
+input,
+select {
+  font-family: inherit;
+}
+
 button:focus-visible,
 summary:focus-visible,
 input:focus-visible {
@@ -69,6 +77,15 @@ input:focus-visible {
 
 #left-rail > * {
   pointer-events: auto;
+  flex-shrink: 0;
+}
+
+/* On short screens the whole rail scrolls; no panel is squeezed away. */
+@media (min-width: 901px) {
+  #left-rail {
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
 }
 
 #toolbar,
@@ -100,14 +117,43 @@ input:focus-visible {
   grid-column: 1 / -1;
 }
 
-#overlay-bar button {
+#left-rail #overlay-bar button {
   text-align: center;
-  padding: 5px 6px;
-  font-size: 11px;
+  padding: 4px 6px;
 }
 
-#toolbar {
-  overflow-y: auto;
+#toolbar .rail-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+#left-rail #toolbar button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 4px 6px;
+}
+
+.tool-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tool-key {
+  font-size: 9px;
+  line-height: 1;
+  color: var(--muted);
+  border: 1px solid var(--btn-border);
+  border-radius: 3px;
+  padding: 2px 3px;
+  flex-shrink: 0;
+}
+
+#left-rail button.active .tool-key,
+#left-rail button[aria-pressed="true"] .tool-key {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.45);
 }
 
 .rail-group {
@@ -117,8 +163,8 @@ input:focus-visible {
 }
 
 .rail-group + .rail-group {
-  margin-top: 6px;
-  padding-top: 6px;
+  margin-top: 4px;
+  padding-top: 4px;
   border-top: 1px solid #1e2e3e;
 }
 
@@ -207,8 +253,14 @@ input:focus-visible {
 
 .city-file-actions {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 4px;
+}
+
+#left-rail .city-file-actions button {
+  flex: 1;
+  text-align: center;
+  padding: 5px 4px;
 }
 
 .city-menu-note {
@@ -286,7 +338,8 @@ input:focus-visible {
   position: absolute;
   top: var(--gap);
   left: calc(var(--rail-width) + var(--gap) * 2);
-  right: 228px;
+  /* Clear the budget panel at its widest (240px) plus both gaps. */
+  right: calc(240px + var(--gap) * 2);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -683,16 +736,18 @@ input:focus-visible {
     --rail-width: 0px;
   }
 
+  /* One scrolling strip of buttons above the status bar. */
   #left-rail {
     top: auto;
     left: 0;
     right: 0;
     bottom: var(--status-h);
     width: auto;
-    height: auto;
+    height: var(--strip-h);
     flex-direction: row;
-    align-items: stretch;
+    align-items: center;
     overflow-x: auto;
+    overflow-y: visible;
     padding: 6px;
     background: var(--chrome-bg);
     border-top: 1px solid var(--chrome-border);
@@ -705,6 +760,7 @@ input:focus-visible {
   #settings-panel {
     flex-direction: row;
     flex-wrap: nowrap;
+    align-items: center;
     overflow: visible;
     background: transparent;
     border: none;
@@ -712,25 +768,13 @@ input:focus-visible {
     backdrop-filter: none;
   }
 
-  #city-menu,
-  #settings-panel {
-    flex-direction: column;
-    min-width: 148px;
+  #overlay-bar {
+    display: flex;
   }
 
-  .city-file-actions {
-    flex-direction: row;
-  }
-
-  .settings-fold {
-    min-width: 148px;
-  }
-
-  .settings-keys {
-    display: none;
-  }
-
+  #toolbar .rail-group,
   .rail-group {
+    display: flex;
     flex-direction: row;
   }
 
@@ -745,11 +789,34 @@ input:focus-visible {
 
   #left-rail button {
     width: auto;
+    padding: 8px 10px;
   }
 
-  #city-menu .city-file-actions button {
-    flex: 1;
-    text-align: center;
+  .city-menu-note,
+  .settings-keys,
+  .rail-label {
+    display: none;
+  }
+
+  #settings-panel {
+    position: relative;
+  }
+
+  .settings-fold summary {
+    padding: 8px 10px;
+  }
+
+  /* Opened settings float above the strip instead of stretching it. */
+  .settings-fold[open] .settings-body {
+    position: fixed;
+    right: var(--gap);
+    bottom: calc(var(--status-h) + var(--strip-h) + 8px);
+    min-width: 200px;
+    background: var(--chrome-bg);
+    border: 1px solid var(--chrome-border);
+    border-radius: var(--radius);
+    padding: 8px;
+    z-index: 20;
   }
 
   #settings-panel button {
@@ -760,31 +827,34 @@ input:focus-visible {
     width: auto;
   }
 
-  .rail-label {
-    display: none;
-  }
-
   #city-hud {
     left: var(--gap);
-    right: 8px;
+    right: var(--gap);
     max-width: calc(100vw - 220px);
   }
 
   #camera-bar {
     left: var(--gap);
     right: 148px;
-    bottom: calc(var(--status-h) + 58px);
+    bottom: calc(var(--status-h) + var(--strip-h) + 8px);
     flex-wrap: wrap;
     max-width: calc(100vw - 156px);
   }
 
   #look-panel {
     right: var(--gap);
-    bottom: calc(var(--status-h) + 58px);
+    bottom: calc(var(--status-h) + var(--strip-h) + 8px);
     width: 132px;
   }
 
   #status-bar {
     padding-left: 14px;
+  }
+}
+
+/* Phones: keep money, people, power, date, and score; the rest is on the maps. */
+@media (max-width: 600px) {
+  #hud-status .hud-muted {
+    display: none;
   }
 }

@@ -44,7 +44,7 @@ const TOOL_LABELS: Record<RoadType, string> = {
   [RoadType.None]:          'Road',
   [RoadType.Street]:        'Road',
   [RoadType.Highway]:       'Highway',
-  [RoadType.TrolleyAvenue]: '🚃 Trolley Ave',
+  [RoadType.TrolleyAvenue]: 'Trolley Ave',
 };
 
 /**

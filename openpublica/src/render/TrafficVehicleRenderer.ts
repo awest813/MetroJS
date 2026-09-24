@@ -108,6 +108,7 @@ export class TrafficVehicleRenderer {
       body.material = mat;
       body.isVisible = false;
       body.isPickable = false;
+      body.receiveShadows = true; // instances render with their source's settings
       this._shadows?.addShadowCaster(body);
       const cabin = MeshBuilder.CreateBox(`traffic-car-cabin-src-${i}`, {
         width: CAR_WIDTH * 0.82, height: CABIN_HEIGHT, depth: CAR_DEPTH * 0.48,
@@ -116,6 +117,7 @@ export class TrafficVehicleRenderer {
       cabin.position = new Vector3(0, (CAR_HEIGHT + CABIN_HEIGHT) / 2, -0.02);
       cabin.isVisible = false;
       cabin.isPickable = false;
+      cabin.receiveShadows = true;
       this._shadows?.addShadowCaster(cabin);
       return { body, cabin };
     });
@@ -129,6 +131,7 @@ export class TrafficVehicleRenderer {
     this._trolleyBody.material = trolleyMat;
     this._trolleyBody.isVisible = false;
     this._trolleyBody.isPickable = false;
+    this._trolleyBody.receiveShadows = true;
     this._shadows?.addShadowCaster(this._trolleyBody);
 
     const cabinMat = coloredPbr('traffic-trolley-cabin-mat', scene, new Color3(0.78, 0.74, 0.62), 0.36, 0.08);
@@ -139,6 +142,7 @@ export class TrafficVehicleRenderer {
     this._trolleyCabin.position = new Vector3(0, (TROLLEY_HEIGHT + TROLLEY_CABIN_HEIGHT) / 2, 0.04);
     this._trolleyCabin.isVisible = false;
     this._trolleyCabin.isPickable = false;
+    this._trolleyCabin.receiveShadows = true;
     this._shadows?.addShadowCaster(this._trolleyCabin);
   }
 
@@ -245,8 +249,6 @@ export class TrafficVehicleRenderer {
     cabin.isVisible = true;
     body.isPickable = false;
     cabin.isPickable = false;
-    body.receiveShadows = true;
-    cabin.receiveShadows = true;
     const actor: Actor = {
       kind: 'car',
       prev: null,
@@ -275,8 +277,6 @@ export class TrafficVehicleRenderer {
     cabin.isVisible = true;
     body.isPickable = false;
     cabin.isPickable = false;
-    body.receiveShadows = true;
-    cabin.receiveShadows = true;
     const actor: Actor = {
       kind: 'trolley',
       prev: null,

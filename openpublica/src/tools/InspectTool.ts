@@ -5,7 +5,7 @@ import type { CitySim } from '../sim/CitySim';
 /** Reads and displays tile information. Does not modify the map. */
 export class InspectTool implements Tool {
   readonly name = 'inspect';
-  readonly label = '🔍 Inspect';
+  readonly label = 'Inspect';
 
   apply(coord: TileCoord, sim: CitySim): boolean {
     const tile = sim.getTile(coord.x, coord.y);
