@@ -194,6 +194,12 @@ describe('metro', () => {
     expect(deadEnds(sim).length).toBeLessThanOrEqual(6);
   });
 
+  it('should police both halves of its west district', () => {
+    const { sim } = city('metro');
+    // A station on each spine: the east half (x 36–42) is patrolled too.
+    for (const x of [30, 40]) expect(sim.getTile(x, 6)!.policeCoverage).toBeGreaterThan(0);
+  });
+
   it('should run every service with power to spare', () => {
     const { sim } = city('metro');
     expect(sim.stats.powerShort).toBe(0);

@@ -72,7 +72,7 @@ const riverside: TestCity = {
   covers: [
     'street and highway bridges, and power crossing the river on them',
     'waterfront lots on the lake (higher land value) and shoreline tiles',
-    'a park at the bridgehead, a water tower on the far bank',
+    'a park at the bridgehead, a water tower on the far bank, a police station on each bank',
     'factories across the lake, woods left standing between neighbourhoods',
   ],
   build: (watch) => run((b) => b
@@ -88,6 +88,8 @@ const riverside: TestCity = {
     .place('plant', 61, 29)
     .place('park', 35, 38)
     .place('tower', 37, 44)
+    .place('police', 48, 25)
+    .place('police', 37, 41)
     .months(30), 2026, 40_000, watch),
 };
 
@@ -118,6 +120,8 @@ const metro: TestCity = {
     .zone(Commercial, [46, 2], [62, 8])
     .zone(Residential, [46, 10], [62, 16])
     .place('police', 54, 14)
+    // The west district's first station, on its west spine, reaches only half of it.
+    .place('police', 43, 9)
     .zone(MixedUse, [45, 20], [52, 30])
     .place('plant', 57, 32)
     .place('fire', 45, 19)

@@ -6,12 +6,14 @@ import type { BuildingInstance } from './BuildingInstance';
 import type { CityStats } from './CitySim';
 import { forEachDispatchedTile } from './roadDispatch';
 import { fundedReach } from './budgetLevers';
+import { combineCoverage } from './coveragePaint';
 
 /**
  * Writes `tile.fireCoverage` [0–100] from powered stations with fireRadius.
  * Engines drive the road network from the station's street, so `fireRadius`
  * is a reach in road steps (highways count half, bridges cross water).
  * Unpowered stations, or stations with no street, contribute nothing.
+ * Where stations overlap their coverage combines (`combineCoverage`).
  * No disaster simulation in this slice.
  *
  * `stats.fireAverage` is the mean coverage on occupied (density > 0) tiles.
@@ -37,7 +39,7 @@ export class FireCoverageSystem {
       if (!station?.powered) continue;
 
       forEachDispatchedTile(map, instance.x, instance.y, fundedReach(def.fireRadius, funding), (tile, coverage) => {
-        if (coverage > tile.fireCoverage) tile.fireCoverage = coverage;
+        tile.fireCoverage = combineCoverage(tile.fireCoverage, coverage);
       });
     }
 

@@ -15,7 +15,7 @@ checked against five scripted test cities (Gap N). The first audit's four
 open items (city health, honest feedback, PBR/sky, the `App.ts` split) have
 all shipped. What is left (section 5) is depth, not missing systems:
 
-1. **Crime in a policed city**: Metro ends with buildings emptying to crime despite three police stations.
+1. **Wide districts patrol the long way round**: a zone area's inner streets meet only at its spines, so police, fire, and traffic reach the middle lines by going round the ends.
 2. **Presentation** extras stay optional (GLB kits, SSAO).
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
@@ -275,8 +275,8 @@ from the New confirm; `test/testCities.ts` builds each and checks it.
 | City | Seed, budget, time | What it shows | Where it ends |
 |---|---|---|---|
 | `hamlet` | 11, $10,000, 2 years | The first hours: a crossroads, shops, a few factories, one plant past town, woods all round | 140 people, 120 jobs (its workshops grown into factories), power 260/400, treasury $17k |
-| `riverside` | 2026, $40,000, 2½ years | A street bridge and a highway bridge; the plants are all on the north bank and light the far one across the bridge; shore lots, a bridgehead park, a far-bank tower, factories across the lake | 460 people, 468 jobs (works along the highway), both banks lit by three north-bank plants, waterfront valued above inland, the south bank's commuters on the street bridge |
-| `metro` | 7, $120,000, 4 years in 3 phases | Zone areas with looped auto streets, a highway, a trolley line crossing it at grade, downtown, mixed use, industry, six plants, four towers, police, fire, parks, a downtown of office blocks | 1,064 people, 962 jobs, 13 office blocks on land worth 100, power 2050/2400 (growth waited for each new plant), one 36-tile trolley line, 5 dead ends (all scripted road ends) |
+| `riverside` | 2026, $40,000, 2½ years | A street bridge and a highway bridge; the plants are all on the north bank and light the far one across the bridge; shore lots, a bridgehead park, a far-bank tower, factories across the lake | 552 people, 528 jobs (works along the highway), both banks lit by three north-bank plants and policed by a station each, waterfront valued above inland, the south bank's commuters on the street bridge |
+| `metro` | 7, $120,000, 4 years in 3 phases | Zone areas with looped auto streets, a highway, a trolley line crossing it at grade, downtown, mixed use, industry, six plants, four towers, police, fire, parks, a downtown of office blocks | 973 people, 899 jobs, office blocks on land worth 100, four police stations, power 1900/2400 (growth waited for each new plant), one 36-tile trolley line, 5 dead ends (all scripted road ends) |
 | `troubled` | 101, $30,000, 3 years | Blocks four lots deep, a plant among the houses, factories next door, no police, a tower with no street, a police station on a dark street, taxes raised to 16/14/14 | 150 lots with no road, power 399/400 with dark houses, approval 0 |
 | `sprawl` | 314, $60,000, 3½ years | A highway across the map with cul-de-sacs, a shopping strip, an industrial park; one plant at the west end until month 30, a second at the far end, a third at month 36 as the park turns into factories | With one plant, growth waits at the grid's capacity (population steady at about 220, nothing dark); each new plant lets it grow on (584 people, power 1198/1200, and the grid-full advisory) |
 
@@ -544,6 +544,25 @@ and jobs fell 963 → 674.
 **Exit:** Inspect a building whose land value fell well under its size's bar:
 it says it is outgrown and when it will step down.
 
+### Gap Z — Crime in a policed city **shipped**
+
+Metro ended with buildings emptying to crime although it had three powered
+police stations; Riverside, with none, did too. The crime map showed why:
+
+| Finding | Fix |
+|---|---|
+| Metro's west district had its only station on its west spine; a 14-step reach patrolled the western half, and the dense eastern half (small houses and rowhouses at density 60–79) ran crime of 51–65 | Metro's script adds a station on the district's east spine, and Riverside's a station on each bank (Troubled stays the city with no police) |
+| Where two stations overlapped, a tile took the stronger coverage only, so the middle of a district between two stations got about 20 from each and 20 in all | `combineCoverage`: overlapping police and fire coverage add up with diminishing returns (two at 20 make 36, two at 50 make 75) |
+| Metro's mixed-use core, one street in from the trolley, is reached only round its loop ends (13–14 steps from the station beside it) | Left as the player's call (another station), and logged as the next PR: cross streets through wide districts |
+
+| City | Buildings over the crime line (crime average) before | After |
+|---|---|---|
+| Metro | 48 (27) | 10 (20) |
+| Riverside | 37 (33) | 16 (25) |
+
+**Exit:** Crime map in `?city=metro`: the west district is patrolled across
+its width; what stays red is the mixed-use core behind its first street.
+
 ---
 
 ## 4. Explicitly still out of scope (Phase I)
@@ -565,7 +584,7 @@ Unchanged from the 3D plan:
 The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped. Next, each found by
 the test cities or the audits and small enough for one PR:
 
-1. **Crime in a policed city.** Metro's last advisory is buildings emptying to crime although it has three powered police stations reaching 580 tiles. Find whether the stations miss the dense blocks (reach is road steps from each station), crime outruns coverage in dense housing, or the stress threshold is too low, and fix the one at fault.
+1. **Cross streets through wide districts.** A zone area's lines meet only at its spines (Gap T5), so the inner lines of a district three or more lines wide are reached the long way round: Metro's mixed-use core is 13–14 patrol steps from the police station across the trolley line, and commutes and trucks detour the same way. Lay a cross street through the middle of wide areas (every eight to ten tiles along the lines), keeping the lots-per-street-tile bar.
 2. **Faster scenario tests.** The five test cities add about 20 s to Jest. Build each once per run (already cached per file) and consider a separate job for the long builds.
 3. **GLB kits (C4) and SSAO (C5)** stay optional; SSAO only after a filled-city frame-time check on High quality.
 

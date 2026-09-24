@@ -5,12 +5,14 @@ import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 import { forEachDispatchedTile } from './roadDispatch';
 import { fundedReach } from './budgetLevers';
+import { combineCoverage } from './coveragePaint';
 
 /**
  * Writes `tile.policeCoverage` [0–100] from powered stations with policeRadius.
  * Patrol cars leave by the station's street and drive the road network, so
  * `policeRadius` is a reach in road steps (highways count half). Unpowered
- * stations, or stations with no street, contribute nothing.
+ * stations, or stations with no street, contribute nothing. Where stations
+ * overlap their coverage combines (`combineCoverage`).
  */
 export class PoliceCoverageSystem {
   tick(
@@ -32,7 +34,7 @@ export class PoliceCoverageSystem {
       if (!station?.powered) continue;
 
       forEachDispatchedTile(map, instance.x, instance.y, fundedReach(def.policeRadius, funding), (tile, coverage) => {
-        if (coverage > tile.policeCoverage) tile.policeCoverage = coverage;
+        tile.policeCoverage = combineCoverage(tile.policeCoverage, coverage);
       });
     }
   }
