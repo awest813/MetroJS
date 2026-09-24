@@ -98,7 +98,7 @@ const metro: TestCity = {
   title: 'Metro',
   summary: 'Metro: a planned city in three phases, with a highway, a trolley line, industry, and every service.',
   covers: [
-    'large zone areas with auto streets (two-lot blocks closed into loops), grown over four years',
+    'large zone areas with auto streets (two-lot blocks closed into loops, crossed halfway), grown over four and a half years',
     'densification, commercial and industrial demand, mixed use on a trolley line',
     'several plants and towers on one grid',
     'a trolley line crossing the highway at grade, and one trolley per eight tiles of it',
@@ -119,7 +119,7 @@ const metro: TestCity = {
     .road(TrolleyAvenue, [44, 1], [44, 36])
     .zone(Commercial, [46, 2], [62, 8])
     .zone(Residential, [46, 10], [62, 16])
-    .place('police', 54, 14)
+    .place('police', 55, 14)
     // The west district's first station, on its west spine, reaches only half of it.
     .place('police', 43, 9)
     .zone(MixedUse, [45, 20], [52, 30])
@@ -137,7 +137,7 @@ const metro: TestCity = {
     .place('tower', 61, 17)
     .place('police', 43, 25)
     .place('park', 51, 17)
-    .months(18), 7, 120_000, watch),
+    .months(24), 7, 120_000, watch),
 };
 
 const troubled: TestCity = {

@@ -18,8 +18,10 @@ import {
   createResidentialLowBrush,
 } from '../openpublica/src/tools/ZoneBrushTool';
 import {
+  CROSS_STREET_SPACING,
   LOOP_MIN_LINE,
   autoStreetLayout,
+  crossStreetOffsets,
   formatAreaPlan,
   formatAreaResult,
   planZoneArea,
@@ -217,6 +219,20 @@ describe('streets through big zones', () => {
       expect(shortSet.has(`${t.x - 1},${t.y}`)).toBe(true);
       expect(shortSet.has(`${t.x},${t.y + 1}`) || shortSet.has(`${t.x},${t.y - 1}`)).toBe(false);
     }
+  });
+
+  it('should cross a wide district halfway along its lines', () => {
+    expect(crossStreetOffsets(CROSS_STREET_SPACING)).toEqual([]);
+    expect(crossStreetOffsets(15)).toEqual([7]);
+    expect(crossStreetOffsets(19)).toEqual([6, 12]);
+    const streets = new Set(autoStreetLayout(makeSim().map, { x: 2, y: 2 }, { x: 13, y: 11 }).map((t) => `${t.x},${t.y}`));
+    // Lines on y = 2, 5, 8, 11 are joined at x = 2 + 6 as well as at both ends.
+    for (let y = 2; y <= 11; y++) expect(streets.has(`8,${y}`)).toBe(true);
+    // One line on its own gets no cross street: between its ends, it is the only street.
+    const single = autoStreetLayout(makeSim().map, { x: 2, y: 4 }, { x: 17, y: 6 });
+    const inner = single.filter((t) => t.x > 2 && t.x < 17);
+    expect(inner.length).toBeGreaterThan(0);
+    expect(new Set(inner.map((t) => t.y)).size).toBe(1);
   });
 
   it('should tie the far end of each line to a road just past the area, not lay a second spine', () => {

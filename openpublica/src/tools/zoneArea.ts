@@ -213,6 +213,22 @@ export const LOOP_MIN_LINE = 8;
 const MAX_TIE = 2;
 
 /**
+ * Lines longer than this get a cross street through the middle (one per this
+ * many tiles), so the inner lines of a wide district meet halfway along
+ * instead of only at its spines: patrols, commutes, and trucks stop going
+ * the long way round.
+ */
+export const CROSS_STREET_SPACING = 9;
+
+/** Where cross streets go along a line of `length` tiles (0-based offsets from its start). */
+export function crossStreetOffsets(length: number): number[] {
+  const count = Math.floor((length - 1) / CROSS_STREET_SPACING);
+  const out: number[] = [];
+  for (let k = 1; k <= count; k++) out.push(Math.round(k * (length - 1) / (count + 1)));
+  return out;
+}
+
+/**
  * The shortest straight run of new street, out from the edge of the area,
  * that joins a planned street to an existing land road: at most
  * {@link MAX_STUB} tiles, never over water or through a building. Empty when
@@ -249,8 +265,10 @@ function stubToNetwork(map: CityMap, rect: Rect, streets: readonly TileCoord[]):
  * a road a few tiles off. Lines of {@link LOOP_MIN_LINE} or more are tied at
  * their other end too, by a short run to a road just past the area or a
  * second spine, so the blocks close into loops (dropped if that would pave
- * more than the lots it serves allow). A spine's dead-end tail past the last
- * line is left as lots. Never bridges, never through buildings.
+ * more than the lots it serves allow). Two or more lines longer than
+ * {@link CROSS_STREET_SPACING} also get cross streets through the middle. A
+ * spine's dead-end tail past the last line is left as lots. Never bridges,
+ * never through buildings.
  */
 export function autoStreetLayout(map: CityMap, anchor: TileCoord, target: TileCoord): TileCoord[] {
   const rect = rectOf(anchor, target);
@@ -292,6 +310,13 @@ export function autoStreetLayout(map: CityMap, anchor: TileCoord, target: TileCo
   };
 
   const paveable = (tiles: TileCoord[]): TileCoord[] => tiles.filter((t) => canPaveStreet(map, t.x, t.y));
+  /** A street across the lines, `offset` tiles along them from the area's start. */
+  const crossTiles = (offset: number): TileCoord[] => {
+    const out: TileCoord[] = [];
+    if (alongX) for (let y = rect.y0; y <= rect.y1; y++) out.push({ x: rect.x0 + offset, y });
+    else for (let x = rect.x0; x <= rect.x1; x++) out.push({ x, y: rect.y0 + offset });
+    return out;
+  };
 
   const bare = scoreLayout(map, rect, new Set());
   if (bare.unserved === 0) return [];
@@ -380,6 +405,22 @@ export function autoStreetLayout(map: CityMap, anchor: TileCoord, target: TileCo
       }
       const closed = looped.length > streets.length ? judge(looped) : null;
       if (closed && closed.score.unserved <= candidate.score.unserved) candidate = closed;
+    }
+
+    // Cross streets tie two or more long lines together halfway along.
+    const offsets = lineIds.length >= 2 ? crossStreetOffsets(lineLength) : [];
+    if (offsets.length > 0) {
+      const crossed = [...candidate.kept];
+      const planned = new Set(crossed.map((t) => key(t.x, t.y)));
+      for (const offset of offsets) {
+        for (const t of paveable(crossTiles(offset))) {
+          if (planned.has(key(t.x, t.y))) continue;
+          planned.add(key(t.x, t.y));
+          crossed.push(t);
+        }
+      }
+      const withCross = crossed.length > candidate.kept.length ? judge(crossed) : null;
+      if (withCross && withCross.score.unserved <= candidate.score.unserved) candidate = withCross;
     }
 
     if (!bestScore || better(candidate.score, bestScore)) {

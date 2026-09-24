@@ -15,8 +15,7 @@ checked against five scripted test cities (Gap N). The first audit's four
 open items (city health, honest feedback, PBR/sky, the `App.ts` split) have
 all shipped. What is left (section 5) is depth, not missing systems:
 
-1. **Wide districts patrol the long way round**: a zone area's inner streets meet only at its spines, so police, fire, and traffic reach the middle lines by going round the ends.
-2. **Presentation** extras stay optional (GLB kits, SSAO).
+1. **Presentation** extras stay optional (GLB kits, SSAO). The test cities now end with traffic as their top advisory, which the player fixes with the road tools.
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
 
@@ -275,8 +274,8 @@ from the New confirm; `test/testCities.ts` builds each and checks it.
 | City | Seed, budget, time | What it shows | Where it ends |
 |---|---|---|---|
 | `hamlet` | 11, $10,000, 2 years | The first hours: a crossroads, shops, a few factories, one plant past town, woods all round | 140 people, 120 jobs (its workshops grown into factories), power 260/400, treasury $17k |
-| `riverside` | 2026, $40,000, 2½ years | A street bridge and a highway bridge; the plants are all on the north bank and light the far one across the bridge; shore lots, a bridgehead park, a far-bank tower, factories across the lake | 552 people, 528 jobs (works along the highway), both banks lit by three north-bank plants and policed by a station each, waterfront valued above inland, the south bank's commuters on the street bridge |
-| `metro` | 7, $120,000, 4 years in 3 phases | Zone areas with looped auto streets, a highway, a trolley line crossing it at grade, downtown, mixed use, industry, six plants, four towers, police, fire, parks, a downtown of office blocks | 973 people, 899 jobs, office blocks on land worth 100, four police stations, power 1900/2400 (growth waited for each new plant), one 36-tile trolley line, 5 dead ends (all scripted road ends) |
+| `riverside` | 2026, $40,000, 2½ years | A street bridge and a highway bridge; the plants are all on the north bank and light the far one across the bridge; shore lots, a bridgehead park, a far-bank tower, factories across the lake | 464 people, 480 jobs (works along the highway), both banks lit by three north-bank plants and policed by a station each (no building over the crime line), waterfront valued above inland, the south bank's commuters on the street bridge |
+| `metro` | 7, $120,000, 4½ years in 3 phases | Zone areas with looped auto streets, a highway, a trolley line crossing it at grade, downtown, mixed use, industry, six plants, four towers, police, fire, parks, a downtown of office blocks | 932 people, 902 jobs, 8 office blocks on land worth 100, four police stations and no building struggling, power 1862/2400 (growth waited for each new plant), one 36-tile trolley line, 5 dead ends (all scripted road ends) |
 | `troubled` | 101, $30,000, 3 years | Blocks four lots deep, a plant among the houses, factories next door, no police, a tower with no street, a police station on a dark street, taxes raised to 16/14/14 | 150 lots with no road, power 399/400 with dark houses, approval 0 |
 | `sprawl` | 314, $60,000, 3½ years | A highway across the map with cul-de-sacs, a shopping strip, an industrial park; one plant at the west end until month 30, a second at the far end, a third at month 36 as the park turns into factories | With one plant, growth waits at the grid's capacity (population steady at about 220, nothing dark); each new plant lets it grow on (584 people, power 1198/1200, and the grid-full advisory) |
 
@@ -563,6 +562,30 @@ police stations; Riverside, with none, did too. The crime map showed why:
 **Exit:** Crime map in `?city=metro`: the west district is patrolled across
 its width; what stays red is the mixed-use core behind its first street.
 
+### Gap AA — Cross streets **shipped**
+
+The crime pass (Gap Z) left Metro's mixed-use core unpatrolled: a zone
+area's lines met only at its spines, so the inner lines of a wide district
+were reached round the ends (13–14 patrol steps from a station across the
+street), and commutes and trucks went the same long way.
+
+| Slice | What shipped |
+|---|---|
+| AA1 Cross streets | `crossStreetOffsets`: two or more lines longer than `CROSS_STREET_SPACING` (9) get a cross street through the middle, one per nine to ten tiles (a 15-tile line gets one at its midpoint, a 19-tile line two), so blocks are five to seven lots long. The same lots-per-street-tile bar applies, and tails past the outer lines are pruned. |
+| AA2 Metro's script | Its east-district police station moves off the new cross street to (55, 14), and its last phase runs six months longer: the extra streets cost Metro about 6% of its residential lots, and on that path its housing demand crossed the rowhouse bar only later. |
+
+| | Before | After |
+|---|---|---|
+| Metro: buildings over the crime line / struggling / crime average | 10 / 13 / 20 | 10 (8 of them patrolled) / 0 / 15 |
+| Riverside: buildings over the crime line / struggling | 16 / 11 | 0 / 0 |
+| Residential lots given up to cross streets (Metro, Riverside) | — | 12, 10 (6–7%) |
+
+A spacing of 12 kept those lots but left Metro with 26 buildings over the
+crime line and 33 struggling, so 9 it is.
+
+**Exit:** Zone a 15-wide area in the open: its lines meet at a cross street
+halfway along as well as at both ends.
+
 ---
 
 ## 4. Explicitly still out of scope (Phase I)
@@ -581,12 +604,11 @@ Unchanged from the 3D plan:
 
 ## 5. Recommended next PRs (mergeable)
 
-The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped. Next, each found by
-the test cities or the audits and small enough for one PR:
+The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped. What is left is
+housekeeping and optional polish:
 
-1. **Cross streets through wide districts.** A zone area's lines meet only at its spines (Gap T5), so the inner lines of a district three or more lines wide are reached the long way round: Metro's mixed-use core is 13–14 patrol steps from the police station across the trolley line, and commutes and trucks detour the same way. Lay a cross street through the middle of wide areas (every eight to ten tiles along the lines), keeping the lots-per-street-tile bar.
-2. **Faster scenario tests.** The five test cities add about 20 s to Jest. Build each once per run (already cached per file) and consider a separate job for the long builds.
-3. **GLB kits (C4) and SSAO (C5)** stay optional; SSAO only after a filled-city frame-time check on High quality.
+1. **Faster scenario tests.** The five test cities add about 30 s to Jest (Metro alone runs 54 months). Build each once per run (already cached per file) and consider a separate job for the long builds.
+2. **GLB kits (C4) and SSAO (C5)** stay optional; SSAO only after a filled-city frame-time check on High quality.
 
 ---
 
@@ -602,6 +624,7 @@ the test cities or the audits and small enough for one PR:
 - Transit: in `?city=metro`, trolleys cross the highway at (44, 18) on rails set into it; Inspect there says level crossing and shows transit 100. Zone a big area in the open and its streets close into loops.
 - Commutes: in `?city=riverside` open Traffic and find the street bridge carrying the south bank's commuters; lay a long street between a row of houses and a block of shops and it reads busy along its whole length.
 - Growth and power: in `?city=sprawl` Inspect an empty lot at the end and it is waiting for power, with no house dark.
+- Streets: zone a 15-wide area in the open and its lines meet at a cross street halfway along as well as at both ends.
 - Shrinking: Inspect an office block whose block lost its land value (bulldoze the shops around it, or put a plant next door) and it counts down to stepping down.
 - Industry and budget: in `?city=riverside` the highway's industrial strip is works and factories. In Budget, Borrow $10k adds $10,000 and a $500/mo repayment row; Safety at 70% shrinks a police station's placement preview; Roads at 80% cut road upkeep and raise Traffic.
 - Water: from an angled camera, hover the edge of a bridge deck (the cursor sits on the deck); beach lots show dry ground to the water's edge; Value shows the waterfront premium.
