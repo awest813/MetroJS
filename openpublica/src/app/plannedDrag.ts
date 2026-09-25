@@ -4,9 +4,11 @@ import { TerrainType, ZoneType } from '../sim/CityTile';
 import type { Tool } from '../tools/Tool';
 import type { ToolController, StrokeSummary } from '../tools/ToolController';
 import { RoadTool, isRoadTool } from '../tools/RoadTool';
-import { formatLinePlan, planRoadLine, roadLinePath, type LineVerdict } from '../tools/roadLine';
+import { formatLinePlan, planRoadLine, roadLineOrder, roadLinePath, type LineVerdict } from '../tools/roadLine';
 import { isZoneBrush, type ZoneBrushTool } from '../tools/ZoneBrushTool';
 import { formatAreaPlan, planZoneArea, type AreaPlan, type AreaVerdict } from '../tools/zoneArea';
+import { isBulldozeTool } from '../tools/BulldozeTool';
+import { formatBulldozePlan, planBulldozeArea, type ClearPlan, type ClearVerdict } from '../tools/bulldozeArea';
 import { zoneColor } from '../data/cityTileColors';
 import type { TileTint } from '../render/HighlightRenderer';
 import type { CityView } from './CityView';
@@ -19,7 +21,7 @@ export interface DragPreview {
   readonly targetBlocked: boolean;
 }
 
-/** One kind of planned drag: road lines, zone areas. */
+/** One kind of planned drag: road lines, zone areas, bulldoze areas. */
 export interface DragMode {
   /** This mode handles presses with the given tool. */
   accepts(tool: Tool): boolean;
@@ -169,7 +171,7 @@ export class RoadLineMode implements DragMode {
 
   preview(tool: Tool, anchor: TileCoord, target: TileCoord): DragPreview {
     const road = tool as RoadTool;
-    const plan = planRoadLine(road, roadLinePath(anchor, target), this._sim);
+    const plan = planRoadLine(road, roadLineOrder(roadLinePath(anchor, target), this._sim.map), this._sim);
     return {
       tints: plan.tiles.map((t) => ({ x: t.x, y: t.y, rgb: LINE_TINT[t.verdict], alpha: LINE_ALPHA[t.verdict] })),
       status: formatLinePlan(road.label, plan),
@@ -178,7 +180,7 @@ export class RoadLineMode implements DragMode {
   }
 
   build(tool: Tool, anchor: TileCoord, target: TileCoord): void {
-    const path = roadLinePath(anchor, target);
+    const path = roadLineOrder(roadLinePath(anchor, target), this._sim.map);
     this._tools.resetDrag();
     this._tools.applyTiles(path, this._sim);
     this._onBuilt(tool as RoadTool, this._tools.resetDrag(), path);
@@ -261,5 +263,65 @@ export class ZoneAreaMode implements DragMode {
     if (plan.streets.length > 0) this._tools.applyTiles(plan.streets, this._sim, this._streetTool);
     this._tools.applyTiles(plan.lots, this._sim);
     this._onBuilt(brush, this._tools.resetDrag(), plan, anchor, target);
+  }
+}
+
+const DEMOLISH_TINT = { r: 0.98, g: 0.50, b: 0.12 };
+
+const CLEAR_ALPHA: Record<ClearVerdict, number> = {
+  building: 0.62,
+  road: 0.45,
+  bridge: 0.5,
+  zone: 0.45,
+  empty: 0.12,
+  funds: 0.6,
+};
+
+/**
+ * The bulldozer drags a rectangle too: buildings, roads and bridge spans
+ * that would come down are tinted orange, zoned lots that would be unzoned
+ * white, and release clears them. Nothing goes until release, and Esc keeps it all.
+ */
+export class BulldozeAreaMode implements DragMode {
+  constructor(
+    private readonly _sim: CitySim,
+    private readonly _tools: ToolController,
+    /** Called after release cleared (or failed to clear) the area. */
+    private readonly _onBuilt: (
+      tool: Tool,
+      summary: StrokeSummary,
+      plan: ClearPlan,
+      anchor: TileCoord,
+      target: TileCoord,
+    ) => void,
+  ) {}
+
+  accepts(tool: Tool): boolean {
+    return isBulldozeTool(tool);
+  }
+
+  preview(tool: Tool, anchor: TileCoord, target: TileCoord): DragPreview {
+    const plan = planBulldozeArea(anchor, target, this._sim);
+    const tint = (verdict: ClearVerdict): TileTint['rgb'] => {
+      switch (verdict) {
+        case 'zone': return CLEAR_TINT;
+        case 'empty': return KEEP_TINT;
+        case 'funds': return BLOCKED_TINT;
+        default: return DEMOLISH_TINT;
+      }
+    };
+    return {
+      tints: plan.tiles.map((t) => ({ x: t.x, y: t.y, rgb: tint(t.verdict), alpha: CLEAR_ALPHA[t.verdict] })),
+      status: formatBulldozePlan(tool.label, plan),
+      targetBlocked: plan.lots.length === 0 ||
+        plan.tiles.some((t) => t.x === target.x && t.y === target.y && t.verdict === 'funds'),
+    };
+  }
+
+  build(tool: Tool, anchor: TileCoord, target: TileCoord): void {
+    const plan = planBulldozeArea(anchor, target, this._sim);
+    this._tools.resetDrag();
+    this._tools.applyTiles(plan.lots, this._sim);
+    this._onBuilt(tool, this._tools.resetDrag(), plan, anchor, target);
   }
 }

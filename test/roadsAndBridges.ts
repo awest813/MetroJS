@@ -145,6 +145,7 @@ describe('road tools', () => {
 
     const sim = makeSim(16, 1000);
     water(sim, [[3, 3]]);
+    sim.placeRoad(2, 3, RoadType.Street);
     const tool = new RoadTool();
     expect(tool.apply({ x: 3, y: 3 }, sim)).toBe(true);
     expect(sim.stats.money).toBe(1000 - ROAD_COST[RoadType.Street] * BRIDGE_COST_MULTIPLIER);
@@ -153,6 +154,7 @@ describe('road tools', () => {
   it('should explain a bridge the treasury cannot afford', () => {
     const sim = makeSim(16, 20);
     water(sim, [[3, 3]]);
+    sim.placeRoad(2, 3, RoadType.Street);
     expect(new RoadTool().apply({ x: 3, y: 3 }, sim)).toBe(false);
     expect(explainToolFailure('road', { x: 3, y: 3 }, sim)).toBe('Need $50 for a bridge tile (have $20)');
   });
@@ -163,6 +165,39 @@ describe('road tools', () => {
     street(sim, [[4, 5], [5, 5]]);
     expect(explainToolFailure('road', { x: 5, y: 6 }, sim)).toMatch(/Bridges run straight/);
     expect(explainToolFailure('road', { x: 5, y: 4 }, sim)).toMatch(/from the side/);
+  });
+
+  it('should lay bridges out from a road, never alone in the water', () => {
+    const sim = makeSim();
+    water(sim, [[5, 5], [6, 5], [7, 5], [6, 6], [6, 7]]);
+    const tool = new RoadTool();
+    expect(tool.blockAt({ x: 6, y: 6 }, sim)).toBe('bridge-stranded');
+    expect(tool.apply({ x: 6, y: 6 }, sim)).toBe(false);
+    expect(explainToolFailure('road', { x: 6, y: 6 }, sim)).toMatch(/^Bridges start from a road/);
+    // One span at a time from the shore works, each joined to the last.
+    sim.placeRoad(4, 5, RoadType.Street);
+    for (const x of [5, 6, 7]) expect(tool.apply({ x, y: 5 }, sim)).toBe(true);
+    // Upgrading a span already standing is not a new span.
+    sim.bulldoze(5, 5);
+    sim.bulldoze(7, 5);
+    expect(new RoadTool(RoadType.Highway).blockAt({ x: 6, y: 5 }, sim)).toBeNull();
+  });
+
+  it('should not leave a staggered freehand stroke as spans floating in the lake', () => {
+    const sim = makeSim(24);
+    for (let y = 0; y < 24; y++) water(sim, [[10, y], [11, y], [12, y], [13, y]]);
+    const road = new RoadTool();
+    const controller = new ToolController(road);
+    for (let i = 0; i <= 8; i++) controller.applyToTile({ x: 8 + i, y: 4 + i }, sim);
+    const summary = controller.resetDrag();
+    const spans: string[] = [];
+    sim.map.forEach((t) => {
+      if (t.terrain === TerrainType.Water && t.roadType !== RoadType.None) spans.push(`${t.x},${t.y}`);
+    });
+    // Only the span joined to the shore road stands; the rest were skipped, not bought.
+    expect(spans).toEqual(['10,5']);
+    expect(summary.blockedByBridge).toBeGreaterThan(0);
+    expect(summary.bridged).toBe(1);
   });
 
   it('should upgrade a street to a highway or trolley line for the difference in price', () => {

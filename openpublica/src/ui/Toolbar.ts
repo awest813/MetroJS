@@ -21,10 +21,10 @@ const BUTTON_LABELS: Readonly<Record<string, string>> = {
 
 const TOOL_TITLES: Readonly<Record<string, string>> = {
   inspect: 'Inspect a tile (key I)',
-  road: 'Street — $10 a tile, $50 as a bridge over water. Drag a line, release to build; Shift paints freehand. Houses grow on lots beside it (key R)',
+  road: 'Street — $10 a tile, $50 as a bridge over water. Drag a line, release to build; Shift paints freehand. Bridges start from a road and run straight. Houses grow on lots beside it (key R)',
   highway: 'Highway — $25 a tile, $125 as a bridge; paving over a street pays the difference. Drag a line, release to build. Carries twice the traffic; police and fire drive it faster (key H)',
   trolleyAvenue: 'Trolley avenue — $30 a tile, $150 as a bridge; paving over a street pays the difference. Drag a line, release to build; it crosses highways at grade. A line of 4+ tiles runs a trolley and gives transit access (key T)',
-  bulldoze: 'Clear a tile — $1 (key B)',
+  bulldoze: 'Bulldoze — $1 a tile: buildings, roads, bridge spans and zoning. Drag a rectangle to see what comes down, release to clear, Esc cancels; Shift paints freehand (key B)',
   zoneResidentialLow: 'Housing lots — $5. Drag a rectangle; deep areas get streets ($10 a tile, S toggles); Shift paints freehand (key Z)',
   zoneCommercialLow: 'Shop lots — $5. Drag a rectangle (S toggles streets). Need residents before they fill (key C)',
   zoneIndustrialLight: 'Factory lots — $5. Drag a rectangle (S toggles streets) (key N). I stays inspect',

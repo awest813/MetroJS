@@ -14,7 +14,7 @@ import {
   createMixedUseBrush,
   createClearZoneBrush,
 } from '../tools/ZoneBrushTool';
-import { BulldozeTool } from '../tools/BulldozeTool';
+import { BULLDOZE_COST, BulldozeTool } from '../tools/BulldozeTool';
 import { TrolleyAvenueTool } from '../tools/TrolleyAvenueTool';
 import { ToolController } from '../tools/ToolController';
 import { CameraController } from '../render/CameraController';
@@ -45,7 +45,8 @@ import { BuildingModels } from '../render/BuildingModels';
 import { parseWeatherKind } from '../sim/weather';
 import { CityView } from './CityView';
 import { mountCityMenu, requestedTestCity } from './cityFile';
-import { PlannedDragInput, RoadLineMode, ZoneAreaMode } from './plannedDrag';
+import { BulldozeAreaMode, PlannedDragInput, RoadLineMode, ZoneAreaMode } from './plannedDrag';
+import { formatBulldozeResult } from '../tools/bulldozeArea';
 import { planRoadLine } from '../tools/roadLine';
 import { formatAreaResult } from '../tools/zoneArea';
 import {
@@ -268,7 +269,27 @@ export class App {
       if (voice) audio.playPaint(voice);
       statusEl.textContent = formatAreaResult(tool.label, summary.spent, plan, tool.zoneType === ZoneType.None);
     });
-    const plannedDrag = new PlannedDragInput(sim, toolController, view, statusEl, [roadLineMode, zoneAreaMode]);
+    const bulldozeAreaMode = new BulldozeAreaMode(sim, toolController, (tool, summary, plan, anchor, target) => {
+      hud.update(sim.stats, sim.clock, sim);
+      budgetPanel.update(sim.stats, sim.budget, sim.levers);
+      if (summary.applied === 0) {
+        audio.play(FAIL_VOICE, 'fail');
+        statusEl.textContent = anchor.x === target.x && anchor.y === target.y
+          ? explainToolFailure(tool.name, anchor, sim)
+          : plan.blocked > 0
+            ? `Not enough money to bulldoze — $${BULLDOZE_COST} a tile.`
+            : 'Nothing to clear there.';
+        return;
+      }
+      const voice = sfxForTool(tool.name);
+      if (voice) audio.playPaint(voice);
+      statusEl.textContent = summary.applied === plan.lots.length
+        ? formatBulldozeResult(summary.spent, plan)
+        : formatStrokeStatus(tool.label, summary) ?? '';
+    });
+    const plannedDrag = new PlannedDragInput(
+      sim, toolController, view, statusEl, [roadLineMode, zoneAreaMode, bulldozeAreaMode],
+    );
     window.addEventListener('keydown', (event) => {
       if (plannedDrag.handleKey(event.key)) event.preventDefault();
     });

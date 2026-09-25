@@ -4,6 +4,8 @@ import type { Tool } from './Tool';
 import type { TileCoord } from '../data/types';
 import type { CitySim } from '../sim/CitySim';
 import { RoadType, TerrainType } from '../sim/CityTile';
+import { ROAD_STEPS, isRoadTile } from '../sim/roadConnections';
+import type { CityMap } from '../sim/CityMap';
 
 /** Cost in city funds to place one road tile on land. */
 export const ROAD_COST: Record<RoadType, number> = {
@@ -40,6 +42,8 @@ export type RoadToolBlock =
   | 'replace'
   | 'bridge-turn'
   | 'bridge-branch'
+  /** A new bridge span would stand alone in the water, joined to no road. */
+  | 'bridge-stranded'
   | 'funds';
 
 const TOOL_NAMES: Record<RoadType, string> = {
@@ -57,8 +61,26 @@ const TOOL_LABELS: Record<RoadType, string> = {
 };
 
 /**
+ * True when a new road over water at (x, y) would stand alone: no road, laid
+ * or `planned`, on any side. Bridges are laid out from a road on the shore,
+ * so a stroke that staggers across a lake, or a line drawn out in the water,
+ * does not leave spans floating there unconnected.
+ */
+export function strandedSpan(
+  map: CityMap,
+  x: number,
+  y: number,
+  planned: (x: number, y: number) => boolean = () => false,
+): boolean {
+  const tile = map.getTile(x, y);
+  if (!tile || tile.terrain !== TerrainType.Water || tile.roadType !== RoadType.None) return false;
+  return !ROAD_STEPS.some(([dx, dy]) => isRoadTile(map, x + dx, y + dy) || planned(x + dx, y + dy));
+}
+
+/**
  * Paves one road tile and deducts the cost. Over water the tile is a bridge
- * at {@link BRIDGE_COST_MULTIPLIER}× the price, and bridges run straight.
+ * at {@link BRIDGE_COST_MULTIPLIER}× the price; bridges run straight and
+ * start from a road ({@link strandedSpan}).
  *
  * Painting a highway or trolley avenue over a street upgrades it for the
  * difference in price. Nothing paints over a highway or trolley line, so a
@@ -91,6 +113,7 @@ export class RoadTool implements Tool {
     if (tile.roadType !== RoadType.None && tile.roadType !== RoadType.Street) return 'replace';
     const block = sim.roadPlacementBlock(coord.x, coord.y);
     if (block !== null) return block;
+    if (strandedSpan(sim.map, coord.x, coord.y)) return 'bridge-stranded';
     if (!sim.canAfford(this.costAt(coord, sim))) return 'funds';
     return null;
   }

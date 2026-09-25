@@ -4,7 +4,8 @@ import { RoadType, TerrainType, ZoneType } from '../openpublica/src/sim/CityTile
 import { buildingFacing, rotateOffset } from '../openpublica/src/render/buildingFacing';
 import { TURN_SPAN, roadNetworkKey, vehiclePose } from '../openpublica/src/render/roadGraph';
 import { ROAD_COST, BRIDGE_COST_MULTIPLIER, RoadTool } from '../openpublica/src/tools/RoadTool';
-import { formatLinePlan, planRoadLine, roadLinePath } from '../openpublica/src/tools/roadLine';
+import { formatLinePlan, planRoadLine, roadLineOrder, roadLinePath } from '../openpublica/src/tools/roadLine';
+import { TrolleyAvenueTool } from '../openpublica/src/tools/TrolleyAvenueTool';
 import { createResidentialLowBrush } from '../openpublica/src/tools/ZoneBrushTool';
 import { BulldozeTool } from '../openpublica/src/tools/BulldozeTool';
 import { createServiceTools } from '../openpublica/src/tools/serviceCatalog';
@@ -80,6 +81,38 @@ describe('road lines', () => {
     expect(corner.verdict).toBe('blocked');
     expect(corner.reason).toBe('bridge-turn');
     expect(formatLinePlan('Road', plan)).toMatch(/^Road: 5 tiles, 2 bridges · .*bridges run straight/);
+  });
+
+  it('should skip spans a line would leave alone in the water, and lay a line from its shore end', () => {
+    const sim = makeSim();
+    for (let y = 0; y < 16; y++) for (const x of [5, 6, 7, 8]) sim.getTile(x, y)!.terrain = TerrainType.Water;
+    // Out in the lake and back: nothing touches a road, so nothing is bought.
+    const lake = planRoadLine(new RoadTool(), roadLinePath({ x: 6, y: 9 }, { x: 6, y: 5 }), sim);
+    expect(lake.built).toBe(0);
+    expect(lake.blocked.every((t) => t.reason === 'bridge-stranded')).toBe(true);
+    expect(formatLinePlan('Road', lake)).toMatch(/nothing new to build here · 5 skipped \(bridges start from a road\)/);
+
+    // Anchored out on the water and dragged to the shore: laid from the shore, a pier.
+    const path = roadLinePath({ x: 7, y: 3 }, { x: 10, y: 3 });
+    expect(planRoadLine(new RoadTool(), path, sim).built).toBe(2);
+    const ordered = roadLineOrder(path, sim.map);
+    expect(ordered[0]).toEqual({ x: 10, y: 3 });
+    const pier = planRoadLine(new RoadTool(), ordered, sim);
+    expect(pier.built).toBe(4);
+    expect(pier.bridges).toBe(2);
+    // From the shore already, or beside a road, the order stays as drawn.
+    expect(roadLineOrder(roadLinePath({ x: 2, y: 3 }, { x: 10, y: 3 }), sim.map)[0]).toEqual({ x: 2, y: 3 });
+  });
+
+  it('should count the highways a trolley line crosses at grade', () => {
+    const sim = makeSim();
+    for (let y = 0; y < 16; y++) sim.placeRoad(6, y, RoadType.Highway);
+    sim.placeRoad(9, 4, RoadType.Street);
+    const plan = planRoadLine(new TrolleyAvenueTool(), roadLinePath({ x: 2, y: 4 }, { x: 12, y: 4 }), sim);
+    expect(plan.crossings).toBe(1);
+    expect(plan.tiles.find((t) => t.x === 9)!.verdict).toBe('upgrade');
+    expect(formatLinePlan('Trolley Ave', plan)).toMatch(/^Trolley Ave: 10 tiles · \$290 · crosses a highway at grade · release/);
+    expect(planRoadLine(new RoadTool(), roadLinePath({ x: 2, y: 4 }, { x: 12, y: 4 }), sim).crossings).toBe(0);
   });
 
   it('should stop spending when the treasury runs out, as release would', () => {

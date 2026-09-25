@@ -15,7 +15,7 @@ export interface StrokeSummary {
   applied: number;
   /** Road tiles laid over water as bridge spans. */
   bridged: number;
-  /** Water tiles skipped because a bridge there would turn or branch. */
+  /** Water tiles skipped because a bridge there would turn, branch, or stand alone. */
   blockedByBridge: number;
   /** Road tiles skipped because the treasury ran dry mid-stroke. */
   blockedByFunds: number;
@@ -114,7 +114,7 @@ export class ToolController {
           if (water && isRoadTool(tool)) this._strokeBridged += 1;
         } else if (isRoadTool(tool)) {
           const why = tool.blockAt(tile, sim);
-          if (why === 'bridge-turn' || why === 'bridge-branch') this._strokeBridgeBlocked += 1;
+          if (why === 'bridge-turn' || why === 'bridge-branch' || why === 'bridge-stranded') this._strokeBridgeBlocked += 1;
           else if (why === 'funds') this._strokeFunds += 1;
         }
       }

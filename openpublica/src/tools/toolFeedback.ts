@@ -76,6 +76,8 @@ function explainRoadFailure(tool: RoadTool, coord: TileCoord, sim: CitySim): str
       return 'Bridges run straight — no turns or junctions over water.';
     case 'bridge-branch':
       return 'Nothing can join a bridge from the side — connect at its ends.';
+    case 'bridge-stranded':
+      return 'Bridges start from a road — drag from the shore straight across the water.';
     case 'funds': {
       const need = tool.costAt(coord, sim);
       if (!bridge) return fundsLine(need, sim.stats.money);

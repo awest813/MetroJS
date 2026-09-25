@@ -1,7 +1,7 @@
 # OpenPublica — Next gaps (after Phases A–H)
 
-**Date:** 2026-09-24 (first written 2026-09-20)  
-**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AF below have shipped on top.
+**Date:** 2026-09-25 (first written 2026-09-20)  
+**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AG below have shipped on top.
 
 This is an implementation plan for **what is still missing**, not a licence to rewrite sim formulas or import Micropolis art.
 
@@ -17,6 +17,7 @@ all shipped. What is left (section 5) is depth, not missing systems:
 
 1. **Presentation** extras have shipped: SSAO as an opt-in after its full-city frame check (Gaps AB, AC), and GLB kits with a model for every building (Gap AE). What is left there is art: an artist's kit can replace the generated one.
 2. **Happiness** now decides how many people move in (Gap AF): below 80, housing grows at a falling share of its demand, and at 30 or less residents leave.
+3. **Tile interactions** were audited tool by tile (Gap AG). Every outcome was consistent and every refusal had a reason. Two drags were not right: a freehand stroke across water bought bridge spans that joined nothing, and the bulldozer cleared tiles as the pointer crossed them, with no preview. Both are fixed.
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
 
@@ -761,6 +762,38 @@ the housing demand moves in; the Res bar reads 12%, not 15%.
 
 ---
 
+### Gap AG — Road, trolley, and tile interactions **shipped**
+
+The audit drove every tool (street, highway, trolley, bulldoze, the four zone
+brushes, dezone, the five services) against every kind of tile (grass, woods,
+water, zoned lot, house, station, park, street, highway, trolley avenue, level
+crossing, bridge span, plant). Every outcome was consistent, and every
+refusal had a message naming its reason. It then scripted drags across
+neighbours: trolley lines over highways and bridges, a highway through a
+street grid, bulldozing a middle span or a level crossing, freehand strokes
+across water, and bulldozing the road in front of houses. Two of those were
+wrong.
+
+| Slice | What shipped |
+|---|---|
+| AG1 Stranded spans | A new bridge span needs a road beside it, either laid or earlier in the same line (`strandedSpan`, block `'bridge-stranded'`). A Shift stroke staggering diagonally across Riverside's river used to buy a span at every step: nine disconnected tiles for $490. Now only the span joined to the shore is built ($90), and the status says bridges run straight. A line drawn out in the water is skipped ("bridges start from a road"), and so is a single click there. A line anchored on the water and dragged to the shore is laid from the shore end (`roadLineOrder`), so it builds as a pier. |
+| AG2 Bulldoze rectangle | The bulldozer drags a rectangle, as zoning does (`planBulldozeArea`, `BulldozeAreaMode`). Buildings, roads and bridge spans that would come down are tinted orange, and zoned lots white. The status lists them ("14 buildings, 7 road tiles · $21") and names civic buildings ("a power plant"). Release clears, Esc keeps everything, and Shift paints freehand as before. Before, a drag cleared each tile as the pointer crossed it and then said only "Bulldoze spent $7." The result line is now "Bulldozed 14 buildings and 7 road tiles for $21." |
+| AG3 Crossings and tips | A trolley line's preview says when it will cross a highway at grade. The Bulldoze tooltip describes the rectangle, and the Street tooltip says bridges start from a road and run straight. |
+
+These were checked and left alone:
+
+- A street clicked on a highway says to bulldoze the highway first, but a dragged street crosses it. A line passes through the highway; a single tile has nothing to pass through.
+- A bulldozed middle span leaves both halves standing, and the gap can be laid again.
+- Houses behind a bulldozed street stand stressed and leave after four months, as any lot without a road does.
+
+**Exit:** In `?city=riverside`:
+
+- Shift-drag a street diagonally across the river north-east of the bridges. One span stands at the shore; nothing floats.
+- Drag a street line out in the water. It is skipped, and the status says bridges start from a road.
+- Drag the bulldozer over the houses north of the highway. They tint orange, and the status lists and prices them; Esc keeps them.
+
+---
+
 ## 4. Explicitly still out of scope (Phase I)
 
 Unchanged from the 3D plan:
@@ -779,7 +812,7 @@ Unchanged from the 3D plan:
 
 The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped, and so has
 everything after it (D4 faster tests, the Gap AB frame check, the Gap AC SSAO
-opt-in, the Gap AE GLB kits, Gap AF's happiness). What is left:
+opt-in, the Gap AE GLB kits, Gap AF's happiness, Gap AG's tile interactions). What is left:
 
 1. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
 2. **An artist's kit (optional).** The fifteen models are generated; hand-made ones can replace them file by file under `public/models/ASSET_LICENSE.md`.
@@ -797,6 +830,7 @@ opt-in, the Gap AE GLB kits, Gap AF's happiness). What is left:
 - Roads: drag a street straight across a river (status names the bridge tiles), drag one across a highway (the highway stays), and watch Traffic drop on a jammed street after a parallel street is joined up. Drag a highway over a street (the preview charges $15 a tile for the upgrade).
 - Transit: in `?city=metro`, trolleys cross the highway at (44, 18) on rails set into it; Inspect there says level crossing and shows transit 100. Zone a big area in the open and its streets close into loops.
 - Commutes: in `?city=riverside` open Traffic and find the street bridge carrying the south bank's commuters; lay a long street between a row of houses and a block of shops and it reads busy along its whole length.
+- Tiles: in `?city=riverside`, Shift-drag a street diagonally across the river (one span at the shore, none floating), and drag the bulldozer over a row of houses (an orange preview lists them and their cost; Esc keeps them).
 - Growth and power: in `?city=sprawl` Inspect an empty lot at the end and it is waiting for power, with no house dark.
 - Streets: zone a 15-wide area in the open and its lines meet at a cross street halfway along as well as at both ends.
 - Shrinking: Inspect an office block whose block lost its land value (bulldoze the shops around it, or put a plant next door) and it counts down to stepping down.
