@@ -105,6 +105,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Growth within the grid: new buildings wait for power instead of darkening the far end of a full grid; Inspect and the advisory say so
 - [x] Buildings shrink: the biggest sizes step down, a few a month, when their land value falls well under the bar that grew them or industry declines
 - [x] Frame time checked in a full city on High (Gap AB): flat road pieces cast no shadows and draw only the faces that show, buildings stop recomputing their matrices, a month end routes traffic once, and weather shaders compile at load
+- [x] Services count: fire cover raises land value, fire and water gaps cost score, the advisory names dry buildings behind full towers, and Inspect gives each service's reach, buildings covered, and upkeep
 - [x] Ambient occlusion (Settings, off by default, High only): soft shade where buildings and trees meet the ground, paused under data maps, with FXAA for the edges
 - [x] Test cities: `?city=hamlet|riverside|metro|troubled|sprawl` (or New → Or open a test city) builds a scripted city with the player tools and seeded growth; `test/testCity.<id>.ts` checks each
 

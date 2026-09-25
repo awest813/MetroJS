@@ -2,7 +2,7 @@
 
 import type { CityMap } from './CityMap';
 import type { CityTile } from './CityTile';
-import { RoadType, TerrainType } from './CityTile';
+import { RoadType, TerrainType, ZoneType } from './CityTile';
 import { ROAD_STEPS, isLandRoad } from './roadConnections';
 import { coverageAtDistance } from './coveragePaint';
 
@@ -162,6 +162,15 @@ export function forEachDispatchedTile(
     const tile = map.getTile(x, (index - x) / w);
     if (tile) visit(tile, coverage);
   }
+}
+
+/** Zone buildings (houses, shops, factories; not civic lots) a station at (x, y) reaches. */
+export function buildingsInReach(map: CityMap, stationX: number, stationY: number, reach: number): number {
+  let count = 0;
+  forEachDispatchedTile(map, stationX, stationY, reach, (tile) => {
+    if (tile.buildingId !== null && tile.zoneType !== ZoneType.None) count += 1;
+  });
+  return count;
 }
 
 /** Tiles a station at (x, y) would cover — for placement previews. */

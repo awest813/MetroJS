@@ -1,5 +1,6 @@
 import { CitySim } from '../openpublica/src/sim/CitySim';
-import { ZoneType, RoadType } from '../openpublica/src/sim/CityTile';
+import { ZoneType, RoadType, type CityTile } from '../openpublica/src/sim/CityTile';
+import { SERVICE_ADVISORY_POPULATION, WATER_SHORT_ADVISORY } from '../openpublica/src/sim/EvaluationSystem';
 import { MONTH_SECONDS } from '../openpublica/src/data/constants';
 
 function tickOneMonth(sim: CitySim): void {
@@ -149,6 +150,91 @@ describe('EvaluationSystem', () => {
     sim.stats.jobs = 40;
     sim.evaluate();
     expect(sim.stats.advisory).toMatch(/water tower/i);
+  });
+
+  describe('fire and water', () => {
+    /** A powered town of `houses` homes on one street, with its stats set by hand. */
+    function town(houses: number): CitySim {
+      const sim = CitySim.createCity(24, 24);
+      sim.stats.money = 100_000;
+      placeConnectedPlant(sim, 0, 0);
+      for (let x = 2; x < 2 + houses; x++) {
+        sim.placeRoad(x, 10, RoadType.Street);
+        const lot = sim.getTile(x, 11)!;
+        lot.zoneType = ZoneType.Residential;
+        lot.buildingId = 'small_house';
+      }
+      // Painting each road re-runs power; light the homes once the street is down.
+      sim.map.forEach((t) => { if (t.buildingId === 'small_house') t.powered = true; });
+      Object.assign(sim.stats, {
+        population: 100, jobs: 100, pollutionAverage: 0, crimeAverage: 0,
+        fireAverage: 100, waterAverage: 100, waterShort: 0, waterLoad: 0, waterSupply: 0,
+      });
+      return sim;
+    }
+    const judge = (sim: CitySim): void => {
+      sim.evaluation.tick(sim.map, sim.growth.buildings, sim.growth.defs, sim.stats);
+    };
+    const cover = (sim: CitySim, fire: number, watered: boolean, share = 1): void => {
+      const lots: CityTile[] = [];
+      sim.map.forEach((t) => { if (t.buildingId === 'small_house') lots.push(t); });
+      lots.forEach((t, i) => {
+        const on = i < lots.length * share;
+        t.fireCoverage = on ? fire : 0;
+        t.watered = on && watered;
+      });
+    };
+
+    it('should cost approval for buildings no fire engine reaches and buildings left dry', () => {
+      const sim = town(10);
+      cover(sim, 60, true);
+      judge(sim);
+      const served = sim.stats.approval;
+      cover(sim, 0, false);
+      judge(sim);
+      expect(sim.stats.approval).toBe(served - 10 - 5);
+      cover(sim, 60, true, 0.5);
+      judge(sim);
+      expect(sim.stats.approval).toBe(served - 5 - 3);
+    });
+
+    it('should not count fire or water against a village too small to need them', () => {
+      const sim = town(10);
+      cover(sim, 60, true);
+      sim.stats.population = SERVICE_ADVISORY_POPULATION - 1;
+      judge(sim);
+      const served = sim.stats.approval;
+      cover(sim, 0, false);
+      judge(sim);
+      expect(sim.stats.approval).toBe(served);
+    });
+
+    it('should name dry buildings behind full towers, then thin fire cover, before chronic traffic', () => {
+      const sim = town(10);
+      cover(sim, 0, true);
+      for (let x = 2; x < 5; x++) sim.getTile(x, 10)!.trafficPressure = 12;
+      Object.assign(sim.stats, { fireAverage: 0, waterShort: WATER_SHORT_ADVISORY + 7, waterLoad: 600, waterSupply: 600, waterAverage: 60 });
+      judge(sim);
+      expect(sim.stats.advisory).toBe('Water towers are at capacity (600/600) — 12 buildings are dry. Add a tower on the mains.');
+
+      sim.stats.waterShort = 0;
+      judge(sim);
+      expect(sim.stats.advisory).toBe(
+        'Fire coverage is thin — 10 buildings have no fire engine in reach. Place a powered fire station on a street near them.',
+      );
+
+      sim.stats.fireAverage = 100;
+      judge(sim);
+      expect(sim.stats.advisory).toMatch(/Traffic is jammed on 3 roads/);
+    });
+
+    it('should leave a few dry buildings to the Water map', () => {
+      const sim = town(10);
+      cover(sim, 60, true);
+      Object.assign(sim.stats, { waterShort: WATER_SHORT_ADVISORY - 1, waterLoad: 600, waterSupply: 600 });
+      judge(sim);
+      expect(sim.stats.advisory).not.toMatch(/water/i);
+    });
   });
 
   it('should mention thin fire coverage only after people live in the city', () => {

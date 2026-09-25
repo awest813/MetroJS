@@ -72,7 +72,7 @@ export function roadUpkeep(type: RoadType, overWater: boolean): number {
 /**
  * Monthly operating cost (dollars) used when a service building omits monthlyCost.
  */
-const SERVICE_BUILDING_MONTHLY_COST = 50;
+export const SERVICE_BUILDING_MONTHLY_COST = 50;
 
 // ──────────────────────────────────────────────────────────────────────────
 

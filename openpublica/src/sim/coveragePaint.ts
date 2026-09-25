@@ -1,31 +1,10 @@
 // ⚠️  This file must NOT import anything from @babylonjs/core.
 
-import type { CityMap } from './CityMap';
-import type { CityTile } from './CityTile';
-
 /**
- * Visit every tile in a circular radius. Shared by power and water; police and
- * fire drive the road network instead (see roadDispatch).
+ * Coverage arithmetic shared by police and fire, whose crews drive the road
+ * network (see roadDispatch). Power and water run along the streets instead
+ * (see utilityGrid).
  */
-export function forEachTileInRadius(
-  map: CityMap,
-  cx: number,
-  cy: number,
-  radius: number,
-  visit: (tile: CityTile, dist: number) => void,
-): void {
-  if (radius <= 0) return;
-  const r2 = radius * radius;
-  for (let dy = -radius; dy <= radius; dy++) {
-    for (let dx = -radius; dx <= radius; dx++) {
-      const dist2 = dx * dx + dy * dy;
-      if (dist2 > r2) continue;
-      const tile = map.getTile(cx + dx, cy + dy);
-      if (!tile) continue;
-      visit(tile, Math.sqrt(dist2));
-    }
-  }
-}
 
 /**
  * Coverage from two stations that both reach a tile: overlapping patrols add

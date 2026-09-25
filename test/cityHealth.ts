@@ -5,7 +5,7 @@ import { EXTREME_TRAFFIC_PRESSURE, composeHappiness } from '../openpublica/src/s
 import { CRIME_STRESS_THRESHOLD } from '../openpublica/src/sim/zoneGrowthHints';
 import { PopulationDensitySystem } from '../openpublica/src/sim/PopulationDensitySystem';
 import { RoadType, TerrainType, ZoneType } from '../openpublica/src/sim/CityTile';
-import { dispatchDistances, stationHasRoad } from '../openpublica/src/sim/roadDispatch';
+import { buildingsInReach, dispatchDistances, stationHasRoad } from '../openpublica/src/sim/roadDispatch';
 import { MONTH_SECONDS } from '../openpublica/src/data/constants';
 import { PlacePoliceStationTool, POLICE_STATION_COST } from '../openpublica/src/tools/PlacePoliceStationTool';
 import { PlaceFireStationTool, FIRE_STATION_COST } from '../openpublica/src/tools/PlaceFireStationTool';
@@ -183,6 +183,27 @@ describe('road dispatch', () => {
     expect(dist[4 * 8 + 3]).toBe(Infinity);
     expect(dist[5 * 8 + 3]).toBe(Infinity);
     expect(dist[2 * 8 + 3]).toBe(2);
+  });
+
+  it('should count the buildings a station reaches, not its own lot or civic lots', () => {
+    const map = new CityMap(12, 6);
+    for (let x = 0; x < 12; x++) map.getTile(x, 2)!.roadType = RoadType.Street;
+    const home = (x: number, y: number): void => {
+      const lot = map.getTile(x, y)!;
+      lot.zoneType = ZoneType.Residential;
+      lot.buildingId = 'small_house';
+    };
+    home(3, 3);
+    home(6, 1);
+    home(11, 3);
+    map.getTile(5, 3)!.buildingId = 'small_park';
+    map.getTile(1, 1)!.buildingId = 'small_fire_station';
+    expect(buildingsInReach(map, 1, 1, 14)).toBe(3);
+    // (3, 3) is 4 steps out and (6, 1) 7; (11, 3) is 12, past a reach of 8.
+    expect(buildingsInReach(map, 1, 1, 8)).toBe(2);
+    // Coverage falls to nothing at the edge of the reach.
+    expect(buildingsInReach(map, 1, 1, 7)).toBe(1);
+    expect(buildingsInReach(map, 1, 5, 14)).toBe(0);
   });
 
   it('should flag a station with no street in the advisory', () => {

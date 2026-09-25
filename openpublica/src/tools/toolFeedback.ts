@@ -6,11 +6,13 @@ import { RoadType, TerrainType, ZoneType } from '../sim/CityTile';
 import { RoadTool, type RoadToolBlock } from './RoadTool';
 import { ZONE_COST } from './ZoneBrushTool';
 import { BULLDOZE_COST } from './BulldozeTool';
-import { POWER_PLANT_COST } from './PlacePowerPlantTool';
-import { PARK_COST } from './PlaceParkTool';
-import { POLICE_STATION_COST } from './PlacePoliceStationTool';
-import { FIRE_STATION_COST } from './PlaceFireStationTool';
-import { WATER_TOWER_COST } from './PlaceWaterTowerTool';
+import {
+  FIRE_STATION_COST,
+  PARK_COST,
+  POLICE_STATION_COST,
+  POWER_PLANT_COST,
+  WATER_TOWER_COST,
+} from './serviceCatalog';
 
 import type { StrokeSummary } from './ToolController';
 

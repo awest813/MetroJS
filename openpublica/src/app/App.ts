@@ -56,7 +56,7 @@ import {
   type NetworkInfo,
   type ServiceSpec,
 } from '../tools/serviceCatalog';
-import { stationHasRoad } from '../sim/roadDispatch';
+import { buildingsInReach, stationHasRoad } from '../sim/roadDispatch';
 import type { BuildingDef } from '../sim/BuildingDef';
 import { groveStrengths, isWooded } from '../sim/woods';
 import { levelCrossingAxis } from '../sim/TransitSystem';
@@ -501,12 +501,16 @@ export class App {
         : placing
           ? sim.growth.defs.get(placing.defId)
           : undefined;
+      const stationReach = inspectDef?.policeRadius || inspectDef?.fireRadius
+        ? serviceRadius(inspectDef, sim.levers.safetyFunding)
+        : 0;
       const serviceHint = formatServiceHint(
         inspectDef,
         tile?.powered ?? false,
         stationHasRoad(sim.map, coord.x, coord.y),
         networkAt(inspectDef, coord.x, coord.y),
         sim.levers.safetyFunding,
+        stationReach > 0 ? buildingsInReach(sim.map, coord.x, coord.y, stationReach) : undefined,
       );
       if (placing && result === 'applied') placementNote = serviceHint;
       const growthHint = tile

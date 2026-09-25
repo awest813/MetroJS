@@ -136,6 +136,8 @@ const metro: TestCity = {
     .place('tower', 43, 27)
     .place('tower', 61, 17)
     .place('police', 43, 25)
+    .place('fire', 43, 12)
+    .place('fire', 30, 19)
     .place('park', 51, 17)
     .months(24), 7, 120_000, watch),
 };

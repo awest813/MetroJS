@@ -1,5 +1,7 @@
 import { CitySim } from '../openpublica/src/sim/CitySim';
+import { CityMap } from '../openpublica/src/sim/CityMap';
 import { RoadType, ZoneType } from '../openpublica/src/sim/CityTile';
+import { FIRE_SAFETY_LV_MULTIPLIER, LandValueSystem } from '../openpublica/src/sim/LandValueSystem';
 import { MONTH_SECONDS } from '../openpublica/src/data/constants';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -83,6 +85,23 @@ describe('LandValueSystem', () => {
       sim.placeServiceBuilding(8, 9, 'small_water_tower', 0);
       expect(sim.getTile(8, 10)!.watered).toBe(true);
       expect(sim.getTile(8, 10)!.landValue).toBeGreaterThan(before);
+    });
+  });
+
+  describe('fire safety', () => {
+    it('should raise land value where fire engines reach, the closer the more', () => {
+      const map = new CityMap(8, 8);
+      const system = new LandValueSystem();
+      const defs = CitySim.createCity(2, 2).growth.defs;
+      system.tick(map, new Map(), defs);
+      const bare = map.getTile(4, 4)!.landValue;
+      map.getTile(2, 2)!.fireCoverage = 100;
+      map.getTile(4, 4)!.fireCoverage = 50;
+      system.tick(map, new Map(), defs);
+      expect(map.getTile(2, 2)!.landValue).toBe(bare + Math.round(100 * FIRE_SAFETY_LV_MULTIPLIER));
+      expect(map.getTile(4, 4)!.landValue).toBe(bare + Math.round(50 * FIRE_SAFETY_LV_MULTIPLIER));
+      expect(map.getTile(6, 6)!.landValue).toBe(bare);
+      expect(Math.round(100 * FIRE_SAFETY_LV_MULTIPLIER)).toBe(8);
     });
   });
 

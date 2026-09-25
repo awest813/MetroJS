@@ -35,6 +35,27 @@ describe('formatInspectStatus', () => {
     expect(line).toContain('crime 12');
   });
 
+  it('should say when a building is dry or out of fire engines reach', () => {
+    const map = new CityMap(4, 4);
+    const tile = map.getTile(1, 1)!;
+    tile.zoneType = ZoneType.Residential;
+    tile.buildingId = 'small_house';
+    const line = formatInspectStatus('Inspect', tile, 'small_house');
+    expect(line).toContain('dry');
+    expect(line).toContain('no fire cover');
+    tile.watered = true;
+    tile.fireCoverage = 30;
+    const served = formatInspectStatus('Inspect', tile, 'small_house');
+    expect(served).toContain('watered');
+    expect(served).toContain('fire 30');
+    expect(served).not.toContain('dry');
+    expect(served).not.toContain('no fire cover');
+    // Empty lots and civic buildings are neither.
+    const empty = map.getTile(2, 2)!;
+    empty.zoneType = ZoneType.Residential;
+    expect(formatInspectStatus('Inspect', empty, null)).not.toMatch(/dry|no fire cover/);
+  });
+
   it('should mention watered lots', () => {
     const map = new CityMap(4, 4);
     const tile = map.getTile(0, 1)!;

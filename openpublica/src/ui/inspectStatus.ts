@@ -65,7 +65,10 @@ export function formatInspectStatus(
   if (tile.policeCoverage > 0) parts.push(`police ${tile.policeCoverage}`);
   if (tile.fireCoverage > 0) parts.push(`fire ${tile.fireCoverage}`);
   if (tile.transitAccess > 0) parts.push(`transit ${tile.transitAccess}`);
+  const zoneBuilding = tile.buildingId !== null && tile.zoneType !== ZoneType.None;
   if (tile.watered) parts.push('watered');
+  else if (zoneBuilding) parts.push('dry');
+  if (zoneBuilding && tile.fireCoverage <= 0) parts.push('no fire cover');
   if (tile.crime > 0) parts.push(`crime ${tile.crime}`);
   if (tile.neglectMonths >= 2 && tile.buildingId !== null) parts.push('struggling');
   if (tile.pollution > 0) parts.push(`pollution ${tile.pollution}`);

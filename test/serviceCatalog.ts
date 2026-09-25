@@ -1,26 +1,15 @@
-import { CityMap } from '../openpublica/src/sim/CityMap';
-import { coverageAtDistance, forEachTileInRadius } from '../openpublica/src/sim/coveragePaint';
+import { coverageAtDistance } from '../openpublica/src/sim/coveragePaint';
 import {
   createServiceTools,
   formatServiceHint,
   POWER_PLANT_COST,
   serviceRadius,
   serviceSpecForTool,
+  serviceUpkeepFor,
 } from '../openpublica/src/tools/serviceCatalog';
 import { ZoneType } from '../openpublica/src/sim/CityTile';
 
 describe('coveragePaint', () => {
-  it('should visit tiles in a circular radius only', () => {
-    const map = new CityMap(9, 9);
-    const seen: string[] = [];
-    forEachTileInRadius(map, 4, 4, 2, (tile, dist) => {
-      seen.push(`${tile.x},${tile.y}:${dist}`);
-    });
-    expect(seen.some((s) => s.startsWith('4,4:'))).toBe(true);
-    expect(seen.some((s) => s.startsWith('6,4:'))).toBe(true);
-    expect(seen.some((s) => s.startsWith('7,4:'))).toBe(false);
-  });
-
   it('should fall coverage off to zero at the rim', () => {
     expect(coverageAtDistance(0, 10)).toBe(100);
     expect(coverageAtDistance(10, 10)).toBe(0);
@@ -55,8 +44,30 @@ describe('serviceCatalog', () => {
       policeRadius: 10,
     };
     expect(formatServiceHint(police, false)).toMatch(/coverage off/i);
-    expect(formatServiceHint(police, true)).toBe('police reach 10 road tiles');
+    // No monthlyCost in the def: the default upkeep applies.
+    expect(formatServiceHint(police, true)).toBe('police reach 10 road tiles · $50/mo');
     expect(serviceRadius(police)).toBe(10);
+  });
+
+  it('should say how many buildings a station covers and what it costs at its funding', () => {
+    const police = {
+      id: 'small_police_station',
+      name: 'Police',
+      zoneType: ZoneType.None,
+      population: 0,
+      jobs: 4,
+      isService: true,
+      policeRadius: 10,
+      monthlyCost: 60,
+    };
+    expect(formatServiceHint(police, true, true, null, 100, 43)).toBe('police reach 10 road tiles · covers 43 buildings · $60/mo');
+    expect(formatServiceHint(police, true, true, null, 100, 1)).toMatch(/covers 1 building ·/);
+    expect(formatServiceHint(police, true, true, null, 70, 12)).toBe(
+      'police reach 7 road tiles at 70% funding · covers 12 buildings · $42/mo',
+    );
+    expect(serviceUpkeepFor(police, 70)).toBe(42);
+    // Plants, towers, and parks always cost in full.
+    expect(serviceUpkeepFor({ ...police, policeRadius: undefined, parkRadius: 6, monthlyCost: 20 }, 50)).toBe(20);
   });
 
   it('should tell the player a station needs a street before it covers anyone', () => {
@@ -71,7 +82,7 @@ describe('serviceCatalog', () => {
     };
     expect(formatServiceHint(fire, true, false)).toMatch(/no street/i);
     expect(formatServiceHint(fire, false, false)).toMatch(/no street/i);
-    expect(formatServiceHint(fire, true, true)).toBe('fire reach 14 road tiles');
+    expect(formatServiceHint(fire, true, true)).toBe('fire reach 14 road tiles · $50/mo');
   });
 
   it('should mark police and fire as road-dispatched, not radius discs', () => {

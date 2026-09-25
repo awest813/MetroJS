@@ -2,6 +2,7 @@
 
 import type { BuildingDef } from '../sim/BuildingDef';
 import { fundedReach } from '../sim/budgetLevers';
+import { SERVICE_BUILDING_MONTHLY_COST } from '../sim/EconomySystem';
 import { PlaceServiceTool } from './PlaceServiceTool';
 
 export type ServiceCoverage = 'power' | 'police' | 'fire' | 'water' | 'park';
@@ -105,6 +106,15 @@ export function serviceRadius(def: BuildingDef | undefined, safetyFunding = 100)
   return def.parkRadius || 0;
 }
 
+/**
+ * A service's monthly upkeep: police and fire scale with their funding;
+ * plants, towers, and parks always cost in full.
+ */
+export function serviceUpkeepFor(def: BuildingDef, safetyFunding = 100): number {
+  const cost = def.monthlyCost ?? SERVICE_BUILDING_MONTHLY_COST;
+  return Math.round(def.policeRadius || def.fireRadius ? cost * safetyFunding / 100 : cost);
+}
+
 /** Supply and use of the utility network a plant or tower feeds. */
 export interface NetworkInfo {
   readonly supply: number;
@@ -123,9 +133,10 @@ function formatNetwork(kind: 'power' | 'water', network: NetworkInfo | null | un
 }
 
 /**
- * Short status for a service lot. Police and fire also need a street
- * (`hasRoad`) because their crews drive out along the roads; plants and
- * towers need one because power lines and water mains run along them.
+ * Short status for a service lot, ending with its upkeep. Police and fire
+ * also need a street (`hasRoad`) because their crews drive out along the
+ * roads; plants and towers need one because power lines and water mains run
+ * along them. `covers` is how many buildings a station's crews reach.
  */
 export function formatServiceHint(
   def: BuildingDef | undefined,
@@ -133,8 +144,22 @@ export function formatServiceHint(
   hasRoad = true,
   network?: NetworkInfo | null,
   safetyFunding = 100,
+  covers?: number,
 ): string | null {
   if (!def) return null;
+  const status = _serviceStatus(def, powered, hasRoad, network, safetyFunding, covers);
+  if (status === null) return null;
+  return `${status} · $${serviceUpkeepFor(def, safetyFunding)}/mo`;
+}
+
+function _serviceStatus(
+  def: BuildingDef,
+  powered: boolean,
+  hasRoad: boolean,
+  network: NetworkInfo | null | undefined,
+  safetyFunding: number,
+  covers: number | undefined,
+): string | null {
   if (def.powerCapacity) {
     if (!hasRoad) return 'no street — power runs along streets, so pave one beside this plant';
     return formatNetwork('power', network);
@@ -146,12 +171,13 @@ export function formatServiceHint(
   }
   const radius = serviceRadius(def, safetyFunding);
   if (radius <= 0) return null;
-  if (def.parkRadius) return `park radius ${radius}`;
+  if (def.parkRadius) return `park radius ${radius} — raises land value and walkability nearby`;
   const kind = def.policeRadius ? 'police' : 'fire';
   if (!hasRoad) return `no street — ${kind} crews can't drive out until one touches this lot`;
   if (!powered) return `dark — ${kind} coverage off until powered`;
   const funding = safetyFunding === 100 ? '' : ` at ${safetyFunding}% funding`;
-  return `${kind} reach ${radius} road tiles${funding}`;
+  const reached = covers === undefined ? '' : ` · covers ${covers} building${covers === 1 ? '' : 's'}`;
+  return `${kind} reach ${radius} road tiles${funding}${reached}`;
 }
 
 export function createServiceTools(): PlaceServiceTool[] {

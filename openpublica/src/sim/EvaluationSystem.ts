@@ -38,6 +38,18 @@ const NO_PLANT_PENALTY = 12;
 export const SERVICE_ADVISORY_POPULATION = 40;
 
 /**
+ * Approval lost when no zone building has a fire station in reach, in
+ * proportion (from {@link SERVICE_ADVISORY_POPULATION} residents on).
+ */
+const UNPROTECTED_WEIGHT = 10;
+
+/** Approval lost when every zone building is dry, in proportion (same threshold). */
+const DRY_WEIGHT = 5;
+
+/** Buildings left dry by full water towers before the mayor hears about it. */
+export const WATER_SHORT_ADVISORY = 5;
+
+/**
  * Once this many people live here, a jobs total under half the population
  * is the mayor's next lesson (zone shops), ahead of fire and water.
  */
@@ -102,6 +114,12 @@ interface Census {
   strugglingHomes: boolean;
   /** Zone buildings sitting in the dark (houses, shops, factories). */
   unpoweredHouses: number;
+  /** Zone buildings (houses, shops, factories, mixed use). */
+  zoneBuildings: number;
+  /** Zone buildings no fire station reaches. */
+  unprotectedBuildings: number;
+  /** Zone buildings without water. */
+  dryBuildings: number;
   /** Empty zoned lots that already touch a road. */
   growableLots: number;
 }
@@ -148,6 +166,9 @@ function survey(
   let strugglingHomeCount = 0;
   const causes = new Map<ZoneStress, number>();
   let unpoweredHouses = 0;
+  let zoneBuildings = 0;
+  let unprotectedBuildings = 0;
+  let dryBuildings = 0;
   let growableLots = 0;
   let hasRoad = false;
   map.forEach((tile) => {
@@ -166,10 +187,12 @@ function survey(
     if (
       tile.zoneType !== ZoneType.None &&
       tile.buildingId !== null &&
-      tile.buildingId !== 'small_park' &&
-      !tile.powered
+      tile.buildingId !== 'small_park'
     ) {
-      unpoweredHouses += 1;
+      zoneBuildings += 1;
+      if (!tile.powered) unpoweredHouses += 1;
+      if (tile.fireCoverage <= 0) unprotectedBuildings += 1;
+      if (!tile.watered) dryBuildings += 1;
     }
     if (tile.roadType !== RoadType.None && tile.trafficPressure >= EXTREME_TRAFFIC_PRESSURE) {
       extremeRoads += 1;
@@ -210,6 +233,9 @@ function survey(
     strugglingCause: [...causes].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null,
     strugglingHomes: strugglingHomeCount * 2 > strugglingCount,
     unpoweredHouses,
+    zoneBuildings,
+    unprotectedBuildings,
+    dryBuildings,
     growableLots,
   };
 }
@@ -224,6 +250,10 @@ function score(stats: CityStats, census: Census): number {
   next -= taxOverDefault(stats.indTaxRate);
   if (census.buildingCount > 0) {
     next -= Math.round((census.unpoweredCount / census.buildingCount) * UNPOWERED_WEIGHT);
+  }
+  if (stats.population >= SERVICE_ADVISORY_POPULATION && census.zoneBuildings > 0) {
+    next -= Math.round((census.unprotectedBuildings / census.zoneBuildings) * UNPROTECTED_WEIGHT);
+    next -= Math.round((census.dryBuildings / census.zoneBuildings) * DRY_WEIGHT);
   }
   if (stats.bankruptcyWarning) next -= BANKRUPT_PENALTY;
   if (!census.hasPlant && (census.zonedCount > 0 || census.buildingCount > 0)) {
@@ -363,11 +393,30 @@ function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherFore
   if (census.strugglingCount > 0) {
     out.push({ id: 'abandon', message: emptyingMessage(census) });
   }
+  const serviced = stats.population >= SERVICE_ADVISORY_POPULATION && census.zonedCount > 0;
+  const waterFull = serviced && stats.waterShort >= WATER_SHORT_ADVISORY;
+  if (waterFull) {
+    const one = stats.waterShort === 1;
+    out.push({
+      id: 'water-full',
+      message: `Water towers are at capacity (${stats.waterLoad}/${stats.waterSupply}) — ${stats.waterShort} building${one ? ' is' : 's are'} dry. Add a tower on the mains.`,
+    });
+  }
   if (stats.pollutionAverage >= 40) {
     out.push({ id: 'smog', message: 'Smog spike — industrial and plants are fouling the air.' });
   }
   if (stats.crimeAverage >= 35) {
     out.push({ id: 'crime', message: 'Crime is high — add a powered police station on a street near housing.' });
+  }
+  // A one-click fix, so it comes before the city's chronic traffic.
+  if (stats.population >= SERVICE_ADVISORY_POPULATION && stats.fireAverage < 20) {
+    const n = census.unprotectedBuildings;
+    out.push({
+      id: 'fire',
+      message: n > 0
+        ? `Fire coverage is thin — ${n} building${n === 1 ? ' has' : 's have'} no fire engine in reach. Place a powered fire station on a street near them.`
+        : 'Fire coverage is thin — place a powered fire station on a street.',
+    });
   }
   if (census.extremeRoads >= 3) {
     // Trips stay near home, so a highway across town relieves nothing: fix the jammed road itself.
@@ -413,14 +462,7 @@ function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherFore
       }
     }
   }
-  if (stats.population >= SERVICE_ADVISORY_POPULATION && stats.fireAverage < 20) {
-    out.push({ id: 'fire', message: 'Fire coverage is thin — place a powered fire station on a street.' });
-  }
-  if (
-    stats.population >= SERVICE_ADVISORY_POPULATION &&
-    census.zonedCount > 0 &&
-    stats.waterAverage < 25
-  ) {
+  if (serviced && !waterFull && stats.waterAverage < 25) {
     out.push({
       id: 'water',
       message: stats.waterShort > 0

@@ -33,10 +33,10 @@ describe('utility hints', () => {
 
   it('should report the grid a plant or tower feeds, and what it cannot', () => {
     expect(formatServiceHint(plant, true, true, network)).toBe(
-      'power grid 380/400 load · feeds 90 lots · 6 short — add a plant on this grid',
+      'power grid 380/400 load · feeds 90 lots · 6 short — add a plant on this grid · $80/mo',
     );
     expect(formatServiceHint(tower, false, true, network)).toMatch(/^dark — the tower pumps once a powered street reaches it/);
-    expect(formatServiceHint(tower, true, true, { ...network, shortfall: 0 })).toBe('water grid 380/400 load · feeds 90 lots');
+    expect(formatServiceHint(tower, true, true, { ...network, shortfall: 0 })).toBe('water grid 380/400 load · feeds 90 lots · $40/mo');
   });
 });
 

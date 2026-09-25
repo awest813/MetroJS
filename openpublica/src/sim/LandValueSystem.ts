@@ -55,6 +55,13 @@ const ROAD_BONUS = 8;
 /** Modest lot bonus for watered tiles. Does not change demand formulas. */
 export const WATERED_LAND_VALUE_BONUS = 8;
 
+/**
+ * Land value per point of fire coverage: a lot an engine reaches at once is
+ * worth up to 8 more (insurers charge less where the fire station is close).
+ * Reads the previous month's coverage, as walkability and transit do.
+ */
+export const FIRE_SAFETY_LV_MULTIPLIER = 0.08;
+
 /** Lots touching a lake or river (including diagonally) are worth this much more. */
 export const WATERFRONT_BONUS = 8;
 
@@ -104,6 +111,8 @@ const DOWNTOWN_BONUS = 16;
  * - **Road access**: tiles adjacent to at least one road tile receive a small
  *   flat bonus.
  * - **Watered lots**: powered water-tower coverage adds a small lot bonus.
+ * - **Fire safety**: lots a fire station reaches are worth a little more,
+ *   the closer the more.
  * - **Waterfront**: dry lots beside a lake or river, or one tile back, get a
  *   small premium.
  * - **Downtown**: once enough houses exist, commercial and mixed lots near
@@ -224,6 +233,7 @@ export class LandValueSystem {
       if (tile.watered) {
         tile.landValue += WATERED_LAND_VALUE_BONUS;
       }
+      tile.landValue += Math.round(tile.fireCoverage * FIRE_SAFETY_LV_MULTIPLIER);
       const shore = waterfrontDistance(map, tile.x, tile.y);
       if (shore === 1) tile.landValue += WATERFRONT_BONUS;
       else if (shore === 2) tile.landValue += NEAR_WATER_BONUS;

@@ -1,7 +1,7 @@
 # OpenPublica — Next gaps (after Phases A–H)
 
 **Date:** 2026-09-24 (first written 2026-09-20)  
-**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AC below have shipped on top.
+**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AD below have shipped on top.
 
 This is an implementation plan for **what is still missing**, not a licence to rewrite sim formulas or import Micropolis art.
 
@@ -15,7 +15,8 @@ checked against five scripted test cities (Gap N). The first audit's four
 open items (city health, honest feedback, PBR/sky, the `App.ts` split) have
 all shipped. What is left (section 5) is depth, not missing systems:
 
-1. **Presentation** extras: SSAO shipped as an opt-in after its full-city frame check (Gaps AB, AC); GLB kits stay optional. The test cities now end with traffic as their top advisory, which the player fixes with the road tools.
+1. **Presentation** extras: SSAO shipped as an opt-in after its full-city frame check (Gaps AB, AC); GLB kits stay optional.
+2. **Happiness** is shown in the HUD but drives nothing: not growth, demand, or the score (found in Gap AD's audit). Services now count in the score directly instead.
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
 
@@ -276,7 +277,7 @@ from the New confirm; `test/testCity.<id>.ts` builds each once and checks it.
 |---|---|---|---|
 | `hamlet` | 11, $10,000, 2 years | The first hours: a crossroads, shops, a few factories, one plant past town, woods all round | 140 people, 120 jobs (its workshops grown into factories), power 260/400, treasury $17k |
 | `riverside` | 2026, $40,000, 2½ years | A street bridge and a highway bridge; the plants are all on the north bank and light the far one across the bridge; shore lots, a bridgehead park, a far-bank tower, factories across the lake | 464 people, 480 jobs (works along the highway), both banks lit by three north-bank plants and policed by a station each (no building over the crime line), waterfront valued above inland, the south bank's commuters on the street bridge |
-| `metro` | 7, $120,000, 4½ years in 3 phases | Zone areas with looped auto streets, a highway, a trolley line crossing it at grade, downtown, mixed use, industry, six plants, four towers, police, fire, parks, a downtown of office blocks | 932 people, 902 jobs, 8 office blocks on land worth 100, four police stations and no building struggling, power 1862/2400 (growth waited for each new plant), one 36-tile trolley line, 5 dead ends (all scripted road ends) |
+| `metro` | 7, $120,000, 4½ years in 3 phases | Zone areas with looped auto streets, a highway, a trolley line crossing it at grade, downtown, mixed use, industry, six plants, four towers, four police and three fire stations, parks, a downtown of office blocks | 973 people, 999 jobs, 17 office blocks on land worth 83–100, fire cover on 134 of 325 buildings, one house struggling at the far corner of the west district, power 2008/2400 (growth waited for each new plant), one 36-tile trolley line, 5 dead ends (all scripted road ends) |
 | `troubled` | 101, $30,000, 3 years | Blocks four lots deep, a plant among the houses, factories next door, no police, a tower with no street, a police station on a dark street, taxes raised to 16/14/14 | 150 lots with no road, power 399/400 with dark houses, approval 0 |
 | `sprawl` | 314, $60,000, 3½ years | A highway across the map with cul-de-sacs, a shopping strip, an industrial park; one plant at the west end until month 30, a second at the far end, a third at month 36 as the park turns into factories | With one plant, growth waits at the grid's capacity (population steady at about 220, nothing dark); each new plant lets it grow on (584 people, power 1198/1200, and the grid-full advisory) |
 
@@ -666,6 +667,41 @@ times it on a real integrated GPU.
 trees sit darker where they meet the ground, and open lawns stay light; open
 the Traffic map and the shade goes, and it returns when the map closes.
 
+### Gap AD — Services and utilities **shipped**
+
+An audit of police, fire, parks, plants, towers, and the street grids over
+the five test cities. Power, police, and parks already worked through the
+sim: dark buildings leave, patrols cut crime, parks raise land value and
+walkability. The other two had little or nothing behind their numbers.
+Fire coverage fed nothing but its own advisory. Water was silent: Sprawl's
+one tower ran at 598/600 with 99 of its 210 buildings dry, and the water
+advisory waited for fewer than a quarter of lots to be watered. Neither
+counted in the score.
+
+| Slice | What shipped |
+|---|---|
+| AD1 Fire safety | A lot a fire engine reaches is worth up to 8 more land value, the closer the more (`FIRE_SAFETY_LV_MULTIPLIER`), so a station helps its district densify. |
+| AD2 Score | From 40 residents, the score loses up to 10 for the share of buildings no fire engine reaches and up to 5 for the share left dry. |
+| AD3 Advisories | "Water towers are at capacity (600/600) — 29 buildings are dry" once 5 or more are, and the fire advisory counts the buildings out of reach. Both come before traffic: each is fixed by placing one building. |
+| AD4 Inspect | A house, shop, or factory says `dry` and `no fire cover` when it is. A station gives the buildings its crews reach (`buildingsInReach`), and every service gives its upkeep (police and fire at their funding). |
+| AD5 Metro | Two more fire stations: one covered 16% of its buildings, which put the new fire advisory on top of a city meant to show every service. With three, 41% are covered, and it ends with 17 office blocks instead of 8. |
+| AD6 Cleanup | The circular-radius helper no service used any more is gone; tool feedback takes its prices from the service catalog. |
+
+| City | Score before → after | Top advisory now |
+|---|---|---|
+| Hamlet (no tower, no fire station) | 58 → 43 | Smog spike |
+| Riverside (one full tower, no fire station) | 64 → 53 | Water towers at capacity, 29 buildings dry |
+| Metro (three fire stations) | 60 → 54 | One house emptying to crime |
+| Troubled | 0 → 0 | 150 lots need a road |
+| Sprawl (one full tower, no fire station) | 53 → 41 | Power grid full |
+
+Unpowered stations and towers already turned dark red like other unpowered
+buildings. Happiness is display-only (section 1); it is left for its own pass.
+
+**Exit:** Inspect a Riverside house on the south bank: it says `dry` and
+`no fire cover`, and the advisory asks for a second water tower. Place a fire
+station and Inspect it: it gives the buildings it covers and its $60/mo.
+
 ---
 
 ## 4. Explicitly still out of scope (Phase I)
@@ -721,5 +757,6 @@ SSAO opt-in). What is left is optional:
 - Weather: open `?city=metro&weather=snow`, `rain`, `storm`, `fog`, and `heat` (snow on roofs, plowed roads, amber HUD, Road upkeep (snow) in Budget; rain and storm grey the sky; heat raises Power and water load), then play a year at 4× and watch the seasons turn.
 - Shops: open `?city=metro`, look at the shopping districts (glass-banded office blocks among shop rows), and check Traffic there.
 - Frame time: load a full city on High and run it at 4× (the only stutter is the month end), and let Metro reach its first rain (no stall when it starts); a bridge still shades the water under it.
+- Services: in `?city=riverside` the advisory names the dry buildings behind its full tower; Inspect a house (`dry`, `no fire cover`) and a police station (buildings covered, upkeep); a new fire station raises land value around it and the score once people live nearby.
 - Ambient occlusion: Settings → Ambient occlusion on (Quality: high): buildings and trees sit darker where they meet the ground, and open lawns stay light; open a map and the shade pauses; switch to Quality: low and the button greys out.
 - Test cities: open `?city=hamlet`, `riverside`, `metro`, `troubled`, and `sprawl` (or New → Or open a test city); each status line says what the city shows, the HUD and advisory match its row in Gap N, and New goes back to a fresh map.
