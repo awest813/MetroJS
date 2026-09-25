@@ -4,6 +4,7 @@
 import type { CitySim } from '../sim/CitySim';
 import { tileKey } from '../sim/ZoneGrowthSystem';
 import { DEFAULT_TERRAIN_SEED } from '../sim/TerrainGenerator';
+import { MILESTONES, milestonesByPopulation } from '../sim/milestones';
 import { SAVE_VERSION } from './SaveGame';
 import type { SaveGame } from './SaveGame';
 
@@ -74,6 +75,7 @@ export class SaveCodec {
         advisory:          sim.stats.advisory,
         powerHeld:         sim.stats.powerHeld ?? 0,
         advisoryHold:      sim.evaluation.hold,
+        milestones:        sim.stats.milestones ?? 0,
       },
       levers: {
         safetyFunding: sim.levers.safetyFunding,
@@ -150,6 +152,9 @@ export class SaveCodec {
     sim.stats.approval          = s.approval          ?? 100;
     sim.stats.advisory          = s.advisory          ?? '';
     sim.stats.powerHeld         = s.powerHeld         ?? 0;
+    sim.stats.milestones        = Number.isFinite(s.milestones)
+      ? Math.max(0, Math.min(MILESTONES.length, Math.floor(s.milestones!)))
+      : milestonesByPopulation(s.population ?? 0);
     const hold = s.advisoryHold;
     sim.evaluation.hold = hold && typeof hold.id === 'string' && Number.isFinite(hold.since)
       ? {

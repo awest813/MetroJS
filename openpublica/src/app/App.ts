@@ -22,6 +22,8 @@ import { Toolbar } from '../ui/Toolbar';
 import { OverlayBar } from '../ui/OverlayBar';
 import { CameraBar } from '../ui/CameraBar';
 import { CityHUD } from '../ui/CityHUD';
+import { MilestoneBanner } from '../ui/MilestoneBanner';
+import { milestoneBanner as milestoneBannerText } from '../ui/chromeCopy';
 import { BudgetPanel, formatBonds } from '../ui/BudgetPanel';
 import { BOND_AMOUNT } from '../sim/budgetLevers';
 import { formatInspectStatus } from '../ui/inspectStatus';
@@ -36,7 +38,7 @@ import {
   type QualityLevel,
 } from '../ui/settingsStore';
 import { AudioBus } from '../audio/AudioBus';
-import { BANKRUPT_VOICE, FAIL_VOICE, GROWTH_VOICE, sfxForTool } from '../audio/voices';
+import { BANKRUPT_VOICE, FAIL_VOICE, GROWTH_VOICE, MILESTONE_VOICE, sfxForTool } from '../audio/voices';
 import { explainToolFailure, formatStrokeStatus } from '../tools/toolFeedback';
 import { formatSmogReach, smogReach, type SmogReach } from '../sim/smogReach';
 import { formatGrowthHint } from '../sim/zoneGrowthHints';
@@ -117,14 +119,15 @@ export class App {
     const budgetEl   = document.getElementById('budget-panel');
     const cameraEl   = document.getElementById('camera-bar');
     const lookEl     = document.getElementById('look-panel');
+    const milestoneEl = document.getElementById('milestone-banner');
 
     if (
       !(canvas instanceof HTMLCanvasElement) ||
       !toolbarEl || !overlayEl || !cityMenuEl || !settingsEl ||
-      !statusEl || !hudEl || !budgetEl || !cameraEl || !lookEl
+      !statusEl || !hudEl || !budgetEl || !cameraEl || !lookEl || !milestoneEl
     ) {
       throw new Error(
-        'Required DOM elements not found: #game-canvas, #toolbar, #overlay-bar, #city-menu, #settings-panel, #status-bar, #city-hud, #budget-panel, #camera-bar, #look-panel',
+        'Required DOM elements not found: #game-canvas, #toolbar, #overlay-bar, #city-menu, #settings-panel, #status-bar, #city-hud, #budget-panel, #camera-bar, #look-panel, #milestone-banner',
       );
     }
 
@@ -470,6 +473,14 @@ export class App {
       view.highlight.show({ x, y }, view.surface);
       redrawLook();
     });
+
+    // A city tier reached: a banner, a chord, and the grant already in the HUD.
+    const milestoneBanner = new MilestoneBanner(milestoneEl);
+    sim.onMilestone = (milestone) => {
+      const text = milestoneBannerText(milestone, sim.stats.milestones ?? 0, sim.stats.population);
+      milestoneBanner.show(text.title, text.body);
+      audio.play(MILESTONE_VOICE, 'milestone');
+    };
 
     let wasBankrupt = sim.stats.bankruptcyWarning;
     const syncAmbient = (): void => {

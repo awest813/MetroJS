@@ -1,6 +1,8 @@
 import { HAPPY_DRAW, UNHAPPY_FLOOR, happinessDraw, type HappinessParts } from '../sim/happiness';
 import { taxDraw, taxOccupancy } from '../sim/taxes';
-import type { RatingParts } from '../sim/EvaluationSystem';
+import { RATING_PART, type RatingParts } from '../sim/EvaluationSystem';
+import { milestoneShortfall, nextMilestone, tierName, type Milestone } from '../sim/milestones';
+import type { CityStats } from '../sim/CitySim';
 
 /**
  * Shared chrome strings and money formatting. No DOM — Jest can load this.
@@ -143,4 +145,78 @@ export function happinessTooltip(happiness: number, parts: HappinessParts | unde
       ? `At ${UNHAPPY_FLOOR} or less nobody moves in, and residents leave.`
       : `Below ${HAPPY_DRAW} fewer people move in: ${share}% of the housing demand now; none at ${UNHAPPY_FLOOR}.`;
   return `Happiness ${happiness}: ${why}. ${draw}`;
+}
+
+/** What holds the rating down most, as a clause: "smog costs 9", "services earn 12 of 25". */
+export function ratingDrag(parts: RatingParts | undefined): string | null {
+  if (!parts) return null;
+  const drags: Array<[number, string]> = [
+    [parts.smog, `smog costs ${parts.smog}`],
+    [parts.taxes, `taxes over 9% cost ${parts.taxes}`],
+    [parts.other, `debt or a missing plant costs ${parts.other}`],
+    [RATING_PART - parts.happiness, `happiness earns ${parts.happiness} of ${RATING_PART}`],
+    [RATING_PART - parts.services, `services earn ${parts.services} of ${RATING_PART}`],
+    [RATING_PART - parts.budget, `the budget earns ${parts.budget} of ${RATING_PART}`],
+  ];
+  const [amount, text] = drags.reduce((a, b) => (b[0] > a[0] ? b : a));
+  return amount > 0 ? text : null;
+}
+
+type MilestoneStats = Pick<CityStats, 'population' | 'jobs' | 'approval' | 'money' | 'bankruptcyWarning' | 'ratingParts'>;
+
+/** HUD milestone readout: "Town 312/400", then what else is missing once the people are there. */
+export function milestoneLabel(stats: MilestoneStats, reached: number): string {
+  const next = nextMilestone(reached);
+  if (!next) return tierName(reached);
+  const base = `${next.name} ${stats.population.toLocaleString()}/${next.population.toLocaleString()}`;
+  const short = milestoneShortfall(stats, next);
+  if (short.people > 0) return base;
+  if (short.rating > 0) return `${base} · rating ${stats.approval}/${next.rating}`;
+  if (short.jobs > 0) return `${base} · jobs ${stats.jobs.toLocaleString()}/${(stats.jobs + short.jobs).toLocaleString()}`;
+  if (short.debt) return `${base} · in debt`;
+  return base;
+}
+
+/** Milestone tooltip: what the next tier needs, what is still missing and why, and its grant. */
+export function milestoneTooltip(stats: MilestoneStats, reached: number): string {
+  const next = nextMilestone(reached);
+  const tier = tierName(reached);
+  if (!next) return `${tier}: the top tier. ${stats.population.toLocaleString()} people, rating ${stats.approval}.`;
+  const needs = [
+    `${next.population.toLocaleString()} people`,
+    `a rating of ${next.rating}`,
+    ...(next.jobsShare > 0 ? [`jobs for ${Math.round(next.jobsShare * 100)}% of them`] : []),
+    'no debt',
+  ];
+  const short = milestoneShortfall(stats, next);
+  const todo: string[] = [];
+  if (short.people > 0) todo.push(`${short.people.toLocaleString()} more people (the advisory says what holds growth back)`);
+  if (short.rating > 0) {
+    const drag = ratingDrag(stats.ratingParts);
+    todo.push(`${short.rating} more rating point${short.rating === 1 ? '' : 's'}${drag ? ` (${drag})` : ''}`);
+  }
+  if (short.jobs > 0) todo.push(`${short.jobs.toLocaleString()} more jobs (zone shops or factories)`);
+  if (short.debt) todo.push('get out of debt');
+  const status = todo.length > 0
+    ? `Still needed: ${todo.join('; ')}.`
+    : `All met: ${next.name} at the month's end.`;
+  return `${tier} → ${next.name}: ${joinAnd(needs)}. ${status} It pays a $${next.grant.toLocaleString('en-US')} state grant.`;
+}
+
+/** The banner on reaching a milestone: a title and a line. */
+export function milestoneBanner(milestone: Milestone, reached: number, population: number): { title: string; body: string } {
+  const next = nextMilestone(reached);
+  const grant = `The state sends a $${milestone.grant.toLocaleString('en-US')} grant.`;
+  const after = next
+    ? `Next: ${next.name} at ${next.population.toLocaleString()} people.`
+    : 'It is the top tier.';
+  return {
+    title: `${milestone.name}!`,
+    body: `${Math.max(milestone.population, population).toLocaleString()} people call this place home. ${grant} ${after}`,
+  };
+}
+
+function joinAnd(items: readonly string[]): string {
+  if (items.length <= 1) return items.join('');
+  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`;
 }

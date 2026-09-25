@@ -112,6 +112,20 @@ describe('strategy balance', () => {
     }
   });
 
+  it('should bring careful towns through Village, Town, and City on time, and stop the naive one early (G8)', () => {
+    const [village, town, city] = [0, 1, 2];
+    for (const id of ['balanced', 'suburb', 'industry-late']) {
+      const m = run(id).milestoneMonths;
+      expect(m[village]).toBeLessThanOrEqual(12);
+      expect(m[town]).toBeLessThanOrEqual(36);
+      expect(m[city]).toBeLessThanOrEqual(72);
+    }
+    // The naive town and the houses-only town never make Town.
+    expect(run('naive').milestoneMonths[town]).toBe(Infinity);
+    expect(run('naive').milestoneMonths[village]).toBeLessThanOrEqual(12);
+    expect(summarize(playStrategy(STRATEGIES.find((s) => s.id === 'houses-only')!, MONTHS)).milestoneMonths[town]).toBe(Infinity);
+  });
+
   it('should roll the same dice for the tax sweep as for the balanced town', () => {
     const a = playStrategy(taxStrategy(9), 12);
     const b = playStrategy(STRATEGIES.find((s) => s.id === 'balanced')!, 12);

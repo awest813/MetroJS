@@ -46,6 +46,15 @@ export const BANKRUPT_VOICE: Voice = {
   slide: -40,
 };
 
+/** A city tier reached: a bright, held chord. */
+export const MILESTONE_VOICE: Voice = {
+  kind: 'chord',
+  freq: 523,
+  duration: 0.7,
+  gain: 0.06,
+  type: 'sine',
+};
+
 /** Inspect is silent. Unknown tools get a tiny click. */
 export function sfxForTool(toolName: string): Voice | null {
   switch (toolName) {

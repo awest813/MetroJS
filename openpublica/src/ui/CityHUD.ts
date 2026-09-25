@@ -1,7 +1,16 @@
 import type { CityStats } from '../sim/CitySim';
 import type { SimulationClock } from '../sim/SimulationClock';
 import { describeWeatherEffects, formatWeather, weatherLabel, type Weather } from '../sim/weather';
-import { commerceTooltip, formatPopulation, happinessTooltip, housingTooltip, industryTooltip, ratingTooltip } from './chromeCopy';
+import {
+  commerceTooltip,
+  formatPopulation,
+  happinessTooltip,
+  housingTooltip,
+  industryTooltip,
+  milestoneLabel,
+  milestoneTooltip,
+  ratingTooltip,
+} from './chromeCopy';
 import { HAPPY_DRAW } from '../sim/happiness';
 import { demandForZone, housingDemand } from '../sim/zoneGrowthHints';
 import { ZoneType } from '../sim/CityTile';
@@ -46,6 +55,7 @@ export class CityHUD {
   private readonly _water:         HTMLElement;
   private readonly _power:         HTMLElement;
   private readonly _approval:      HTMLElement;
+  private readonly _milestone:     HTMLElement;
   private readonly _advisory:      HTMLElement;
   /** Where the advisory on show points, if anywhere. */
   private _advisoryAt: { x: number; y: number } | null = null;
@@ -74,6 +84,7 @@ export class CityHUD {
         <span class="hud-item hud-muted" id="hud-fire" title="Average fire coverage on occupied lots">Fire 0</span>
         <span class="hud-item hud-muted" id="hud-water" title="Percent of zoned lots that are watered">Water 0</span>
         <span class="hud-item" id="hud-approval" title="City rating: size, happiness, services, and budget, less smog, high taxes, and debt">Rating 0</span>
+        <span class="hud-item hud-milestone" id="hud-milestone" title="The next city tier">Village 0/150</span>
       </div>
         <div id="hud-advisory" class="hud-advisory" title="Top city problem">Paint a street, zone lots beside it, then place a power plant.</div>
       <div id="hud-demand" title="Zone demand">
@@ -115,6 +126,7 @@ export class CityHUD {
     this._water         = root.querySelector('#hud-water')!;
     this._power         = root.querySelector('#hud-power')!;
     this._approval      = root.querySelector('#hud-approval')!;
+    this._milestone     = root.querySelector('#hud-milestone')!;
     this._advisory      = root.querySelector('#hud-advisory')!;
     this._advisory.addEventListener('click', () => {
       if (this._advisoryAt && this._onAdvisoryJump) this._onAdvisoryJump(this._advisoryAt.x, this._advisoryAt.y);
@@ -175,6 +187,9 @@ export class CityHUD {
       : 'Power drawn from plants on the street grid, of what they can carry';
     this._approval.textContent = `Rating ${stats.approval}`;
     this._approval.title = ratingTooltip(stats.approval, stats.ratingParts);
+    const reached = stats.milestones ?? 0;
+    this._milestone.textContent = milestoneLabel(stats, reached);
+    this._milestone.title = milestoneTooltip(stats, reached);
     const alert = stats.advisory.trim().length > 0;
     this._advisory.textContent = alert ? stats.advisory : 'No mayor alerts.';
     this._advisory.classList.toggle('hud-advisory-alert', alert);

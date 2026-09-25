@@ -127,6 +127,13 @@ At 1× the decisions fit in the first 30–40 minutes. After that the player wat
 
 **F1 — No goals.** Nothing asks the player for anything beyond not failing. There are no milestones, city tiers, unlocks, or scenario goals, and all five services are available from the first minute. The score is the only target on screen.
 
+*Addressed in part by G8 (Gap AO).* The city now climbs four tiers, each with a grant:
+- **Tiers:** Village (150 people, rating 50), Town (400, 60), City (600, 65), and Capital (1,000, 70). Each needs no debt, and from Town on jobs for half the people.
+- **Tuning:** City and Capital are lower than first planned (900 and 1,500), because the balanced town levels off near 700 on its land.
+- **Pace:** the careful towns reach Village in year 1, Town by year 3, and City by year 5. The naive and houses-only towns stop at Village.
+- **HUD:** it shows the next tier's progress and what is missing, and a banner marks each tier reached.
+- **Still to come:** unlocks (G9) and scenario goals (G11).
+
 **F2 — The score ranks failure above success.** The score starts at 100 and only subtracts: pollution, crime, jams, taxes over 9%, dark buildings, missing fire and water cover, and debt. Nothing adds for people, happiness, services reached, or a healthy budget. The results are upside down:
 
 - The houses-only town scores 80–85 in its first three years, and still 52 at year 10 while $47,584 in debt.
@@ -258,7 +265,7 @@ Slices are named G1–G11 here and become gap letters as they ship. Each has an 
 | Slice | Change | Exit |
 |---|---|---|
 | **G7 A rating that means success** (shipped as Gap AN) | Replace the subtract-only score with a city rating built from happiness, services reached, budget health (positive net, no debt) and size (population tier, on a log scale), less today's penalties. The HUD tooltip shows the parts. | Across the harness, thriving towns (balanced, suburb, mixed, industry late) rate above naive, and naive above bankrupt. No bankrupt town rates above 40. |
-| **G8 Milestones** | City tiers: Village at 150 people, Town at 400, City at 900, Capital at 1,500 (tuned to the 64-tile map after G3). Each needs population, a rating bar, and no debt. Reaching one pays a one-time grant, shows a banner, and unlocks the next civic building (G9). The HUD shows progress ("Town: 312/400 people, rating 58/60"). | The careful player reaches Village in year 1, Town by year 3, and City by year 7. The naive player stalls earlier, and the tooltip says why. |
+| **G8 Milestones** (shipped as Gap AO) | City tiers: Village at 150 people, Town at 400, City at 900, Capital at 1,500 (tuned to the 64-tile map after G3). Each needs population, a rating bar, and no debt. Reaching one pays a one-time grant, shows a banner, and unlocks the next civic building (G9). The HUD shows progress ("Town: 312/400 people, rating 58/60"). | The careful player reaches Village in year 1, Town by year 3, and City by year 7. The naive player stalls earlier, and the tooltip says why. |
 | **G9 Late civic buildings** | New buildings unlocked by milestones, each costly to build and run, each with a city-wide effect. For example: a gas plant (cleaner, bigger) at Town; a clinic (happiness) at Town; a college (land value, office tier) at City; a stadium (happiness, shop demand) at City; a city hall (rating) at Capital. Models come from the generator. | At year 10 the careful town spends at least half its surplus on things it chose, against nothing now. It holds at most about 3 years of expenses unless it is saving for something. |
 | **G10 Bankruptcy with an ending** | After 12 months in debt, the council cuts safety and road funding to the minimum, and the advice says so. The deficit advisory lists the biggest costs ("roads $783 a month"). After 24 months, a recap screen offers a state bailout (the debt cleared, taxes held at 12% for 5 years, a rating penalty) or a new city. | No harness city stays in debt more than 24 months. |
 

@@ -987,3 +987,59 @@ input:focus-visible {
     display: none;
   }
 }
+
+/* ── Milestone banner (a city tier reached) ─── */
+#milestone-banner {
+  position: absolute;
+  top: 24%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  width: max-content;
+  max-width: min(460px, calc(100% - 32px));
+  padding: 12px 18px;
+  background: var(--chrome-bg);
+  border: 1px solid #b8963e;
+  border-radius: var(--radius);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  text-align: center;
+  cursor: pointer;
+}
+
+#milestone-banner[hidden] {
+  display: none;
+}
+
+#milestone-banner.milestone-in {
+  animation: milestone-in 0.5s ease-out;
+}
+
+@keyframes milestone-in {
+  from { opacity: 0; transform: translate(-50%, -8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #milestone-banner.milestone-in {
+    animation: none;
+  }
+}
+
+.milestone-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #f0d68a;
+  letter-spacing: 0.02em;
+}
+
+.milestone-body {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #c8d8e8;
+}
+
+.hud-milestone {
+  color: #f0d68a;
+}

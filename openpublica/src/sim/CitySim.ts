@@ -36,6 +36,7 @@ import { WEATHER_EFFECTS, weatherFor, weatherLabel, weatherOfKind, type Weather,
 import { DEFAULT_TERRAIN_SEED } from './TerrainGenerator';
 import { composeHappiness, type HappinessParts } from './happiness';
 import { bridgeProblem, type BridgeProblem } from './roadConnections';
+import { milestoneReady, nextMilestone, type Milestone } from './milestones';
 
 /** Why a road cannot be laid on a tile at the sim layer (tools add cost/upgrade rules). */
 export type RoadPlacementBlock = 'off-map' | 'building' | BridgeProblem;
@@ -145,6 +146,8 @@ export interface CityStats {
   advisory: string;
   /** Where the advisory's trouble is, when it has a place (the HUD jumps there). */
   advisoryAt?: { x: number; y: number } | null;
+  /** Milestones reached (sim/milestones.ts): 0 a hamlet, 1 Village … 4 Capital. */
+  milestones?: number;
 }
 
 /**
@@ -260,6 +263,9 @@ export class CitySim {
   /** Called when a new month brings new weather (and on load). */
   onWeatherChanged: (() => void) | null = null;
 
+  /** Called at a month's end when the city reaches a milestone (its grant already paid). */
+  onMilestone: ((milestone: Milestone) => void) | null = null;
+
   private _weather!: Weather;
   /** The month whose weather effects are on the systems, or -1. */
   private _weatherMonth = -1;
@@ -323,6 +329,7 @@ export class CitySim {
       waterShort:        0,
       approval:          100,
       advisory:          '',
+      milestones:        0,
     };
     this._syncWeather();
     this.previewEconomy();
@@ -703,6 +710,30 @@ export class CitySim {
     return true;
   }
 
+  // ── Milestones ────────────────────────────────────────────────────────────
+
+  /**
+   * When the city meets its next milestone, count it and pay its grant.
+   * {@link tick} calls it at each month's end, so a city passes one a month
+   * and each gets its own banner. Returns the milestone reached, if any.
+   */
+  reachMilestone(): Milestone | null {
+    const reached = this.stats.milestones ?? 0;
+    const next = nextMilestone(reached);
+    if (!next || !milestoneReady(this.stats, next)) return null;
+    this.stats.milestones = reached + 1;
+    this.stats.money += next.grant;
+    this.stats.bankruptcyWarning = this.stats.money < 0;
+    // The grant can lift the budget part of the rating.
+    this._steadyAdvice = true;
+    try {
+      this.evaluate();
+    } finally {
+      this._steadyAdvice = false;
+    }
+    return next;
+  }
+
   // ── Time ──────────────────────────────────────────────────────────────────
 
   /** Advance the simulation by deltaSeconds, running growth once per simulated month. */
@@ -752,9 +783,11 @@ export class CitySim {
     } finally {
       this._steadyAdvice = false;
     }
+    const reached = this.reachMilestone();
     const w = this._weather;
     const newWeather = w.kind !== weatherBefore.kind || w.temperature !== weatherBefore.temperature;
     if (newWeather && this.onWeatherChanged) this.onWeatherChanged();
+    if (reached && this.onMilestone) this.onMilestone(reached);
     if (this.onMonth) this.onMonth();
     if (this.onPowerChanged) this.onPowerChanged();
     if (this.onLandValueChanged) this.onLandValueChanged();

@@ -1,7 +1,7 @@
 # OpenPublica — Next gaps (after Phases A–H)
 
 **Date:** 2026-09-25 (first written 2026-09-20)  
-**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AN below have shipped on top.
+**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AO below have shipped on top.
 
 This is an implementation plan for **what is still missing**, not a licence to rewrite sim formulas or import Micropolis art.
 
@@ -931,6 +931,23 @@ The rating is still saved as `approval`. At year 10 in the strategy harness, the
 
 ---
 
+### Gap AO — Milestones (plan slice G8) **shipped**
+
+The strategy audit found no goals: nothing asked the player for anything beyond not failing, and the score drove nothing.
+
+| Slice | What shipped |
+|---|---|
+| AO1 Tiers | `sim/milestones.ts`: Village at 150 people and a rating of 50; Town at 400 and 60; City at 600 and 65; Capital at 1,000 and 70. Each also needs no debt, and from Town on jobs for at least half the people. So a bedroom town of 400 with no work, which the rating alone would pass at 80, stops at Village. |
+| AO2 Grants | At a month's end, a city that meets its next milestone reaches it and gets a one-time state grant: $2,000, $5,000, $10,000, $20,000. One a month, so a big city climbs a tier at a time. Tiers are kept once reached and are saved. A save from before milestones gets the tiers its population has passed, without the grants. |
+| AO3 HUD | After the rating, a gold readout shows the next tier's progress: "Town 312/400". Once the people are there, it names what else is missing: "Town 412/400 · rating 58/60", "· jobs 100/206", or "· in debt". Its tooltip lists what the tier needs and what is still missing, with the rating's biggest drag ("5 more rating points (smog costs 9)"), and the grant. |
+| AO4 Banner | Reaching a tier shows a banner for nine seconds, or until it is clicked, with a chord: "Village! 172 people call this place home. The state sends a $2,000 grant. Next: Town at 400 people." |
+
+The thresholds are tuned to the harness, not the plan's first guess: City at 900 was out of reach, since the balanced town levels off near 700 on its land. In the strategy harness, balanced reaches Village in month 11, Town in month 30, and City in month 56. Suburb and industry-late are on the same pace, and the careful mixed-use towns reach Capital in years 3–5. The naive town stops at Village (month 6), and so does houses-only (no work). The town without services takes 15 years to reach Town (rating). Grants add $17,000 to the balanced town by year 10. `test/strategyBalance.ts` holds the band: the careful towns reach Village within 12 months, Town within 36 and City within 72, while the naive and houses-only towns never make Town. The tiers unlock nothing yet: G9's civic buildings will hang off them.
+
+**Exit:** Load a town of about 148 people and let a month pass: the Village banner shows, the treasury gains $2,000, and the HUD moves on to "Town 172/400".
+
+---
+
 ## 4. Explicitly still out of scope (Phase I)
 
 Unchanged from the 3D plan:
@@ -955,7 +972,7 @@ Gap AH's systems pass). What is left:
 1. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
 2. **An artist's kit (optional).** The fifteen models are generated; hand-made ones can replace them file by file under `public/models/ASSET_LICENSE.md`.
 3. **Something to spend on late.** Once a test city is built out, its money only grows: Riverside from $55k to $166k in ten years. Upgrades that cost money to run, such as larger plants, stadiums, or road repaving, would give a finished city decisions to make.
-4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). G1–G3 and G5–G7 have shipped (Gaps AI–AN). Next, in order: milestones, small-town services, a bankruptcy ending, late civic buildings (which answer item 3), and new-game options with scenarios.
+4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). G1–G3 and G5–G8 have shipped (Gaps AI–AO). Next, in order: small-town services, a bankruptcy ending, late civic buildings (which answer item 3), and new-game options with scenarios.
 
 ---
 
@@ -975,6 +992,7 @@ Gap AH's systems pass). What is left:
 - Mixed use: zone only mixed use in a new city; flats grow in the first months.
 - Advice: the top advisory holds for up to three months; click it (↗) to go to the trouble.
 - Rating: hover Rating in the HUD to see its parts; a city in debt rates 40 at most.
+- Milestones: the gold readout after the rating shows the next tier; its tooltip says what is missing. Reaching one shows a banner and pays a grant.
 - Smog: hover the Plant tool beside houses (they tint brown and the status counts them), or drag a factory area beside them.
 - Taxes: raise a tax in Budget and hover its bar: the tooltip names the empty places and the newcomers turned away, and the town keeps its people.
 - Systems: in `?city=troubled` the advisory names the industrial tax, and a few years on it says nobody will move in at 16%; in `?city=metro` Com's tooltip counts shop and office jobs; Save then Load leaves the HUD unchanged.

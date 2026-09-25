@@ -1,6 +1,7 @@
 // ⚠️  This file must NOT import anything from @babylonjs/core.
 
 import { STRATEGIES, playStrategy, summarize, taxStrategy, type StrategySummary } from './strategyPlayer';
+import { MILESTONES } from '../sim/milestones';
 
 /**
  * The strategy and gameflow tables of docs/STRATEGY_AND_GAMEFLOW.md, as text
@@ -18,6 +19,15 @@ function strategyTable(rows: readonly StrategySummary[]): string[] {
   return out;
 }
 
+function milestoneTable(rows: readonly StrategySummary[]): string[] {
+  const out = [`strategy        ${MILESTONES.map((m) => pad(`${m.name} ${m.population}`, 14)).join('')}`];
+  for (const r of rows) {
+    const cells = r.milestoneMonths.map((m) => pad(Number.isFinite(m) ? `m${m} (y${Math.ceil(m / 12)})` : '—', 14));
+    out.push(`${r.id.padEnd(16)}${cells.join('')}`);
+  }
+  return out;
+}
+
 export function strategyReport(only: readonly string[] = []): string {
   const pick = (id: string): boolean => only.length === 0 || only.includes(id);
   const lines: string[] = [];
@@ -29,6 +39,9 @@ export function strategyReport(only: readonly string[] = []): string {
     const rates = [5, 7, 9, 10, 11, 12, 13, 15, 17, 20];
     const sweep = [...rates.map((r) => taxStrategy(r)), taxStrategy(12, true)].map((s) => summarize(playStrategy(s)));
     lines.push('The balanced town at each tax rate', ...strategyTable(sweep), '');
+  }
+  if (runs.length > 0) {
+    lines.push('Milestones: the month each was reached (— not in 20 years)', ...milestoneTable(runs), '');
   }
   const balanced = runs.find((r) => r.id === 'balanced');
   if (balanced) {

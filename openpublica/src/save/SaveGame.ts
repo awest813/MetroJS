@@ -54,6 +54,8 @@ export interface SavedStats {
   powerHeld?:        number;
   /** The advisory on show and the month it came up, so a load holds the same one. */
   advisoryHold?:     { id: string; since: number; message?: string; at?: { x: number; y: number } } | null;
+  /** Milestones reached. A save from before milestones counts them from its population. */
+  milestones?:       number;
 }
 
 /** Serialised budget levers beyond taxes. */

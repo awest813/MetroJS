@@ -9,6 +9,7 @@ import { STARTING_MONEY } from '../sim/EconomySystem';
 import { DEFAULT_TERRAIN_SEED, generateTerrain } from '../sim/TerrainGenerator';
 import { lotTooHostile, tileHasAdjacentRoad } from '../sim/zoneGrowthHints';
 import { smogReach } from '../sim/smogReach';
+import { MILESTONES } from '../sim/milestones';
 import { InspectTool } from '../tools/InspectTool';
 import type { PlaceServiceTool } from '../tools/PlaceServiceTool';
 import { RoadTool } from '../tools/RoadTool';
@@ -79,6 +80,8 @@ export interface StrategyMonth {
   /** The player placed, zoned, or borrowed something this month. */
   readonly acted: boolean;
   readonly advisory: string;
+  /** Milestones reached by the month's end. */
+  readonly milestones: number;
 }
 
 export interface StrategyRun {
@@ -335,6 +338,7 @@ export function playStrategy(strategy: Strategy, months = 240, seed = DEFAULT_TE
       blocks: town.length + factories.length,
       acted,
       advisory: s.advisory,
+      milestones: s.milestones ?? 0,
     });
   }
   return { strategy, months: log, actions, sim };
@@ -398,6 +402,8 @@ export interface StrategySummary {
   readonly lowMoney: number;
   /** Months in each of years 1, 2, 3, 5, 10, and 20 in which the player acted. */
   readonly activeMonths: readonly number[];
+  /** The month each milestone was reached (Village, Town, City, Capital), Infinity if not. */
+  readonly milestoneMonths: readonly number[];
 }
 
 export function summarize(run: StrategyRun): StrategySummary {
@@ -424,5 +430,6 @@ export function summarize(run: StrategyRun): StrategySummary {
     lowMonth: low.month,
     lowMoney: low.money,
     activeMonths: [1, 2, 3, 5, 10, 20].map(active),
+    milestoneMonths: MILESTONES.map((_, i) => run.months.find((m) => m.milestones > i)?.month ?? Infinity),
   };
 }
