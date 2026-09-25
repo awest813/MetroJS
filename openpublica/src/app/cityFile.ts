@@ -44,19 +44,21 @@ export function mountCityMenu(
       }
     },
     testCities: TEST_CITIES.map((city) => ({ id: city.id, title: city.title, summary: city.summary })),
-    onNewCity: () => {
-      // A fresh random map, not the test city the address may name.
-      const url = new URL(window.location.href);
-      url.searchParams.delete('city');
-      if (url.href === window.location.href) window.location.reload();
-      else window.location.assign(url.href);
-    },
+    onNewCity: startNewCity,
     onTestCity: (id) => {
       const url = new URL(window.location.href);
       url.searchParams.set('city', id);
       window.location.assign(url.href);
     },
   });
+}
+
+/** A fresh random map, not the test city the address may name. */
+export function startNewCity(): void {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('city');
+  if (url.href === window.location.href) window.location.reload();
+  else window.location.assign(url.href);
 }
 
 /** The scripted test city named by `?city=<id>` in the address, if any. */

@@ -56,6 +56,12 @@ export interface SavedStats {
   advisoryHold?:     { id: string; since: number; message?: string; at?: { x: number; y: number } } | null;
   /** Milestones reached. A save from before milestones counts them from its population. */
   milestones?:       number;
+  /** Debt and the council (sim/bankruptcy.ts); absent in older saves: none. */
+  debtMonths?:       number;
+  councilCuts?:      boolean;
+  bailoutOffered?:   boolean;
+  bailoutMonths?:    number;
+  bailouts?:         number;
 }
 
 /** Serialised budget levers beyond taxes. */

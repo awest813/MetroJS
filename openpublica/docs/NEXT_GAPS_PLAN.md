@@ -1,7 +1,7 @@
 # OpenPublica — Next gaps (after Phases A–H)
 
 **Date:** 2026-09-25 (first written 2026-09-20)  
-**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AP below have shipped on top.
+**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AQ below have shipped on top.
 
 This is an implementation plan for **what is still missing**, not a licence to rewrite sim formulas or import Micropolis art.
 
@@ -964,6 +964,22 @@ A hall's reach is 11, not the plan's "half" (7): crews drive the roads, and at 8
 
 ---
 
+### Gap AQ — Bankruptcy with an ending (plan slice G10) **shipped**
+
+The strategy audit found that bankruptcy never ended. The houses-only town spent 186 of 240 months in debt and reached −$115,967, bonds only delayed it, and nothing stopped or rescued the city.
+
+| Slice | What shipped |
+|---|---|
+| AQ1 Council | `sim/bankruptcy.ts`: the sim counts month-ends in debt in a row (`stats.debtMonths`). After 12, the council cuts police, fire, and road funding to the minimum and holds it there (the Budget sliders lock and say why) until a month ends out of the red. |
+| AQ2 Advice | The debt advice counts down: "In 3 months the council cuts funding", then "In 5 months the state steps in". The debt and deficit advice name the month's biggest costs: "Biggest costs: roads $783 and bond repayments $500 a month." |
+| AQ3 Bailout | After 24 months, the game pauses on a recap: how long, how deep, how many people, and what costs most. It offers two choices. With the state's bailout, the debt and the bonds are cleared, every tax is held at 12% for five years (the sliders lock), and the rating loses 10 while the terms run. The other choice is a new city on a fresh map. The city does not run while the offer stands, and a save keeps it. |
+
+The scripted players take the bailout. In the harness no city stays in debt more than 24 months in a row. The houses-only town takes two bailouts in 20 years (65 months in debt in all, lowest −$21,563). The balanced town at 5% taxes spends 54 months in debt, but never more than 20 in a row: it climbs out once the council's cuts start, with no bailout. `test/strategyBalance.ts` holds the band: the longest run of debt is at most 24 months, for every strategy.
+
+**Exit:** Load a city 23 months in debt and let a month pass: the recap and its two choices appear, and the game waits. Take the bailout, and the treasury reads $0 with the taxes held at 12%.
+
+---
+
 ## 4. Explicitly still out of scope (Phase I)
 
 Unchanged from the 3D plan:
@@ -988,7 +1004,7 @@ Gap AH's systems pass). What is left:
 1. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
 2. **An artist's kit (optional).** The eighteen models are generated; hand-made ones can replace them file by file under `public/models/ASSET_LICENSE.md`.
 3. **Something to spend on late.** Once a test city is built out, its money only grows: Riverside from $55k to $166k in ten years. Upgrades that cost money to run, such as larger plants, stadiums, or road repaving, would give a finished city decisions to make.
-4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). G1–G8 have shipped (Gaps AI–AP). Next, in order: a bankruptcy ending, late civic buildings (which answer item 3), and new-game options with scenarios.
+4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). G1–G8 and G10 have shipped (Gaps AI–AQ). Next, in order: late civic buildings (which answer item 3), and new-game options with scenarios.
 
 ---
 
@@ -1010,6 +1026,7 @@ Gap AH's systems pass). What is left:
 - Rating: hover Rating in the HUD to see its parts; a city in debt rates 40 at most.
 - Milestones: the gold readout after the rating shows the next tier; its tooltip says what is missing. Reaching one shows a banner and pays a grant.
 - Village services: Shift+W/O/F place a pump, police post, or fire hall; a tower, station, or fire station placed on one upgrades it for the difference.
+- Debt: a year in debt locks funding at the minimum; two years pauses on the state's offer (bailout or new city).
 - Smog: hover the Plant tool beside houses (they tint brown and the status counts them), or drag a factory area beside them.
 - Taxes: raise a tax in Budget and hover its bar: the tooltip names the empty places and the newcomers turned away, and the town keeps its people.
 - Systems: in `?city=troubled` the advisory names the industrial tax, and a few years on it says nobody will move in at 16%; in `?city=metro` Com's tooltip counts shop and office jobs; Save then Load leaves the HUD unchanged.

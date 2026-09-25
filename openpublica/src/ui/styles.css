@@ -1043,3 +1043,61 @@ input:focus-visible {
 .hud-milestone {
   color: #f0d68a;
 }
+
+/* ── Bailout dialog (two years in debt) ─── */
+#bailout-dialog {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(6, 10, 16, 0.55);
+}
+
+#bailout-dialog[hidden] {
+  display: none;
+}
+
+.bailout-card {
+  width: min(460px, 100%);
+  padding: 18px 20px;
+  background: var(--chrome-bg);
+  border: 1px solid #7a3a2a;
+  border-radius: var(--radius);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
+  color: #c8d8e8;
+}
+
+.bailout-title {
+  margin: 0 0 8px;
+  font-size: 19px;
+  color: #f0b89a;
+}
+
+.bailout-body {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.bailout-choice {
+  margin-top: 10px;
+}
+
+.bailout-choice button {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bailout-note {
+  margin: 4px 2px 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}

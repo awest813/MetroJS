@@ -134,6 +134,13 @@ describe('strategy balance', () => {
     expect(run('advice').lowMoney).toBeGreaterThan(3_000);
   });
 
+  it('should keep no city in debt more than two years: the state steps in (G10)', () => {
+    for (const summary of cache.values()) expect(summary.longestDebt).toBeLessThanOrEqual(24);
+    const hopeless = summarize(playStrategy(STRATEGIES.find((s) => s.id === 'houses-only')!, 240));
+    expect(hopeless.longestDebt).toBeLessThanOrEqual(24);
+    expect(hopeless.bailouts).toBeGreaterThan(0);
+  });
+
   it('should roll the same dice for the tax sweep as for the balanced town', () => {
     const a = playStrategy(taxStrategy(9), 12);
     const b = playStrategy(STRATEGIES.find((s) => s.id === 'balanced')!, 12);

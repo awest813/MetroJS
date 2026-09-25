@@ -10,6 +10,13 @@ import { stationHasRoad } from './roadDispatch';
 import { EXTREME_TRAFFIC_PRESSURE } from './happiness';
 import { TAX_NEUTRAL_RATE, taxOccupancy } from './taxes';
 import { SERVICE_TIERS, budgetCarries, tierOf, tierToBuild, type TieredService } from './serviceTiers';
+import {
+  BAILOUT_OFFER_MONTHS,
+  BAILOUT_RATING_PENALTY,
+  COUNCIL_CUT_MONTHS,
+  formatCosts,
+  type CityCost,
+} from './bankruptcy';
 
 /** Warn about a deficit once the treasury would run dry within this many months. */
 const DEFICIT_WARNING_MONTHS = 12;
@@ -24,7 +31,8 @@ const DEFICIT_WARNING_MONTHS = 12;
  *   {@link SERVICE_ADVISORY_POPULATION} residents on also watered and
  *   reached by a fire station.
  * - Budget: a balanced budget and money in hand; nothing in debt.
- * - Problems: smog, taxes over 9%, no power plant, and debt. A city in
+ * - Problems: smog, taxes over 9%, no power plant, a state bailout's
+ *   terms (sim/bankruptcy.ts), and debt. A city in
  *   debt rates {@link RATING_IN_DEBT_MAX} at best, however big and happy.
  */
 export const RATING_PART = 25;
@@ -182,6 +190,8 @@ export class EvaluationSystem {
 /** Budget figures the advice quotes. */
 export interface BudgetHints {
   readonly perTaxPoint: number;
+  /** The month's biggest costs, for the deficit and debt advice (G10). */
+  readonly costs?: readonly CityCost[];
 }
 
 /** Next month's weather, as the load it will put on today's grids. */
@@ -422,7 +432,7 @@ export interface RatingParts {
   readonly budget: number;
   readonly smog: number;
   readonly taxes: number;
-  /** No plant, and debt. */
+  /** No plant, debt, and a bailout's terms. */
   readonly other: number;
 }
 
@@ -459,7 +469,8 @@ function rate(stats: CityStats, census: Census): { total: number; parts: RatingP
     budget,
     smog: Math.round(smog),
     taxes,
-    other: !census.hasPlant && (census.zonedCount > 0 || census.buildingCount > 0) ? RATING_NO_PLANT : 0,
+    other: (!census.hasPlant && (census.zonedCount > 0 || census.buildingCount > 0) ? RATING_NO_PLANT : 0)
+      + ((stats.bailoutMonths ?? 0) > 0 ? BAILOUT_RATING_PENALTY : 0),
   };
   if (stats.bankruptcyWarning || stats.money < 0) {
     const before = parts.size + parts.happiness + parts.services + parts.budget - parts.smog - parts.taxes - parts.other;
@@ -503,8 +514,26 @@ function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherFore
   const police = tierToBuild('police', stats).name;
   const fire = tierToBuild('fire', stats).name;
   const out: Advisory[] = [];
-  if (stats.bankruptcyWarning) {
-    out.push({ id: 'bankrupt', message: 'Treasury is bankrupt — take a bond in Budget, then raise taxes or trim funding.' });
+  const costs = formatCosts(budget?.costs ?? []);
+  const biggest = costs ? ` Biggest costs: ${costs}.` : '';
+  if (stats.bailoutOffered) {
+    out.push({ id: 'bankrupt', message: 'Two years in debt — the state offers a bailout. Take it, or start a new city.' });
+  } else if (stats.councilCuts) {
+    const left = Math.max(1, BAILOUT_OFFER_MONTHS - (stats.debtMonths ?? 0));
+    out.push({
+      id: 'bankrupt',
+      message: `A year in debt — the council has cut police, fire, and road funding to the minimum until the treasury is out of the red.${biggest} In ${left} month${left === 1 ? '' : 's'} the state steps in.`,
+    });
+  } else if (stats.bankruptcyWarning) {
+    const months = stats.debtMonths ?? 0;
+    const left = COUNCIL_CUT_MONTHS - months;
+    const warning = months > 0 && left > 0
+      ? ` In ${left} month${left === 1 ? '' : 's'} the council cuts funding.`
+      : '';
+    out.push({
+      id: 'bankrupt',
+      message: `Treasury is bankrupt — take a bond in Budget, then raise taxes or trim funding.${biggest}${warning}`,
+    });
   }
   const net = stats.projectedIncome - stats.projectedExpenses;
   if (!stats.bankruptcyWarning && net < 0 && stats.money >= 0) {
@@ -517,7 +546,7 @@ function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherFore
         : 'Raise taxes';
       out.push({
         id: 'deficit',
-        message: `The budget is $${(-net).toLocaleString()}/mo in the red — money runs out in about ${shown} month${shown === 1 ? '' : 's'}. ${taxes}, or trim police, fire, or road funding.`,
+        message: `The budget is $${(-net).toLocaleString()}/mo in the red — money runs out in about ${shown} month${shown === 1 ? '' : 's'}. ${taxes}, or trim police, fire, or road funding.${biggest}`,
       });
     }
   }

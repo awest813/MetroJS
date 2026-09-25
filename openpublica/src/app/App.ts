@@ -25,7 +25,9 @@ import { CityHUD } from '../ui/CityHUD';
 import { MilestoneBanner } from '../ui/MilestoneBanner';
 import { PlaceServiceTool } from '../tools/PlaceServiceTool';
 import { SERVICE_TIERS, tierOf } from '../sim/serviceTiers';
-import { milestoneBanner as milestoneBannerText } from '../ui/chromeCopy';
+import { bailoutRecap, budgetHoldNote, milestoneBanner as milestoneBannerText } from '../ui/chromeCopy';
+import { BailoutDialog } from '../ui/BailoutDialog';
+import { biggestCosts } from '../sim/bankruptcy';
 import { BudgetPanel, formatBonds } from '../ui/BudgetPanel';
 import { BOND_AMOUNT } from '../sim/budgetLevers';
 import { formatInspectStatus } from '../ui/inspectStatus';
@@ -49,7 +51,7 @@ import { AmbientOcclusion } from '../render/AmbientOcclusion';
 import { BuildingModels } from '../render/BuildingModels';
 import { parseWeatherKind } from '../sim/weather';
 import { CityView } from './CityView';
-import { mountCityMenu, requestedTestCity } from './cityFile';
+import { mountCityMenu, requestedTestCity, startNewCity } from './cityFile';
 import { BulldozeAreaMode, PlannedDragInput, RoadLineMode, ZoneAreaMode } from './plannedDrag';
 import { formatBulldozeResult } from '../tools/bulldozeArea';
 import { planRoadLine } from '../tools/roadLine';
@@ -122,14 +124,15 @@ export class App {
     const cameraEl   = document.getElementById('camera-bar');
     const lookEl     = document.getElementById('look-panel');
     const milestoneEl = document.getElementById('milestone-banner');
+    const bailoutEl  = document.getElementById('bailout-dialog');
 
     if (
       !(canvas instanceof HTMLCanvasElement) ||
       !toolbarEl || !overlayEl || !cityMenuEl || !settingsEl ||
-      !statusEl || !hudEl || !budgetEl || !cameraEl || !lookEl || !milestoneEl
+      !statusEl || !hudEl || !budgetEl || !cameraEl || !lookEl || !milestoneEl || !bailoutEl
     ) {
       throw new Error(
-        'Required DOM elements not found: #game-canvas, #toolbar, #overlay-bar, #city-menu, #settings-panel, #status-bar, #city-hud, #budget-panel, #camera-bar, #look-panel, #milestone-banner',
+        'Required DOM elements not found: #game-canvas, #toolbar, #overlay-bar, #city-menu, #settings-panel, #status-bar, #city-hud, #budget-panel, #camera-bar, #look-panel, #milestone-banner, #bailout-dialog',
       );
     }
 
@@ -435,7 +438,7 @@ export class App {
     statusEl.textContent = `${sim.stats.advisory} R road · I inspect · P pause.`;
 
     new CameraBar(cameraEl, cameraController);
-    new SpeedBar(cameraEl, simSpeed, (next) => {
+    const speedBar = new SpeedBar(cameraEl, simSpeed, (next) => {
       simSpeed = next;
       if (next === 0) statusEl.textContent = 'Paused. P resumes. ] speeds up.';
     });
@@ -500,7 +503,8 @@ export class App {
     scene.onBeforeRenderObservable.add(() => {
       weatherView.update(engine.getDeltaTime() / 1000);
       audio.setRain(weatherView.look.rain);
-      const step = simSecondsForFrame(engine.getDeltaTime(), simSpeed);
+      // The city waits while the state's offer stands.
+      const step = sim.stats.bailoutOffered ? 0 : simSecondsForFrame(engine.getDeltaTime(), simSpeed);
       if (step > 0) {
         sim.tick(step);
         view.traffic.update(step);
@@ -520,14 +524,35 @@ export class App {
       syncAmbient();
     };
     budgetPanel.onTaxChange((res, com, ind) => {
-      sim.stats.resTaxRate = res;
-      sim.stats.comTaxRate = com;
-      sim.stats.indTaxRate = ind;
-      sim.previewEconomy();
-      sim.evaluate();
+      if (!sim.setTaxes(res, com, ind)) {
+        statusEl.textContent = budgetHoldNote(sim.stats) ?? '';
+        budgetPanel.syncSliders(sim.stats, sim.levers);
+      }
       hud.update(sim.stats, sim.clock, sim);
       budgetPanel.update(sim.stats, sim.budget, sim.levers);
     });
+
+    // Two years in debt: the state's offer, with the game paused until it is answered.
+    const bailoutDialog = new BailoutDialog(bailoutEl, {
+      onAccept: () => {
+        sim.acceptBailout();
+        hud.update(sim.stats, sim.clock, sim);
+        budgetPanel.update(sim.stats, sim.budget, sim.levers);
+        budgetPanel.syncSliders(sim.stats, sim.levers);
+        statusEl.textContent = budgetHoldNote(sim.stats) ?? 'The state cleared the debt.';
+        speedBar.setSpeed(1);
+      },
+      onNewCity: startNewCity,
+    });
+    const offerBailout = (): void => {
+      speedBar.setSpeed(0);
+      bailoutDialog.show(bailoutRecap(sim.stats, biggestCosts(sim.budget, 3)));
+    };
+    sim.onCouncil = (event) => {
+      audio.play(BANKRUPT_VOICE, 'warn');
+      if (event === 'bailout') offerBailout();
+      else statusEl.textContent = sim.stats.advisory;
+    };
 
     budgetPanel.onFundingChange((safety, roads) => {
       if (safety !== sim.levers.safetyFunding) sim.setSafetyFunding(safety);
@@ -630,6 +655,8 @@ export class App {
       onLoaded: () => {
         weatherView.setWeather(sim.weather, true);
         previewCoverage(null);
+        if (sim.stats.bailoutOffered) offerBailout();
+        else bailoutDialog.hide();
       },
     });
     if (testCity) {

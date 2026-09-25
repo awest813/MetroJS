@@ -38,6 +38,14 @@ import { composeHappiness, type HappinessParts } from './happiness';
 import { bridgeProblem, type BridgeProblem } from './roadConnections';
 import { milestoneReady, nextMilestone, type Milestone } from './milestones';
 import { isTierUpgrade } from './serviceTiers';
+import {
+  BAILOUT_OFFER_MONTHS,
+  BAILOUT_TAX_RATE,
+  BAILOUT_TERM_MONTHS,
+  COUNCIL_CUT_MONTHS,
+  biggestCosts,
+  type CouncilEvent,
+} from './bankruptcy';
 
 /** Why a road cannot be laid on a tile at the sim layer (tools add cost/upgrade rules). */
 export type RoadPlacementBlock = 'off-map' | 'building' | BridgeProblem;
@@ -149,6 +157,16 @@ export interface CityStats {
   advisoryAt?: { x: number; y: number } | null;
   /** Milestones reached (sim/milestones.ts): 0 a hamlet, 1 Village … 4 Capital. */
   milestones?: number;
+  /** Month-ends in a row the treasury has been in debt (sim/bankruptcy.ts). */
+  debtMonths?: number;
+  /** The council holds police, fire, and road funding at the minimum until the debt is paid. */
+  councilCuts?: boolean;
+  /** The state has offered a bailout; the player must take it or start a new city. */
+  bailoutOffered?: boolean;
+  /** Months left of a bailout's terms: every tax held at 12%, and a rating penalty. */
+  bailoutMonths?: number;
+  /** Bailouts taken so far. */
+  bailouts?: number;
 }
 
 /**
@@ -266,6 +284,9 @@ export class CitySim {
 
   /** Called at a month's end when the city reaches a milestone (its grant already paid). */
   onMilestone: ((milestone: Milestone) => void) | null = null;
+
+  /** Called at a month's end when the council cuts funding, or the state offers a bailout. */
+  onCouncil: ((event: CouncilEvent) => void) | null = null;
 
   private _weather!: Weather;
   /** The month whose weather effects are on the systems, or -1. */
@@ -588,7 +609,7 @@ export class CitySim {
       label: weatherLabel(next.kind),
       powerLoadRatio: ahead.powerLoad / now.powerLoad,
       waterLoadRatio: ahead.waterLoad / now.waterLoad,
-    }, this.budget ? { perTaxPoint: this.budget.perTaxPoint } : undefined, this.clock.monthsPassed, this._steadyAdvice);
+    }, this.budget ? { perTaxPoint: this.budget.perTaxPoint, costs: biggestCosts(this.budget) } : undefined, this.clock.monthsPassed, this._steadyAdvice);
   }
 
   /**
@@ -629,7 +650,9 @@ export class CitySim {
    * their reach scale together.
    */
   setSafetyFunding(percent: number): void {
-    this.growth.economy.safetyFunding = clampFunding(percent, SAFETY_FUNDING_MIN, SAFETY_FUNDING_MAX);
+    // While the council holds funding at the minimum, it stays there.
+    const max = this.stats.councilCuts ? SAFETY_FUNDING_MIN : SAFETY_FUNDING_MAX;
+    this.growth.economy.safetyFunding = clampFunding(percent, SAFETY_FUNDING_MIN, max);
     this.refreshDerivedState({ notify: true });
   }
 
@@ -638,9 +661,87 @@ export class CitySim {
    * roads carry less, so traffic reads heavier.
    */
   setRoadFunding(percent: number): void {
-    this.growth.economy.roadFunding = clampFunding(percent, ROAD_FUNDING_MIN, ROAD_FUNDING_MAX);
+    const max = this.stats.councilCuts ? ROAD_FUNDING_MIN : ROAD_FUNDING_MAX;
+    this.growth.economy.roadFunding = clampFunding(percent, ROAD_FUNDING_MIN, max);
     this.traffic.roadWear = roadWearFactor(this.growth.economy.roadFunding);
     this.refreshDerivedState({ notify: true });
+  }
+
+  /**
+   * Set the three tax rates (percent, 0–20). While a bailout's terms run,
+   * every tax stays at {@link BAILOUT_TAX_RATE}. Returns false when held.
+   */
+  setTaxes(res: number, com: number, ind: number): boolean {
+    const held = (this.stats.bailoutMonths ?? 0) > 0;
+    const rate = (r: number): number => (held ? BAILOUT_TAX_RATE : Math.max(0, Math.min(20, Math.round(r))));
+    this.stats.resTaxRate = rate(res);
+    this.stats.comTaxRate = rate(com);
+    this.stats.indTaxRate = rate(ind);
+    this.previewEconomy();
+    this.evaluate();
+    return !held;
+  }
+
+  /**
+   * Take the state's bailout, once offered after two years in debt: the debt
+   * and the bonds are cleared, the council's cuts are lifted, and every tax
+   * is held at {@link BAILOUT_TAX_RATE} for {@link BAILOUT_TERM_MONTHS} months,
+   * with a rating penalty while it is. False when nothing is on offer.
+   */
+  acceptBailout(): boolean {
+    const s = this.stats;
+    if (!s.bailoutOffered) return false;
+    s.money = Math.max(0, s.money);
+    this.growth.economy.bonds.splice(0);
+    s.bankruptcyWarning = false;
+    s.debtMonths = 0;
+    s.councilCuts = false;
+    s.bailoutOffered = false;
+    s.bailoutMonths = BAILOUT_TERM_MONTHS;
+    s.bailouts = (s.bailouts ?? 0) + 1;
+    s.resTaxRate = BAILOUT_TAX_RATE;
+    s.comTaxRate = BAILOUT_TAX_RATE;
+    s.indTaxRate = BAILOUT_TAX_RATE;
+    this.previewEconomy();
+    this.evaluate();
+    return true;
+  }
+
+  /**
+   * At a month's end, before the month's advice and rating: count months in
+   * debt, cut funding after a year of it, offer a bailout after two, and run
+   * down a bailout's terms. Returns what happened this month, if anything.
+   */
+  private _councilMonth(): CouncilEvent | null {
+    const s = this.stats;
+    if ((s.bailoutMonths ?? 0) > 0) {
+      s.bailoutMonths = s.bailoutMonths! - 1;
+      if (s.bailoutMonths > 0) {
+        s.resTaxRate = BAILOUT_TAX_RATE;
+        s.comTaxRate = BAILOUT_TAX_RATE;
+        s.indTaxRate = BAILOUT_TAX_RATE;
+      }
+    }
+    if (s.money >= 0) {
+      s.debtMonths = 0;
+      s.councilCuts = false;
+      return null;
+    }
+    s.debtMonths = (s.debtMonths ?? 0) + 1;
+    let event: CouncilEvent | null = null;
+    if (s.debtMonths >= COUNCIL_CUT_MONTHS && !s.councilCuts) {
+      s.councilCuts = true;
+      const economy = this.growth.economy;
+      economy.safetyFunding = SAFETY_FUNDING_MIN;
+      economy.roadFunding = ROAD_FUNDING_MIN;
+      this.traffic.roadWear = roadWearFactor(economy.roadFunding);
+      event = 'cuts';
+    }
+    if (s.debtMonths >= BAILOUT_OFFER_MONTHS && !s.bailoutOffered) {
+      s.bailoutOffered = true;
+      event = 'bailout';
+    }
+    return event;
   }
 
   /**
@@ -780,6 +881,8 @@ export class CitySim {
     // of this city would compute.
     this.power.tick(this.map, this.growth.buildings, this.growth.defs);
     this.growth.recomputeCensus(this.stats, this.map);
+    // Debt, the council, and a bailout's terms, before this month's advice and rating.
+    const council = this._councilMonth();
     // Growth used last month's smog. Publish this month's traffic before the
     // HUD: the month ended by routing it on this layout, and only power and the
     // census (which traffic does not read) have run since.
@@ -794,6 +897,7 @@ export class CitySim {
     const newWeather = w.kind !== weatherBefore.kind || w.temperature !== weatherBefore.temperature;
     if (newWeather && this.onWeatherChanged) this.onWeatherChanged();
     if (reached && this.onMilestone) this.onMilestone(reached);
+    if (council && this.onCouncil) this.onCouncil(council);
     if (this.onMonth) this.onMonth();
     if (this.onPowerChanged) this.onPowerChanged();
     if (this.onLandValueChanged) this.onLandValueChanged();

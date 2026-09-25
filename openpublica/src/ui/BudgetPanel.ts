@@ -12,7 +12,7 @@ import {
   bondDebt,
   newBond,
 } from '../sim/budgetLevers';
-import { TAX_HINTS, formatBudgetNet, formatRunway, formatSignedMoney } from './chromeCopy';
+import { TAX_HINTS, budgetHoldNote, formatBudgetNet, formatRunway, formatSignedMoney } from './chromeCopy';
 
 type TaxChangeCallback = (
   resTaxRate: number,
@@ -70,6 +70,7 @@ export class BudgetPanel {
   private readonly _netEl:      HTMLElement;
   private readonly _lastEl:     HTMLElement;
   private readonly _runwayEl:   HTMLElement;
+  private readonly _holdEl:     HTMLElement;
   private readonly _sliders:    Record<'res' | 'com' | 'ind', HTMLInputElement>;
   private readonly _rates:      Record<'res' | 'com' | 'ind', HTMLElement>;
   private readonly _takes:      Record<'res' | 'com' | 'ind', HTMLElement>;
@@ -129,6 +130,7 @@ export class BudgetPanel {
             <span class="budget-val" id="budget-last">none yet</span>
           </div>
           <p class="budget-runway" id="budget-runway" hidden></p>
+          <p class="budget-runway budget-hold" id="budget-hold" hidden></p>
           <div class="budget-divider"></div>
           <div class="tax-head" aria-hidden="true"><span>Tax</span><span>rate</span><span>take</span></div>${taxRows}
           <div class="budget-divider"></div>
@@ -151,6 +153,7 @@ export class BudgetPanel {
     this._netEl      = root.querySelector('#budget-net')!;
     this._lastEl     = root.querySelector('#budget-last')!;
     this._runwayEl   = root.querySelector('#budget-runway')!;
+    this._holdEl     = root.querySelector('#budget-hold')!;
     const pick = <T extends HTMLElement>(suffix: string) => ({
       res: root.querySelector<T>(`#tax-res${suffix}`)!,
       com: root.querySelector<T>(`#tax-com${suffix}`)!,
@@ -251,6 +254,16 @@ export class BudgetPanel {
       this._borrowBtn.title = full ? `At the limit of ${MAX_BONDS} bonds — repay one first.` : bondTerms();
     }
     this._root.classList.toggle('budget-bankrupt', stats.bankruptcyWarning);
+
+    // The state holds the taxes after a bailout; the council holds funding in debt.
+    const taxesHeld = (stats.bailoutMonths ?? 0) > 0;
+    const fundingHeld = stats.councilCuts === true;
+    for (const id of ['res', 'com', 'ind'] as const) this._sliders[id].disabled = taxesHeld;
+    for (const id of ['safety', 'roads'] as const) this._funding[id].disabled = fundingHeld;
+    const note = budgetHoldNote(stats);
+    this._holdEl.hidden = note === null;
+    this._holdEl.textContent = note ?? '';
+    if (taxesHeld || fundingHeld) this.syncSliders(stats, levers);
   }
 
   /** Move the tax and funding sliders to a loaded city's settings. */

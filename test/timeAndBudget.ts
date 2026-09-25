@@ -62,7 +62,7 @@ describe('budget runway', () => {
     sim.stats.money = 1000;
     sim.evaluate();
     expect(sim.stats.advisory).toBe(
-      'The budget is $192/mo in the red — money runs out in about 5 months. Raise taxes, or trim police, fire, or road funding.',
+      'The budget is $192/mo in the red — money runs out in about 5 months. Raise taxes, or trim police, fire, or road funding. Biggest costs: roads $192 a month.',
     );
     sim.stats.money = 100_000;
     sim.evaluate();

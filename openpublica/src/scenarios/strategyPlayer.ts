@@ -360,6 +360,8 @@ export function playStrategy(strategy: Strategy, months = 240, seed = DEFAULT_TE
       }
     }
     if (growableLots() < EXPAND_BELOW_LOTS) expand();
+    // Two years in debt: take the state's bailout.
+    if (s.bailoutOffered && sim.acceptBailout()) did(`bailout@m${month}`);
     // In debt, borrow (the game allows three bonds at a time).
     if (!strategy.followAdvice && s.money < 0 && sim.issueBond()) did(`bond@m${month}`);
 
@@ -434,6 +436,10 @@ export interface StrategySummary {
   readonly monthTo100: number;
   /** Months in debt over the run. */
   readonly monthsInDebt: number;
+  /** The longest run of months in debt in a row. */
+  readonly longestDebt: number;
+  /** State bailouts taken. */
+  readonly bailouts: number;
   /** Month the treasury was lowest, and how low. */
   readonly lowMonth: number;
   readonly lowMoney: number;
@@ -464,6 +470,14 @@ export function summarize(run: StrategyRun): StrategySummary {
     bestRatingInDebt: debt.length > 0 ? Math.max(...debt.map((m) => m.approval)) : null,
     monthTo100: run.months.find((m) => m.population >= 100)?.month ?? Infinity,
     monthsInDebt: debt.length,
+    longestDebt: run.months.reduce(
+      (acc, m) => {
+        const now = m.money < 0 ? acc.now + 1 : 0;
+        return { now, most: Math.max(acc.most, now) };
+      },
+      { now: 0, most: 0 },
+    ).most,
+    bailouts: run.sim.stats.bailouts ?? 0,
     lowMonth: low.month,
     lowMoney: low.money,
     activeMonths: [1, 2, 3, 5, 10, 20].map(active),

@@ -76,6 +76,11 @@ export class SaveCodec {
         powerHeld:         sim.stats.powerHeld ?? 0,
         advisoryHold:      sim.evaluation.hold,
         milestones:        sim.stats.milestones ?? 0,
+        debtMonths:        sim.stats.debtMonths ?? 0,
+        councilCuts:       sim.stats.councilCuts ?? false,
+        bailoutOffered:    sim.stats.bailoutOffered ?? false,
+        bailoutMonths:     sim.stats.bailoutMonths ?? 0,
+        bailouts:          sim.stats.bailouts ?? 0,
       },
       levers: {
         safetyFunding: sim.levers.safetyFunding,
@@ -155,6 +160,12 @@ export class SaveCodec {
     sim.stats.milestones        = Number.isFinite(s.milestones)
       ? Math.max(0, Math.min(MILESTONES.length, Math.floor(s.milestones!)))
       : milestonesByPopulation(s.population ?? 0);
+    const count = (n: number | undefined): number => (Number.isFinite(n) ? Math.max(0, Math.floor(n!)) : 0);
+    sim.stats.debtMonths        = count(s.debtMonths);
+    sim.stats.councilCuts       = s.councilCuts === true;
+    sim.stats.bailoutOffered    = s.bailoutOffered === true;
+    sim.stats.bailoutMonths     = count(s.bailoutMonths);
+    sim.stats.bailouts          = count(s.bailouts);
     const hold = s.advisoryHold;
     sim.evaluation.hold = hold && typeof hold.id === 'string' && Number.isFinite(hold.since)
       ? {

@@ -3,6 +3,14 @@ import { taxDraw, taxOccupancy } from '../sim/taxes';
 import { RATING_PART, type RatingParts } from '../sim/EvaluationSystem';
 import { milestoneShortfall, nextMilestone, tierName, type Milestone } from '../sim/milestones';
 import type { CityStats } from '../sim/CitySim';
+import {
+  BAILOUT_OFFER_MONTHS,
+  BAILOUT_RATING_PENALTY,
+  BAILOUT_TAX_RATE,
+  BAILOUT_TERM_MONTHS,
+  formatCosts,
+  type CityCost,
+} from '../sim/bankruptcy';
 
 /**
  * Shared chrome strings and money formatting. No DOM — Jest can load this.
@@ -129,7 +137,7 @@ export function ratingTooltip(rating: number, parts: RatingParts | undefined): s
   const losses = [
     parts.smog > 0 ? `smog −${parts.smog}` : null,
     parts.taxes > 0 ? `taxes over 9% −${parts.taxes}` : null,
-    parts.other > 0 ? `no plant or debt −${parts.other}` : null,
+    parts.other > 0 ? `debt, a bailout, or no plant −${parts.other}` : null,
   ].filter((l): l is string => l !== null);
   return `Rating ${rating} of 100: ${gains}${losses.length ? `; ${losses.join(', ')}` : ''}. Each part is worth up to 25.`;
 }
@@ -219,4 +227,39 @@ export function milestoneBanner(milestone: Milestone, reached: number, populatio
 function joinAnd(items: readonly string[]): string {
   if (items.length <= 1) return items.join('');
   return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`;
+}
+
+/** Why a budget lever is held, or null: the council's cuts in debt, or a bailout's terms. */
+export function budgetHoldNote(stats: Pick<CityStats, 'councilCuts' | 'bailoutMonths'>): string | null {
+  const notes: string[] = [];
+  if (stats.councilCuts) {
+    notes.push('The council holds police, fire, and road funding at the minimum until the treasury is out of the red.');
+  }
+  const left = stats.bailoutMonths ?? 0;
+  if (left > 0) {
+    notes.push(`The state bailout holds every tax at ${BAILOUT_TAX_RATE}% for ${left} more month${left === 1 ? '' : 's'}.`);
+  }
+  return notes.length > 0 ? notes.join(' ') : null;
+}
+
+/** The state's offer after two years in debt: what went wrong, and the two ways on. */
+export function bailoutRecap(stats: Pick<CityStats, 'money' | 'population' | 'projectedIncome' | 'projectedExpenses' | 'debtMonths'>, costs: readonly CityCost[]): {
+  title: string;
+  body: string;
+  accept: string;
+  decline: string;
+} {
+  const net = stats.projectedIncome - stats.projectedExpenses;
+  const months = stats.debtMonths ?? BAILOUT_OFFER_MONTHS;
+  const years = Math.floor(months / 12);
+  const spent = formatCosts(costs);
+  const deficit = net < 0
+    ? ` It spends $${(-net).toLocaleString('en-US')} a month more than it takes in${spent ? `; the biggest costs are ${spent}` : ''}.`
+    : '';
+  return {
+    title: 'The state steps in',
+    body: `${years >= 2 ? `${years} years` : `${months} months`} in debt: the treasury stands at −$${Math.abs(Math.round(stats.money)).toLocaleString('en-US')}, with ${stats.population.toLocaleString('en-US')} people in the city.${deficit}`,
+    accept: `The state clears the debt and the bonds. Every tax is held at ${BAILOUT_TAX_RATE}% for ${BAILOUT_TERM_MONTHS / 12} years, and the rating loses ${BAILOUT_RATING_PENALTY} while it is.`,
+    decline: 'Start a new city on a fresh map.',
+  };
 }
