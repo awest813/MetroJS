@@ -106,12 +106,12 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Buildings shrink: the biggest sizes step down, a few a month, when their land value falls well under the bar that grew them or industry declines
 - [x] Frame time checked in a full city on High (Gap AB): flat road pieces cast no shadows and draw only the faces that show, buildings stop recomputing their matrices, a month end routes traffic once, and weather shaders compile at load
 - [x] Happiness decides how many people move in: below 80 housing grows at a falling share of its demand, at 30 residents leave; the HUD shows what made it
-- [x] GLB building kits: seven starter models (`npm run models`) replace their procedural kits on High quality, baked to one instanced mesh each; any glTF following `public/models/ASSET_LICENSE.md` can replace one, and a missing model falls back to its kit
+- [x] GLB building kits: a model for every building (`npm run models`) replaces its procedural kit on High quality, baked to one instanced mesh each; any glTF following `public/models/ASSET_LICENSE.md` can replace one, and a missing model falls back to its kit
 - [x] Services count: fire cover raises land value, fire and water gaps cost score, the advisory names dry buildings behind full towers, and Inspect gives each service's reach, buildings covered, and upkeep
 - [x] Ambient occlusion (Settings, off by default, High only): soft shade where buildings and trees meet the ground, paused under data maps, with FXAA for the edges
 - [x] Test cities: `?city=hamlet|riverside|metro|troubled|sprawl` (or New → Or open a test city) builds a scripted city with the player tools and seeded growth; `test/testCity.<id>.ts` checks each
 
-Follow [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md) for what is left: a real-GPU check of ambient occlusion, and more models. Untextured PBR, sky dome, `CityView` rebuild-on-load, city-health, mayor Score/advisory, highways, water, zoning plats/downtown, building degradation, opening coach, and per-service upkeep/coverage preview are in the HUD.
+Follow [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md) for what is left: a real-GPU check of ambient occlusion, and optionally an artist's model kit. Untextured PBR, sky dome, `CityView` rebuild-on-load, city-health, mayor Score/advisory, highways, water, zoning plats/downtown, building degradation, opening coach, and per-service upkeep/coverage preview are in the HUD.
 
 ## 3D port
 

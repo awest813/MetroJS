@@ -29,6 +29,7 @@ const shade = (c, f) => c.map((v) => Math.min(1, v * f));
 const RES = [0.42, 0.62, 0.90];
 const COM = [0.92, 0.78, 0.22];
 const IND = [0.68, 0.48, 0.78];
+const MIX = [0.20, 0.75, 0.65];
 const GLASS = [0.10, 0.18, 0.28];
 const DOOR = [0.38, 0.24, 0.14];
 const STONE = [0.52, 0.50, 0.47];
@@ -244,6 +245,147 @@ function waterTower() {
   return parts.flat();
 }
 
+function shopRow() {
+  const upper = shade(COM, 0.95), trim = shade(COM, 1.12);
+  const parts = [
+    box(COM, 0.78, 0.22, 0.56, 0, 0, 0),
+    box(upper, 0.74, 0.24, 0.50, 0, 0.22, -0.02),
+    box(WHITE, 0.66, 0.03, 0.012, 0, 0.175, 0.286),
+    box([0.16, 0.45, 0.30], 0.80, 0.015, 0.14, 0, 0.19, 0.33, -0.3),
+    box(trim, 0.76, 0.03, 0.52, 0, 0.46, -0.02),
+    box(shade(COM, 0.42), 0.72, 0.02, 0.48, 0, 0.49, -0.02),
+    box(METAL, 0.10, 0.05, 0.08, -0.2, 0.51, -0.08),
+    box(METAL, 0.10, 0.05, 0.08, 0.2, 0.51, -0.08),
+  ];
+  for (const x of [-0.25, 0, 0.25]) {
+    parts.push(
+      box(GLASS, 0.20, 0.12, 0.01, x, 0.04, 0.283),
+      box(GLASS, 0.12, 0.08, 0.01, x, 0.31, 0.233),
+    );
+  }
+  return parts.flat();
+}
+
+function lightWorkshop() {
+  const roof = shade(IND, 0.42);
+  return [
+    box(IND, 0.72, 0.32, 0.68, 0, 0, 0),
+    gable(roof, 0.76, 0.10, 0.72, 0, 0.32, 0),
+    box([0.62, 0.62, 0.60], 0.22, 0.20, 0.012, -0.12, 0, 0.346),
+    box(shade(IND, 1.1), 0.20, 0.20, 0.10, 0.22, 0, 0.39),
+    box(DOOR, 0.06, 0.12, 0.012, 0.22, 0, 0.446),
+    box(GLASS, 0.07, 0.06, 0.01, 0.28, 0.10, 0.444),
+    box(GLASS, 0.30, 0.05, 0.01, -0.12, 0.24, 0.343),
+    cyl(METAL, 0.04, 0.20, 0.22, 0.38, -0.18, 8),
+  ].flat();
+}
+
+function industrialWorks() {
+  const roof = shade(IND, 0.42);
+  return [
+    box(IND, 0.58, 0.42, 0.82, -0.15, 0, 0),
+    box(roof, 0.62, 0.03, 0.84, -0.15, 0.42, 0),
+    box(GLASS, 0.52, 0.06, 0.01, -0.15, 0.30, 0.413),
+    box([0.62, 0.62, 0.60], 0.20, 0.20, 0.012, -0.25, 0, 0.416),
+    cyl([0.55, 0.55, 0.52], 0.13, 0.40, 0.28, 0, 0.22, 14),
+    cyl(shade([0.55, 0.55, 0.52], 0.7), 0.13, 0.06, 0.28, 0.40, 0.22, 14, 0.02),
+    box(METAL, 0.30, 0.04, 0.04, 0.10, 0.36, 0.22),
+    cyl(METAL, 0.06, 0.64, 0.30, 0, -0.24, 10),
+    cyl([0.80, 0.16, 0.12], 0.066, 0.04, 0.30, 0.56, -0.24, 10),
+    cyl(METAL, 0.045, 0.30, -0.05, 0.45, -0.28, 8),
+  ].flat();
+}
+
+function powerPlant() {
+  const body = [1.00, 0.55, 0.08], trim = [0.85, 0.85, 0.80], red = [0.90, 0.15, 0.08];
+  return [
+    box(body, 0.74, 0.34, 0.64, 0, 0, 0),
+    box(trim, 0.76, 0.03, 0.66, 0, 0.34, 0),
+    box(red, 0.74, 0.04, 0.012, 0, 0.24, 0.326),
+    box(WHITE, 0.14, 0.18, 0.012, -0.2, 0, 0.326),
+    box(GLASS, 0.30, 0.06, 0.01, 0.14, 0.12, 0.325),
+    cyl(METAL, 0.07, 0.46, -0.16, 0.34, 0.06, 12),
+    cyl(red, 0.074, 0.04, -0.16, 0.74, 0.06, 12),
+    cyl(METAL, 0.07, 0.40, 0.18, 0.34, 0.06, 12),
+    cyl(red, 0.074, 0.04, 0.18, 0.68, 0.06, 12),
+    box(METAL, 0.10, 0.10, 0.08, 0.26, 0.34, -0.2),
+    box(METAL, 0.10, 0.10, 0.08, 0.10, 0.34, -0.2),
+  ].flat();
+}
+
+function policeStation() {
+  const body = [0.22, 0.34, 0.52], roof = [0.12, 0.16, 0.24], trim = [0.72, 0.74, 0.78], gold = [0.85, 0.70, 0.18];
+  return [
+    box(body, 0.62, 0.28, 0.54, 0, 0, 0),
+    box(roof, 0.66, 0.04, 0.58, 0, 0.28, 0),
+    box(trim, 0.18, 0.26, 0.18, -0.18, 0.32, -0.12),
+    box(roof, 0.20, 0.02, 0.20, -0.18, 0.58, -0.12),
+    cyl(METAL, 0.01, 0.14, -0.18, 0.60, -0.12, 6),
+    box(GLASS, 0.10, 0.14, 0.012, 0.08, 0, 0.276),
+    box(gold, 0.16, 0.05, 0.012, 0.08, 0.19, 0.276),
+    box(GLASS, 0.14, 0.08, 0.01, -0.16, 0.10, 0.275),
+    box(STONE, 0.18, 0.02, 0.05, 0.08, 0, 0.30),
+    cyl(METAL, 0.008, 0.40, 0.26, 0, 0.24, 6),
+    box([0.85, 0.20, 0.18], 0.07, 0.04, 0.005, 0.30, 0.34, 0.24),
+  ].flat();
+}
+
+function shopfrontApartments() {
+  const upper = MIX, roof = shade(MIX, 0.42), trim = shade(MIX, 1.12);
+  const parts = [
+    box(shade(MIX, 0.9), 0.72, 0.18, 0.52, 0, 0, 0),
+    box(upper, 0.62, 0.42, 0.42, 0, 0.18, 0),
+    box(GLASS, 0.50, 0.10, 0.01, 0, 0.03, 0.263),
+    box([0.80, 0.16, 0.12], 0.74, 0.015, 0.12, 0, 0.16, 0.30, -0.3),
+    box(roof, 0.64, 0.03, 0.44, 0, 0.60, 0),
+  ];
+  for (const y of [0.28, 0.44]) {
+    for (const x of [-0.19, 0, 0.19]) {
+      parts.push(box(GLASS, 0.10, 0.08, 0.01, x, y, 0.213));
+      if (y > 0.4) parts.push(box(trim, 0.13, 0.012, 0.05, x, y - 0.012, 0.235));
+    }
+  }
+  return parts.flat();
+}
+
+function cornerStoreFlats() {
+  const roof = shade(MIX, 0.42);
+  const parts = [
+    box(shade(MIX, 0.9), 0.62, 0.16, 0.62, 0, 0, 0),
+    box(MIX, 0.52, 0.40, 0.52, 0, 0.16, 0),
+    box(GLASS, 0.30, 0.10, 0.01, 0.10, 0.03, 0.313),
+    box(GLASS, 0.01, 0.10, 0.30, 0.313, 0.03, 0.10),
+    box(DOOR, 0.07, 0.12, 0.012, -0.16, 0, 0.314),
+    box([0.95, 0.72, 0.12], 0.64, 0.015, 0.12, 0, 0.15, 0.36, -0.3),
+    box(roof, 0.54, 0.03, 0.54, 0, 0.56, 0),
+  ];
+  for (const y of [0.26, 0.40]) {
+    for (const t of [-0.12, 0.12]) {
+      parts.push(
+        box(GLASS, 0.10, 0.08, 0.01, t, y, 0.263),
+        box(GLASS, 0.01, 0.08, 0.10, 0.263, y, t),
+      );
+    }
+  }
+  return parts.flat();
+}
+
+function mainStreetBlock() {
+  const roof = shade(MIX, 0.42), trim = shade(MIX, 1.12);
+  const parts = [
+    box(shade(MIX, 0.9), 0.82, 0.20, 0.56, 0, 0, 0),
+    box(MIX, 0.70, 0.48, 0.46, 0, 0.20, 0),
+    box(GLASS, 0.62, 0.10, 0.01, 0, 0.04, 0.283),
+    box([0.16, 0.45, 0.30], 0.84, 0.015, 0.14, 0, 0.18, 0.33, -0.3),
+    box(trim, 0.72, 0.03, 0.48, 0, 0.66, 0),
+    box(roof, 0.70, 0.04, 0.46, 0, 0.69, 0),
+  ];
+  for (const y of [0.30, 0.46]) {
+    for (const x of [-0.24, -0.08, 0.08, 0.24]) parts.push(box(GLASS, 0.10, 0.08, 0.01, x, y, 0.233));
+  }
+  return parts.flat();
+}
+
 const MODELS = {
   small_house: smallHouse,
   rowhouse,
@@ -252,6 +394,14 @@ const MODELS = {
   factory,
   small_fire_station: fireStation,
   small_water_tower: waterTower,
+  shop_row: shopRow,
+  light_workshop: lightWorkshop,
+  industrial_works: industrialWorks,
+  small_power_plant: powerPlant,
+  small_police_station: policeStation,
+  shopfront_apartments: shopfrontApartments,
+  corner_store_flats: cornerStoreFlats,
+  main_street_block: mainStreetBlock,
 };
 
 // ── glTF writer ───────────────────────────────────────────────────────────────

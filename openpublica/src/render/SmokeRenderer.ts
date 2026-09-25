@@ -9,6 +9,7 @@ import type { CityMap } from '../sim/CityMap';
 import type { HeightField } from '../sim/HeightField';
 import { TILE_SIZE } from '../data/constants';
 import { POWER_PLANT_SMOKE } from './vegetationLayout';
+import { buildingFacing, rotateOffset } from './buildingFacing';
 
 /**
  * Soft puff smoke from power-plant stacks. Visual only.
@@ -45,9 +46,12 @@ export class SmokeRenderer {
       const groundY = this._heights?.footing(tile.x, tile.y) ?? 0;
       const ox = tile.x * TILE_SIZE + TILE_SIZE / 2;
       const oz = tile.y * TILE_SIZE + TILE_SIZE / 2;
+      // The plant turns to face its street; its stacks turn with it.
+      const facing = buildingFacing(map, tile.x, tile.y);
       for (const stack of POWER_PLANT_SMOKE) {
+        const at = rotateOffset(stack.x, stack.z, facing);
         this._systems.push(this._emitter(
-          new Vector3(ox + stack.x, groundY + stack.y, oz + stack.z),
+          new Vector3(ox + at.dx, groundY + stack.y, oz + at.dz),
         ));
       }
     });

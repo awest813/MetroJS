@@ -187,6 +187,10 @@ export class CityView {
         }
       }
     }
+    // A plant beside the edit may turn to a new street, and its smoke with it.
+    for (const n of facing.values()) {
+      if (sim.getTile(n.x, n.y)?.buildingId === 'small_power_plant') smoke = true;
+    }
     const deckList = Array.from(decks.values());
     this.roads.rebuildTiles(map, deckList);
     this.overlay.updateTiles(map, deckList);

@@ -15,7 +15,7 @@ checked against five scripted test cities (Gap N). The first audit's four
 open items (city health, honest feedback, PBR/sky, the `App.ts` split) have
 all shipped. What is left (section 5) is depth, not missing systems:
 
-1. **Presentation** extras have shipped: SSAO as an opt-in after its full-city frame check (Gaps AB, AC), and GLB kits with seven starter models (Gap AE). What is left there is art: models for the other eight buildings, or an artist's kit.
+1. **Presentation** extras have shipped: SSAO as an opt-in after its full-city frame check (Gaps AB, AC), and GLB kits with a model for every building (Gap AE). What is left there is art: an artist's kit can replace the generated one.
 2. **Happiness** now decides how many people move in (Gap AF): below 80, housing grows at a falling share of its demand, and at 30 or less residents leave.
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
@@ -707,8 +707,8 @@ station and Inspect it: it gives the buildings it covers and its $60/mo.
 C4 asked for glTF models with the procedural kits as the fallback. Outside
 art was not reachable from the build machine (kenney.nl is blocked), and a
 kit's licence has to be checked file by file, so the pipeline ships with
-seven starter models generated in the repo. Any GLB that follows the same
-conventions can replace one.
+a model for each of the fifteen buildings, generated in the repo. Any GLB
+that follows the same conventions can replace one.
 
 | Slice | What shipped |
 |---|---|
@@ -718,20 +718,22 @@ conventions can replace one.
 | AE4 Renderer | High quality uses the models; Low keeps the procedural kits. Buildings already standing swap when their model arrives. Unpowered ones recolour to reds of their own brightness (`warningColors`), and plinths on slopes take the model's footprint. |
 | AE5 Models | `scripts/build-models.mjs` (`npm run models`) writes the house (gable, chimney, porch step), rowhouse (three houses, stoops, chimneys), shop (awning, sign, shopfront), office block (podium, window bands, roof plant), factory (sawtooth north lights, chimney), fire station (bays, hose tower), and water tower (legs, braces, tank, cone). They leave out faces nobody sees: bottoms, and all but the front of doors, windows, and signs. That cut them from 92–322 triangles to 44–186. |
 | AE6 Licence | `public/models/ASSET_LICENSE.md` lists each file's source and licence (GPL-3.0, generated here), the conventions, and what a contributed model must carry (CC0, CC-BY with attribution, or the contributor's own work; nothing from SimCity). |
+| AE7 The rest | Shop rows (awning, three shopfronts), workshops (gable, roll-up door, office annex), works (hall, tank, pipe, stacks), the power plant (turbine hall, banded stacks, roof units), the police station (tower, antenna, badge, flagpole), and the three mixed-use blocks (awnings, window rows, a corner store glazed on two sides), at 56–192 triangles. Smoke now turns with the plant: its stacks were placed unrotated, so a plant facing east or west smoked beside them. |
 
 | Full city, High | Procedural | Models |
 |---|---|---|
-| Building triangles (main pass) | 180k | 253k |
-| Main pass | 451k | 525k |
+| Building triangles (main pass) | 180k | 250k |
+| Main pass | 451k | 522k |
 | Draw calls | 73 | 73 |
 
 A test checks each model's file against the conventions (glTF 2.0, normals,
 on the ground, inside the lot, under 400 triangles), and that the generator
 builds exactly the models the defs name.
 
-**Exit:** Open `?city=metro` on High: houses have gables and chimneys, shops
-awnings, offices window bands, factories sawtooth roofs; switch to Low and
-the procedural kits return.
+**Exit:** Open `?city=metro` on High: every building is a model (houses with
+gables and chimneys, shops with awnings, offices with window bands,
+factories with sawtooth roofs, plants smoking from their own stacks); switch
+to Low and the procedural kits return.
 
 ### Gap AF — Happiness that counts **shipped**
 
@@ -780,7 +782,7 @@ everything after it (D4 faster tests, the Gap AB frame check, the Gap AC SSAO
 opt-in, the Gap AE GLB kits, Gap AF's happiness). What is left:
 
 1. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
-2. **More models (optional).** Eight buildings still use their procedural kits (shop rows, workshops, works, the power plant, the police station, and the three mixed-use blocks); an artist's kit can replace the starter set under `public/models/ASSET_LICENSE.md`.
+2. **An artist's kit (optional).** The fifteen models are generated; hand-made ones can replace them file by file under `public/models/ASSET_LICENSE.md`.
 
 ---
 
@@ -814,6 +816,6 @@ opt-in, the Gap AE GLB kits, Gap AF's happiness). What is left:
 - Frame time: load a full city on High and run it at 4× (the only stutter is the month end), and let Metro reach its first rain (no stall when it starts); a bridge still shades the water under it.
 - Services: in `?city=riverside` the advisory names the dry buildings behind its full tower; Inspect a house (`dry`, `no fire cover`) and a police station (buildings covered, upkeep); a new fire station raises land value around it and the score once people live nearby.
 - Happiness: in `?city=hamlet` hover Happy (amber at 69: what cost it, and 78% of the housing demand moving in) and the Res bar (12% of a 15% demand).
-- Models: on High, Metro's houses, rowhouses, shops, offices, factories, fire stations, and water towers are GLB models; on Low they are procedural kits; rename a file under `public/models/` and that building keeps its procedural kit with one console warning.
+- Models: on High every building is a GLB model, and a plant's smoke rises from its own stacks whichever way it faces; on Low they are procedural kits; rename a file under `public/models/` and that building keeps its procedural kit with one console warning.
 - Ambient occlusion: Settings → Ambient occlusion on (Quality: high): buildings and trees sit darker where they meet the ground, and open lawns stay light; open a map and the shade pauses; switch to Quality: low and the button greys out.
 - Test cities: open `?city=hamlet`, `riverside`, `metro`, `troubled`, and `sprawl` (or New → Or open a test city); each status line says what the city shows, the HUD and advisory match its row in Gap N, and New goes back to a fresh map.

@@ -29,7 +29,8 @@
     "zoneType": 2,
     "population": 0,
     "jobs": 7,
-    "walkabilityRadius": 3
+    "walkabilityRadius": 3,
+    "visualRef": "models/shop_row.glb"
   },
   {
     "id": "office_block",
@@ -47,7 +48,8 @@
     "population": 0,
     "jobs": 5,
     "pollutionOutput": 35,
-    "pollutionRadius": 6
+    "pollutionRadius": 6,
+    "visualRef": "models/light_workshop.glb"
   },
   {
     "id": "factory",
@@ -66,7 +68,8 @@
     "population": 0,
     "jobs": 24,
     "pollutionOutput": 55,
-    "pollutionRadius": 8
+    "pollutionRadius": 8,
+    "visualRef": "models/industrial_works.glb"
   },
   {
     "id": "small_power_plant",
@@ -78,7 +81,8 @@
     "powerCapacity": 400,
     "pollutionOutput": 60,
     "pollutionRadius": 8,
-    "monthlyCost": 80
+    "monthlyCost": 80,
+    "visualRef": "models/small_power_plant.glb"
   },
   {
     "id": "small_police_station",
@@ -88,7 +92,8 @@
     "jobs": 4,
     "isService": true,
     "policeRadius": 14,
-    "monthlyCost": 60
+    "monthlyCost": 60,
+    "visualRef": "models/small_police_station.glb"
   },
   {
     "id": "small_fire_station",
@@ -128,7 +133,8 @@
     "zoneType": 4,
     "population": 6,
     "jobs": 2,
-    "walkabilityRadius": 4
+    "walkabilityRadius": 4,
+    "visualRef": "models/shopfront_apartments.glb"
   },
   {
     "id": "corner_store_flats",
@@ -136,7 +142,8 @@
     "zoneType": 4,
     "population": 5,
     "jobs": 3,
-    "walkabilityRadius": 4
+    "walkabilityRadius": 4,
+    "visualRef": "models/corner_store_flats.glb"
   },
   {
     "id": "main_street_block",
@@ -144,6 +151,7 @@
     "zoneType": 4,
     "population": 10,
     "jobs": 5,
-    "walkabilityRadius": 5
+    "walkabilityRadius": 5,
+    "visualRef": "models/main_street_block.glb"
   }
 ]
