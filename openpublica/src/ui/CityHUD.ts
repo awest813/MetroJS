@@ -47,6 +47,9 @@ export class CityHUD {
   private readonly _power:         HTMLElement;
   private readonly _approval:      HTMLElement;
   private readonly _advisory:      HTMLElement;
+  /** Where the advisory on show points, if anywhere. */
+  private _advisoryAt: { x: number; y: number } | null = null;
+  private _onAdvisoryJump: ((x: number, y: number) => void) | null = null;
   private readonly _resFill: HTMLElement;
   private readonly _comFill: HTMLElement;
   private readonly _indFill: HTMLElement;
@@ -113,6 +116,9 @@ export class CityHUD {
     this._power         = root.querySelector('#hud-power')!;
     this._approval      = root.querySelector('#hud-approval')!;
     this._advisory      = root.querySelector('#hud-advisory')!;
+    this._advisory.addEventListener('click', () => {
+      if (this._advisoryAt && this._onAdvisoryJump) this._onAdvisoryJump(this._advisoryAt.x, this._advisoryAt.y);
+    });
     this._resFill  = root.querySelector('#hud-res-fill')!;
     this._comFill  = root.querySelector('#hud-com-fill')!;
     this._indFill  = root.querySelector('#hud-ind-fill')!;
@@ -127,6 +133,11 @@ export class CityHUD {
     if (text === this._dateText) return;
     this._dateText = text;
     this._date.textContent = text;
+  }
+
+  /** Called with the advisory's tile when the player clicks an advisory that has one. */
+  onAdvisoryJump(callback: (x: number, y: number) => void): void {
+    this._onAdvisoryJump = callback;
   }
 
   update(stats: CityStats, clock: SimulationClock, sky?: WeatherSource): void {
@@ -166,6 +177,10 @@ export class CityHUD {
     const alert = stats.advisory.trim().length > 0;
     this._advisory.textContent = alert ? stats.advisory : 'No mayor alerts.';
     this._advisory.classList.toggle('hud-advisory-alert', alert);
+    // An advisory with a place is a link: click to see where.
+    this._advisoryAt = alert ? stats.advisoryAt ?? null : null;
+    this._advisory.classList.toggle('hud-advisory-link', this._advisoryAt !== null);
+    this._advisory.title = this._advisoryAt ? 'Top city problem — click to see where' : 'Top city problem';
 
     // Housing demand as people act on it: happiness and the tax turn part of it away.
     const housing = housingDemand(stats);

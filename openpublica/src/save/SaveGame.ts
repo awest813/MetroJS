@@ -52,6 +52,8 @@ export interface SavedStats {
   advisory:          string;
   /** Buildings the power grid held back last month (the grid-full advisory). */
   powerHeld?:        number;
+  /** The advisory on show and the month it came up, so a load holds the same one. */
+  advisoryHold?:     { id: string; since: number; message?: string; at?: { x: number; y: number } } | null;
 }
 
 /** Serialised budget levers beyond taxes. */

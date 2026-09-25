@@ -401,3 +401,82 @@ describe('EvaluationSystem', () => {
     expect(sim.stats.powerSupply).toBe(400);
   });
 });
+
+describe('advice that holds still and says where (G6)', () => {
+  /** A town with a plant, a street, and houses, whose stats a test then sets. */
+  function town(): CitySim {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    placeConnectedPlant(sim, 0, 0);
+    for (let x = 1; x < 12; x++) sim.placeRoad(x, 1, RoadType.Street);
+    for (let x = 2; x < 12; x++) {
+      Object.assign(sim.getTile(x, 2)!, { zoneType: ZoneType.Residential, buildingId: 'small_house', powered: true, fireCoverage: 50, watered: true });
+      sim.growth.buildings.set(`${x},2`, { defId: 'small_house', x, y: 2 });
+    }
+    return sim;
+  }
+  const judge = (sim: CitySim, month: number, steady: boolean): string => {
+    sim.evaluation.tick(sim.map, sim.growth.buildings, sim.growth.defs, sim.stats, undefined, undefined, month, steady);
+    return sim.stats.advisory;
+  };
+  const calm = { population: 40, jobs: 40, pollutionAverage: 0, crimeAverage: 0, fireAverage: 60, waterAverage: 100, waterShort: 0 };
+
+  it('should keep the advisory on show for three months at month ends while it still applies', () => {
+    const sim = town();
+    Object.assign(sim.stats, calm, { crimeAverage: 40 });
+    expect(judge(sim, 0, true)).toMatch(/^Crime is high/);
+    // Smog now ranks higher, but crime still applies: it stays until month 3.
+    sim.stats.pollutionAverage = 50;
+    expect(judge(sim, 1, true)).toMatch(/^Crime is high/);
+    expect(judge(sim, 2, true)).toMatch(/^Crime is high/);
+    expect(judge(sim, 3, true)).toMatch(/^Smog spike/);
+    // Once smog lifts, the next month shows what is left.
+    sim.stats.pollutionAverage = 0;
+    expect(judge(sim, 4, true)).toMatch(/^Crime is high/);
+  });
+
+  it('should show an urgent advisory, or a trouble the player just caused, at once', () => {
+    const sim = town();
+    Object.assign(sim.stats, calm, { crimeAverage: 40 });
+    expect(judge(sim, 0, true)).toMatch(/^Crime is high/);
+    // An edit that raises smog brings up a new trouble: it shows now.
+    sim.stats.pollutionAverage = 50;
+    expect(judge(sim, 0, false)).toMatch(/^Smog spike/);
+    // Money running out is urgent, even in the middle of a hold.
+    Object.assign(sim.stats, { money: -100, bankruptcyWarning: true });
+    expect(judge(sim, 1, true)).toMatch(/^Treasury is bankrupt/);
+  });
+
+  it('should keep an emptying line while buildings are still emptying, whatever the cause this month', () => {
+    const sim = town();
+    Object.assign(sim.stats, calm);
+    const house = sim.getTile(3, 2)!;
+    Object.assign(house, { neglectMonths: 3, crime: 60 });
+    expect(judge(sim, 0, true)).toMatch(/^Buildings are emptying to crime/);
+    // Next month the same house struggles with smog instead.
+    Object.assign(house, { crime: 0, pollution: 80 });
+    expect(judge(sim, 1, true)).toMatch(/^Buildings are emptying to crime/);
+    expect(judge(sim, 3, true)).toMatch(/^Buildings are emptying in the smog/);
+  });
+
+  it('should say where the trouble is', () => {
+    const sim = town();
+    Object.assign(sim.stats, calm);
+    const house = sim.getTile(5, 2)!;
+    Object.assign(house, { neglectMonths: 3, crime: 60 });
+    judge(sim, 0, false);
+    expect(sim.stats.advisoryAt).toEqual({ x: 5, y: 2 });
+    // A zoned lot without a road next door is where the roads advisory points.
+    Object.assign(house, { neglectMonths: 0, crime: 0 });
+    sim.getTile(8, 8)!.zoneType = ZoneType.Residential;
+    judge(sim, 0, false);
+    expect(sim.stats.advisory).toMatch(/need a road next door/);
+    expect(sim.stats.advisoryAt).toEqual({ x: 8, y: 8 });
+  });
+
+  it('should teach zoning shops before asking for fire and water', () => {
+    const sim = town();
+    Object.assign(sim.stats, calm, { population: 44, jobs: 0, fireAverage: 0, waterAverage: 0 });
+    expect(judge(sim, 0, false)).toMatch(/jobs are far below the population/i);
+  });
+});

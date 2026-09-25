@@ -140,6 +140,8 @@ export interface CityStats {
    * Top city-wide advisory, or empty when nothing is wrong enough to flag.
    */
   advisory: string;
+  /** Where the advisory's trouble is, when it has a place (the HUD jumps there). */
+  advisoryAt?: { x: number; y: number } | null;
 }
 
 /**
@@ -263,6 +265,8 @@ export class CitySim {
 
   /** Nesting depth of {@link batch}; edits inside defer their refresh. */
   private _batchDepth = 0;
+  /** True while a month's end is evaluated: the advisory on show is held (see EvaluationSystem). */
+  private _steadyAdvice = false;
   /** An edit inside a batch is waiting for its refresh. */
   private _pendingRefresh = false;
 
@@ -568,7 +572,7 @@ export class CitySim {
       label: weatherLabel(next.kind),
       powerLoadRatio: ahead.powerLoad / now.powerLoad,
       waterLoadRatio: ahead.waterLoad / now.waterLoad,
-    }, this.budget ? { perTaxPoint: this.budget.perTaxPoint } : undefined);
+    }, this.budget ? { perTaxPoint: this.budget.perTaxPoint } : undefined, this.clock.monthsPassed, this._steadyAdvice);
   }
 
   /**
@@ -714,7 +718,12 @@ export class CitySim {
         // The next month's weather holds while it runs (catch-up runs several).
         monthsDone += 1;
         this._applyWeather(startMonth + monthsDone);
-        this._refreshCityHealth(true);
+        this._steadyAdvice = true;
+        try {
+          this._refreshCityHealth(true);
+        } finally {
+          this._steadyAdvice = false;
+        }
       },
     );
     this.clock.tick(month.clockAdvance);
@@ -734,7 +743,12 @@ export class CitySim {
     // Growth used last month's smog. Publish this month's traffic before the
     // HUD: the month ended by routing it on this layout, and only power and the
     // census (which traffic does not read) have run since.
-    this._syncPublishedState(true, true, true);
+    this._steadyAdvice = true;
+    try {
+      this._syncPublishedState(true, true, true);
+    } finally {
+      this._steadyAdvice = false;
+    }
     const w = this._weather;
     const newWeather = w.kind !== weatherBefore.kind || w.temperature !== weatherBefore.temperature;
     if (newWeather && this.onWeatherChanged) this.onWeatherChanged();

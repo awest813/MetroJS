@@ -438,6 +438,12 @@ export class App {
 
     const hud = new CityHUD(hudEl);
     hud.update(sim.stats, sim.clock, sim);
+    // Click an advisory with a place to go and look.
+    hud.onAdvisoryJump((x, y) => {
+      cameraController.lookAtTile(x, y, view.surfaceY(x, y));
+      view.highlight.show({ x, y }, view.surface);
+      redrawLook();
+    });
 
     let wasBankrupt = sim.stats.bankruptcyWarning;
     const syncAmbient = (): void => {

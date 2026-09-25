@@ -1,7 +1,7 @@
 # OpenPublica — Next gaps (after Phases A–H)
 
 **Date:** 2026-09-25 (first written 2026-09-20)  
-**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AK below have shipped on top.
+**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AL below have shipped on top.
 
 This is an implementation plan for **what is still missing**, not a licence to rewrite sim formulas or import Micropolis art.
 
@@ -882,6 +882,22 @@ Metro's downtown is now shop rows and shopfront flats, with a couple of office a
 
 ---
 
+### Gap AL — Steadier, located advice (plan slice G6) **shipped**
+
+The strategy audit found the naive town's top advisory changing 37 times in 67 months, cycling between crime, smog, "restore power, demand, or road access", and smog spike. It never said where any of it was. At 44 people and no jobs, the first advice after the coach was the fire nag, although `JOBS_GAP_POPULATION` says the jobs lesson comes first.
+
+| Slice | What shipped |
+|---|---|
+| AL1 Hold | At a month's end, the advisory on show stays for up to three months while it still applies (`ADVISORY_HOLD_MONTHS`). Only these replace it sooner: something urgent (bankruptcy, a deficit, no plant, dark houses or stations, next month's heatwave or freeze) or a trouble the player's own edit brings up. The emptying lines are one advisory per cause, one family: while buildings are still emptying, the held line stays even if this month's most common cause is another. The hold is saved, so a load shows the same advice. |
+| AL2 Where | Each advisory with a place carries one (`stats.advisoryAt`), for example the first lot needing a road, a dark building, a struggling building of that cause, an unprotected or dry building, the most jammed road, or the smoggiest or most crime-ridden tile. The HUD line becomes a link (↗); clicking it moves the camera there and highlights the tile, as the minimap does. |
+| AL3 Order | "Zone shops" (jobs far below the population) now comes before the water, smog, crime, and fire advice. |
+
+With no player edits, the naive town's advisory changes 13 times in 36 months, about once per three months, which is the hold's limit. With the scripted player's edits it is 29 times in 67 months (was 37), since an edit that raises a new trouble shows it at once. `EvaluationSystem.advisories` keeps the whole list for a later "other problems" view.
+
+**Exit:** In `?city=troubled`, click the advisory. The camera moves to a zoned lot with no road next door.
+
+---
+
 ## 4. Explicitly still out of scope (Phase I)
 
 Unchanged from the 3D plan:
@@ -906,7 +922,7 @@ Gap AH's systems pass). What is left:
 1. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
 2. **An artist's kit (optional).** The fifteen models are generated; hand-made ones can replace them file by file under `public/models/ASSET_LICENSE.md`.
 3. **Something to spend on late.** Once a test city is built out, its money only grows: Riverside from $55k to $166k in ten years. Upgrades that cost money to run, such as larger plants, stadiums, or road repaving, would give a finished city decisions to make.
-4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). G1–G3 have shipped (Gaps AI–AK). Next, in order: steadier advice, the plant's smog in view, a rating that means success, milestones, small-town services, a bankruptcy ending, late civic buildings (which answer item 3), and new-game options with scenarios.
+4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). G1–G3 and G6 have shipped (Gaps AI–AL). Next, in order: the plant's smog in view, a rating that means success, milestones, small-town services, a bankruptcy ending, late civic buildings (which answer item 3), and new-game options with scenarios.
 
 ---
 
@@ -924,6 +940,7 @@ Gap AH's systems pass). What is left:
 - Tiles: in `?city=riverside`, Shift-drag a street diagonally across the river (one span at the shore, none floating), and drag the bulldozer over a row of houses (an orange preview lists them and their cost; Esc keeps them).
 - Strategies: `npm run strategies` (in `openpublica/`) prints the strategy tables; `test/strategyBalance.ts` holds the balance bands.
 - Mixed use: zone only mixed use in a new city; flats grow in the first months.
+- Advice: the top advisory holds for up to three months; click it (↗) to go to the trouble.
 - Taxes: raise a tax in Budget and hover its bar: the tooltip names the empty places and the newcomers turned away, and the town keeps its people.
 - Systems: in `?city=troubled` the advisory names the industrial tax, and a few years on it says nobody will move in at 16%; in `?city=metro` Com's tooltip counts shop and office jobs; Save then Load leaves the HUD unchanged.
 - Growth and power: in `?city=sprawl` Inspect an empty lot at the end and it is waiting for power, with no house dark.

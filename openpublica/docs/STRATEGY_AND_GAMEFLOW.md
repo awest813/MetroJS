@@ -196,6 +196,8 @@ Nothing stops the city or rescues it.
 
 **F10 — The advice order contradicts its own design.** At 44 residents and no jobs, the first message after the coach is "Fire coverage is thin" rather than "Zone shops". The code says the jobs lesson comes first (`JOBS_GAP_POPULATION`), but the fire advisory is pushed ahead of it.
 
+*Fixed by G6 (Gap AL).* At 44 people and no jobs, the first advice is now "Zone shops". The advice also holds still. Without player edits, the naive town's advisory changes at most about every three months (13 times in months 37–72); edits that bring up a new trouble still show it at once. Every advisory with a place is a link that jumps the camera there.
+
 **What works, and must survive the changes:**
 
 - The opening gets a first town growing in month 1.
@@ -237,7 +239,7 @@ Slices are named G1–G11 here and become gap letters as they ship. Each has an 
 | Slice | Change | Exit |
 |---|---|---|
 | **G5 Plant smog in view** | The plant tool previews its smog reach and warns when homes or housing lots fall inside it ("12 homes would breathe this plant's smog"). The coach says "beside a street, away from the houses". An industrial zone area shows which housing lots its factories would smog. | In the browser, placing a plant beside the first houses shows the warning. A naive-player variant that heeds it reaches at least 80% of the balanced town's population. |
-| **G6 Steadier, located advice** | Keep the top advisory for at least 3 months unless something more urgent appears. Name where the trouble is, with a jump like Inspect's. Put the jobs lesson ahead of fire and water, as `JOBS_GAP_POPULATION` intends (F10). | The naive run's top advisory changes at most once per 3 months, except for urgent ones. At 44 people and no jobs, it says to zone shops. |
+| **G6 Steadier, located advice** (shipped as Gap AL) | Keep the top advisory for at least 3 months unless something more urgent appears. Name where the trouble is, with a jump like Inspect's. Put the jobs lesson ahead of fire and water, as `JOBS_GAP_POPULATION` intends (F10). | The naive run's top advisory changes at most once per 3 months, except for urgent ones. At 44 people and no jobs, it says to zone shops. |
 
 ### Part D — Give the game an arc
 

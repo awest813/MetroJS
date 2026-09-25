@@ -73,6 +73,7 @@ export class SaveCodec {
         approval:          sim.stats.approval,
         advisory:          sim.stats.advisory,
         powerHeld:         sim.stats.powerHeld ?? 0,
+        advisoryHold:      sim.evaluation.hold,
       },
       levers: {
         safetyFunding: sim.levers.safetyFunding,
@@ -149,6 +150,15 @@ export class SaveCodec {
     sim.stats.approval          = s.approval          ?? 100;
     sim.stats.advisory          = s.advisory          ?? '';
     sim.stats.powerHeld         = s.powerHeld         ?? 0;
+    const hold = s.advisoryHold;
+    sim.evaluation.hold = hold && typeof hold.id === 'string' && Number.isFinite(hold.since)
+      ? {
+        id: hold.id,
+        since: hold.since,
+        ...(typeof hold.message === 'string' ? { message: hold.message } : {}),
+        ...(hold.at && Number.isFinite(hold.at.x) && Number.isFinite(hold.at.y) ? { at: { x: hold.at.x, y: hold.at.y } } : {}),
+      }
+      : null;
 
     sim.restoreLevers(save.levers ?? {});
 
