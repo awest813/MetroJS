@@ -239,15 +239,12 @@ describe('EvaluationSystem', () => {
       Object.assign(sim.stats, { residentialDemand: 0, population: 40, jobs: 20 });
       judge(sim);
       expect(sim.stats.advisory).toMatch(/more homes than jobs/);
-      // With work to spare, it is the tax that keeps people away.
-      Object.assign(sim.stats, { population: 40, jobs: 60, resTaxRate: 15 });
+      // With work to spare, demand is on its way back.
+      Object.assign(sim.stats, { population: 40, jobs: 60 });
       judge(sim);
       expect(sim.stats.advisory).toBe(
-        'Houses are emptying — there is work, but residential tax at 15% keeps people away. Cut it toward 9%.',
+        'Houses are emptying — housing demand ran dry and is climbing back while jobs outnumber homes.',
       );
-      sim.stats.resTaxRate = 9;
-      judge(sim);
-      expect(sim.stats.advisory).toMatch(/housing demand ran dry and is climbing back/);
     });
 
     it('should leave a few dry buildings to the Water map', () => {
@@ -316,7 +313,7 @@ describe('EvaluationSystem', () => {
     expect(sim.stats.advisory).toMatch(/Houses are emptying — more homes than jobs/);
   });
 
-  it('should name the shops or factories that empty, and the tax when it is the cause', () => {
+  it('should name the shops or factories that empty', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
     placeConnectedPlant(sim, 0, 0);
@@ -334,15 +331,12 @@ describe('EvaluationSystem', () => {
     expect(sim.stats.advisory).toBe(
       'Shops are emptying — there are more shops than residents to keep them busy. Zone housing for more customers.',
     );
-    sim.stats.comTaxRate = 14;
-    sim.evaluate();
-    expect(sim.stats.advisory).toBe('Shops are emptying — commercial tax at 14% drives them off. Cut it toward 9%.');
 
     sim.getTile(10, 11)!.neglectMonths = 0;
     lot(11, ZoneType.Industrial, 'factory');
-    Object.assign(sim.stats, { industrialDemand: 0, indTaxRate: 16 });
+    Object.assign(sim.stats, { industrialDemand: 0 });
     sim.evaluate();
-    expect(sim.stats.advisory).toBe('Factories are emptying — industrial tax at 16% drives them off. Cut it toward 9%.');
+    expect(sim.stats.advisory).toBe('Factories are emptying — nearly every resident already has work. Zone housing for more workers.');
   });
 
   it('should warn when a station sits outside the plant radius', () => {

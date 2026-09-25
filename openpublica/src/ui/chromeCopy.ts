@@ -1,4 +1,5 @@
 import { HAPPY_DRAW, UNHAPPY_FLOOR, happinessDraw, type HappinessParts } from '../sim/happiness';
+import { taxDraw, taxOccupancy } from '../sim/taxes';
 
 /**
  * Shared chrome strings and money formatting. No DOM — Jest can load this.
@@ -47,33 +48,68 @@ export function formatRunway(money: number, net: number): string | null {
 
 /** What each tax slider does, for its tooltip. */
 export const TAX_HINTS: Readonly<Record<'res' | 'com' | 'ind', string>> = {
-  res: 'Each point above 9% cuts housing demand by 2 a month; each point below adds 2. At 16% an empty town draws nobody.',
-  com: 'Each point above 9% lowers the shop demand target by 4; each point below raises it by 4.',
-  ind: 'Each point above 9% lowers the factory demand target by 4; each point below raises it by 4.',
+  res: 'Each point above 9% leaves 4% of homes empty and turns away 7% of newcomers; each point below draws 5% more newcomers.',
+  com: 'Each point above 9% leaves 4% of shop jobs empty and slows new shops by 7%; each point below speeds them by 5%.',
+  ind: 'Each point above 9% leaves 4% of factory jobs empty and slows new factories by 7%; each point below speeds them by 5%.',
 };
+
+/** What a tax rate does to its zone, for a tooltip: "At 12%, 12% of shop jobs stand empty and 21% fewer open". */
+function taxEffect(rate: number, places: string, newcomers: string): string {
+  if (rate > 9) {
+    const empty = Math.round((1 - taxOccupancy(rate)) * 100);
+    const away = Math.round((1 - taxDraw(rate)) * 100);
+    return ` At ${rate}% tax, ${empty}% of ${places} stand empty and ${away}% fewer ${newcomers}.`;
+  }
+  if (rate < 9) return ` At ${rate}% tax, ${Math.round((taxDraw(rate) - 1) * 100)}% more ${newcomers}.`;
+  return '';
+}
+
+/** " The bar shows the 65% that acts." when the tax moves it. */
+function actingNote(demand: number, acting: number): string {
+  return Math.round(acting) !== Math.round(demand) ? ` The bar shows the ${Math.round(acting)}% that acts.` : '';
+}
+
+/** Housing demand, and what happiness and the residential tax let act. */
+export function housingTooltip(stats: { residentialDemand: number; happiness: number; resTaxRate: number }, acting: number): string {
+  const turned: string[] = [];
+  const mood = happinessDraw(stats.happiness);
+  if (mood < 1) turned.push(`happiness ${stats.happiness} turns ${Math.round((1 - mood) * 100)}% away`);
+  const draw = taxDraw(stats.resTaxRate);
+  if (draw < 1) turned.push(`${stats.resTaxRate}% tax turns ${Math.round((1 - draw) * 100)}% away`);
+  if (draw > 1) turned.push(`${stats.resTaxRate}% tax draws ${Math.round((draw - 1) * 100)}% more`);
+  const act = turned.length > 0 ? `; ${turned.join(' and ')}, so ${acting}% act on it` : '';
+  const empty = stats.resTaxRate > 9
+    ? ` At this tax ${Math.round((1 - taxOccupancy(stats.resTaxRate)) * 100)}% of homes stand empty.`
+    : '';
+  return `Housing demand ${Math.round(stats.residentialDemand)}%: people move in while jobs outnumber homes${act}.${empty}`;
+}
 
 /** Shop demand: how many shop and office jobs the residents keep busy, and how many are open. */
 export function commerceTooltip(
   stats: { commercialDemand: number; population: number; shopJobs?: number; comTaxRate: number },
   jobsPerResident: number,
+  /** The demand shops act on (after the tax), when it differs. */
+  acting = stats.commercialDemand,
 ): string {
   const room = Math.round(stats.population * jobsPerResident);
   const open = stats.shopJobs ?? 0;
   const why = stats.population <= 0
     ? 'shops wait for residents'
     : `${stats.population.toLocaleString()} residents keep up to ${room.toLocaleString()} shop and office jobs busy; ${open.toLocaleString()} are open`;
-  const tax = stats.comTaxRate > 9 ? `. Commercial tax at ${stats.comTaxRate}% holds it down` : '';
-  return `Shop demand ${Math.round(stats.commercialDemand)}%: ${why}${tax}. Walkable streets and transit raise it.`;
+  return `Shop demand ${Math.round(stats.commercialDemand)}%: ${why}. Walkable streets and transit raise it.${taxEffect(stats.comTaxRate, 'shop jobs', 'shops open')}${actingNote(stats.commercialDemand, acting)}`;
 }
 
 /** Factory demand: the residents without work, and the tax. */
-export function industryTooltip(stats: { industrialDemand: number; population: number; jobs: number; indTaxRate: number }): string {
+export function industryTooltip(
+  stats: { industrialDemand: number; population: number; jobs: number; indTaxRate: number },
+  /** The demand factories act on (after the tax), when it differs. */
+  acting = stats.industrialDemand,
+): string {
   const idle = Math.max(0, stats.population - stats.jobs);
   const why = idle > 0
     ? `${idle.toLocaleString()} residents have no job, and factories open to hire them`
     : 'every resident has a job, so few new factories open';
-  const tax = stats.indTaxRate > 9 ? `. Industrial tax at ${stats.indTaxRate}% holds it down` : '';
-  return `Factory demand ${Math.round(stats.industrialDemand)}%: ${why}${tax}.`;
+  return `Factory demand ${Math.round(stats.industrialDemand)}%: ${why}.${taxEffect(stats.indTaxRate, 'factory jobs', 'factories open')}${actingNote(stats.industrialDemand, acting)}`;
 }
 
 /**

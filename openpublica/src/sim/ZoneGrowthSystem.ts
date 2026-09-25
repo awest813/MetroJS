@@ -17,10 +17,11 @@ import { TrafficPressureSystem } from './TrafficPressureSystem';
 import { PowerRoom } from './powerRoom';
 import { WalkabilitySystem } from './WalkabilitySystem';
 import { TransitSystem } from './TransitSystem';
+import { taxOccupancy } from './taxes';
 import {
   NEIGHBOUR_GROWTH_PULL,
   POWERED_ROAD_GROWTH_BOOST,
-  starterDemand,
+  STARTER_RESIDENTIAL_DEMAND,
   UNPOWERED_FACTOR,
   demandForZone,
   growthChance,
@@ -54,9 +55,6 @@ export const INDUSTRY_BASELINE = 20;
  */
 export const IDLE_SHARE_DEMAND = 200;
 
-/** Target points per point of industrial tax under (or over) 9%. */
-const INDUSTRY_TAX_DEMAND = 4;
-
 /**
  * Most industrial demand rises toward its target in a month; it falls twice
  * as fast, so factories stop converting soon after the jobs gap closes.
@@ -72,25 +70,23 @@ export const SHOP_JOBS_PER_RESIDENT = 1.5;
 /** Most commercial demand moves toward its target in a month, up or down. */
 export const COMMERCE_DEMAND_STEP = 5;
 
-/** Commercial demand target per point of commercial tax under (or over) 9%. */
-const COMMERCE_TAX_DEMAND = 4;
-
 /**
  * Next month's commercial demand: a step toward a target set by the room
  * residents leave for shops (all of it with no shops, none once every
  * resident keeps {@link SHOP_JOBS_PER_RESIDENT} shop jobs busy), raised by
- * walkable streets and transit (up to 10 each), and lowered by commercial
- * tax over 9% ({@link COMMERCE_DEMAND_STEP} a month either way).
+ * walkable streets and transit (up to 10 each), {@link COMMERCE_DEMAND_STEP}
+ * a month either way. The commercial tax scales the demand shops act on
+ * instead (see taxes.ts).
  */
 export function nextCommercialDemand(
-  stats: Pick<CityStats, 'population' | 'shopJobs' | 'commercialDemand' | 'comTaxRate' | 'walkability' | 'transitAccess'>,
+  stats: Pick<CityStats, 'population' | 'shopJobs' | 'commercialDemand' | 'walkability' | 'transitAccess'>,
 ): number {
   let target = 0;
   if (stats.population > 0) {
     const room = 1 - (stats.shopJobs ?? 0) / (stats.population * SHOP_JOBS_PER_RESIDENT);
     target = Math.max(0, Math.min(
       MAX_DEMAND,
-      room * 100 + stats.walkability / 10 + stats.transitAccess / 10 + (9 - stats.comTaxRate) * COMMERCE_TAX_DEMAND,
+      room * 100 + stats.walkability / 10 + stats.transitAccess / 10,
     ));
   }
   const step = Math.max(-COMMERCE_DEMAND_STEP, Math.min(COMMERCE_DEMAND_STEP, target - stats.commercialDemand));
@@ -119,14 +115,15 @@ export function tileKey(x: number, y: number): string {
  */
 /**
  * Next month's industrial demand: a step toward a target of the baseline
- * plus the idle share of residents, lowered by taxes over 9% and raised by
- * taxes under ({@link INDUSTRY_DEMAND_STEP} up, twice that down).
+ * plus the idle share of residents ({@link INDUSTRY_DEMAND_STEP} up, twice
+ * that down). The industrial tax scales the demand factories act on instead
+ * (see taxes.ts).
  */
-export function nextIndustrialDemand(stats: Pick<CityStats, 'population' | 'jobs' | 'industrialDemand' | 'indTaxRate'>): number {
+export function nextIndustrialDemand(stats: Pick<CityStats, 'population' | 'jobs' | 'industrialDemand'>): number {
   const idleShare = stats.population > 0 ? Math.max(0, stats.population - stats.jobs) / stats.population : 0;
   const target = Math.max(0, Math.min(
     MAX_DEMAND,
-    INDUSTRY_BASELINE + idleShare * IDLE_SHARE_DEMAND + (9 - stats.indTaxRate) * INDUSTRY_TAX_DEMAND,
+    INDUSTRY_BASELINE + idleShare * IDLE_SHARE_DEMAND,
   ));
   const step = Math.max(-2 * INDUSTRY_DEMAND_STEP, Math.min(INDUSTRY_DEMAND_STEP, target - stats.industrialDemand));
   return Math.max(0, Math.min(MAX_DEMAND, Math.round(stats.industrialDemand + step)));
@@ -339,19 +336,23 @@ export class ZoneGrowthSystem {
    *   without a job ({@link nextIndustrialDemand}).
    * - higher tax rates suppress demand (penalty); lower rates boost it.
    */
-  /** Housing demand from last month's jobs. An empty city keeps the starter bar ({@link starterDemand}). */
+  /**
+   * Housing demand from last month's jobs: up 5 while jobs outnumber homes,
+   * down 2 otherwise, plus a little for transit. An empty city keeps the
+   * starter bar. The residential tax does not enter here; it scales the
+   * demand people act on ({@link housingDemand}).
+   */
   private _updateResidentialDemand(stats: CityStats): void {
-    const resTaxMod = (9 - stats.resTaxRate) * 2;
     const TRANSIT_RES_DEMAND_DIVISOR = 50;
     if (stats.population === 0) {
-      stats.residentialDemand = starterDemand(stats.resTaxRate);
+      stats.residentialDemand = STARTER_RESIDENTIAL_DEMAND;
       return;
     }
     const jobBalance = stats.jobs - stats.population;
     const transitResBoost = Math.round(stats.transitAccess / TRANSIT_RES_DEMAND_DIVISOR);
     stats.residentialDemand = Math.max(
       0,
-      Math.min(MAX_DEMAND, stats.residentialDemand + (jobBalance > 0 ? 5 : -2) + transitResBoost + resTaxMod),
+      Math.min(MAX_DEMAND, stats.residentialDemand + (jobBalance > 0 ? 5 : -2) + transitResBoost),
     );
   }
 
@@ -640,6 +641,10 @@ export class ZoneGrowthSystem {
     let darkPopulation = 0;
     let jobs       = 0;
     let shopJobs   = 0;
+    // Taxes over 9% leave a share of homes and jobs empty (see taxes.ts).
+    const homesFilled = taxOccupancy(stats.resTaxRate);
+    const shopsFilled = taxOccupancy(stats.comTaxRate);
+    const worksFilled = taxOccupancy(stats.indTaxRate);
 
     for (const instance of this.buildings.values()) {
       const def = this._defs.get(instance.defId);
@@ -647,13 +652,14 @@ export class ZoneGrowthSystem {
       const tile   = map.getTile(instance.x, instance.y);
       const powered = tile?.powered ?? false;
       const factor = powered ? 1.0 : UNPOWERED_FACTOR;
-      const people = def.population * factor;
+      const people = def.population * factor * homesFilled;
       population += people;
       if (!powered) darkPopulation += people;
-      if (!def.isService) jobs += def.jobs * factor;
-      if (!def.isService && (def.zoneType === ZoneType.Commercial || def.zoneType === ZoneType.MixedUse)) {
-        shopJobs += def.jobs * factor;
-      }
+      if (def.isService) continue;
+      const shop = def.zoneType === ZoneType.Commercial || def.zoneType === ZoneType.MixedUse;
+      const filled = shop ? shopsFilled : def.zoneType === ZoneType.Industrial ? worksFilled : 1;
+      jobs += def.jobs * factor * filled;
+      if (shop) shopJobs += def.jobs * factor * filled;
     }
 
     stats.population = Math.floor(population);

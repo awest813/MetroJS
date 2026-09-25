@@ -26,7 +26,7 @@ export function strategyReport(only: readonly string[] = []): string {
     lines.push('Strategies (20 years from a new city, $10,000, map seed 2026)', ...strategyTable(runs), '');
   }
   if (pick('taxes')) {
-    const rates = [7, 9, 10, 11, 12, 13];
+    const rates = [5, 7, 9, 10, 11, 12, 13, 15, 17, 20];
     const sweep = [...rates.map((r) => taxStrategy(r)), taxStrategy(12, true)].map((s) => summarize(playStrategy(s)));
     lines.push('The balanced town at each tax rate', ...strategyTable(sweep), '');
   }

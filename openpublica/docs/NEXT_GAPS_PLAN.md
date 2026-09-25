@@ -1,7 +1,7 @@
 # OpenPublica — Next gaps (after Phases A–H)
 
 **Date:** 2026-09-25 (first written 2026-09-20)  
-**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AI below have shipped on top.
+**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AJ below have shipped on top.
 
 This is an implementation plan for **what is still missing**, not a licence to rewrite sim formulas or import Micropolis art.
 
@@ -843,6 +843,27 @@ The plan's tables now come from this report. The findings stand, with some figur
 
 ---
 
+### Gap AJ — Honest taxes (plan slice G2) **shipped**
+
+The strategy audit found taxes almost free up to 11% and a cliff at 12%. The residential tax took 2 a month from housing demand while jobs added 5, so at 12% and above demand drained away even when jobs outnumbered homes. The shop and factory taxes had cliffs of their own at about 15%: they cut their demand targets, which reached zero there.
+
+| Slice | What shipped |
+|---|---|
+| AJ1 One rule for all three taxes | `sim/taxes.ts`. Above 9%, each point turns away 7% of newcomers (`taxDraw` scales the demand a zone acts on, so it grows more slowly and builds less densely) and leaves 4% of places empty (`taxOccupancy`: the census counts fewer residents and jobs, and the budget taxes only filled places). Below 9%, each point draws 5% more newcomers. The draw stays between 0.3× and 1.3×, and occupancy never drops below 40%. Housing, shop, and factory demand no longer carry tax terms, so no rate empties a town on its own. |
+| AJ2 Advice | The deficit advisory says what a point on every tax would bring in (in the balanced town at year 10, "A point on every tax brings in about $274 a month (and empties about 4% of places)"), counting the places it empties. The high-tax advisory names the share of empty places. The emptying advice no longer blames taxes, which cannot empty a town now. The empty-town tax line from Gap AH is gone, because an empty town at a high tax still draws people, only fewer. |
+| AJ3 HUD | The Com and Ind bars show the demand that acts after the tax, as Res already did. Each bar's tooltip gives the raw demand, what the tax does ("At 14% tax, 20% of shop jobs stand empty and 35% fewer shops open"), and the acting share. The tax sliders' tooltips give the real rule. |
+
+In the harness sweep, the balanced town at year 10:
+- **Population** falls smoothly as the tax rises: 700 at 9%, 596 at 11%, 584 at 13%, 519 at 15%, 365 at 20%.
+- **Money** levels off: $97,000 at 9%, about $140,000–$152,000 from 12% to 17%, $122,000 at 20%.
+- **Debt:** no rate from 7% to 20% puts the careful town in debt; 5% cannot cover upkeep.
+
+Strategies at 9% are unchanged. The industry-late town, which sets a 5% factory tax, now banks $32,507 by year 10 instead of $72,856, because a low tax no longer boosts demand for free. `test/strategyBalance.ts` holds the band: 11% and 13% are debt-free, cost people by at most 12% a point, and earn more than 9%.
+
+**Exit:** In `?city=troubled` (16/14/14% taxes), hover Res. It says the 16% tax turns 49% of newcomers away and leaves 28% of homes empty. The town keeps its people rather than emptying.
+
+---
+
 ## 4. Explicitly still out of scope (Phase I)
 
 Unchanged from the 3D plan:
@@ -867,7 +888,7 @@ Gap AH's systems pass). What is left:
 1. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
 2. **An artist's kit (optional).** The fifteen models are generated; hand-made ones can replace them file by file under `public/models/ASSET_LICENSE.md`.
 3. **Something to spend on late.** Once a test city is built out, its money only grows: Riverside from $55k to $166k in ten years. Upgrades that cost money to run, such as larger plants, stadiums, or road repaving, would give a finished city decisions to make.
-4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). G1, the strategy harness, has shipped (Gap AI). Next, in order: honest taxes, mixed use with a trade-off, steadier advice, the plant's smog in view, a rating that means success, milestones, small-town services, a bankruptcy ending, late civic buildings (which answer item 3), and new-game options with scenarios.
+4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). G1 and G2 have shipped (Gaps AI, AJ). Next, in order: mixed use with a trade-off, steadier advice, the plant's smog in view, a rating that means success, milestones, small-town services, a bankruptcy ending, late civic buildings (which answer item 3), and new-game options with scenarios.
 
 ---
 
@@ -884,6 +905,7 @@ Gap AH's systems pass). What is left:
 - Commutes: in `?city=riverside` open Traffic and find the street bridge carrying the south bank's commuters; lay a long street between a row of houses and a block of shops and it reads busy along its whole length.
 - Tiles: in `?city=riverside`, Shift-drag a street diagonally across the river (one span at the shore, none floating), and drag the bulldozer over a row of houses (an orange preview lists them and their cost; Esc keeps them).
 - Strategies: `npm run strategies` (in `openpublica/`) prints the strategy tables; `test/strategyBalance.ts` holds the balance bands.
+- Taxes: raise a tax in Budget and hover its bar: the tooltip names the empty places and the newcomers turned away, and the town keeps its people.
 - Systems: in `?city=troubled` the advisory names the industrial tax, and a few years on it says nobody will move in at 16%; in `?city=metro` Com's tooltip counts shop and office jobs; Save then Load leaves the HUD unchanged.
 - Growth and power: in `?city=sprawl` Inspect an empty lot at the end and it is waiting for power, with no house dark.
 - Streets: zone a 15-wide area in the open and its lines meet at a cross street halfway along as well as at both ends.

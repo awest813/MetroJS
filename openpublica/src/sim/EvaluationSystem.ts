@@ -8,6 +8,7 @@ import { RoadType, ZoneType } from './CityTile';
 import { housingDemand, tileHasAdjacentRoad, zoneStress, type ZoneStress } from './zoneGrowthHints';
 import { stationHasRoad } from './roadDispatch';
 import { EXTREME_TRAFFIC_PRESSURE } from './happiness';
+import { taxOccupancy } from './taxes';
 
 /** Pollution average subtracted from approval at this weight. */
 const POLLUTION_WEIGHT = 0.30;
@@ -76,11 +77,18 @@ export class EvaluationSystem {
     defs: ReadonlyMap<string, BuildingDef>,
     stats: CityStats,
     forecast?: WeatherForecast,
+    /** What one more point on every tax would bring in a month (for the deficit advice). */
+    budget?: BudgetHints,
   ): void {
     const census = survey(map, buildings, defs, stats);
     stats.approval = score(stats, census);
-    stats.advisory = topAdvisory(stats, census, forecast);
+    stats.advisory = topAdvisory(stats, census, forecast, budget);
   }
+}
+
+/** Budget figures the advice quotes. */
+export interface BudgetHints {
+  readonly perTaxPoint: number;
 }
 
 /** Next month's weather, as the load it will put on today's grids. */
@@ -281,21 +289,12 @@ function emptyingMessage(census: Census, stats: CityStats): string {
         if (stats.residentialDemand > 0 && housingDemand(stats) <= 0) {
           return `Houses are emptying — people are too unhappy to stay (happiness ${stats.happiness}). Clear the jammed roads and crime.`;
         }
-        if (stats.jobs < stats.population) {
-          return 'Houses are emptying — more homes than jobs. Zone shops or factories, or cut residential tax.';
-        }
-        // There is work: the tax is what keeps people away, or demand is still climbing back.
-        return stats.resTaxRate > 9
-          ? `Houses are emptying — there is work, but residential tax at ${stats.resTaxRate}% keeps people away. Cut it toward 9%.`
-          : 'Houses are emptying — housing demand ran dry and is climbing back while jobs outnumber homes. Cutting residential tax speeds it up.';
+        return stats.jobs < stats.population
+          ? 'Houses are emptying — more homes than jobs. Zone shops or factories.'
+          : 'Houses are emptying — housing demand ran dry and is climbing back while jobs outnumber homes.';
       }
-      if (census.strugglingShops) {
-        return stats.comTaxRate > 9
-          ? `Shops are emptying — commercial tax at ${stats.comTaxRate}% drives them off. Cut it toward 9%.`
-          : 'Shops are emptying — there are more shops than residents to keep them busy. Zone housing for more customers.';
-      }
-      return stats.indTaxRate > 9
-        ? `Factories are emptying — industrial tax at ${stats.indTaxRate}% drives them off. Cut it toward 9%.`
+      return census.strugglingShops
+        ? 'Shops are emptying — there are more shops than residents to keep them busy. Zone housing for more customers.'
         : 'Factories are emptying — nearly every resident already has work. Zone housing for more workers.';
     case 'power':
       return 'Buildings are emptying in the dark — connect their streets to a power plant with room to spare.';
@@ -308,12 +307,12 @@ function emptyingMessage(census: Census, stats: CityStats): string {
   }
 }
 
-function topAdvisory(stats: CityStats, census: Census, forecast?: WeatherForecast): string {
-  const list = listAdvisories(stats, census, forecast);
+function topAdvisory(stats: CityStats, census: Census, forecast?: WeatherForecast, budget?: BudgetHints): string {
+  const list = listAdvisories(stats, census, forecast, budget);
   return list[0]?.message ?? '';
 }
 
-function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherForecast): Advisory[] {
+function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherForecast, budget?: BudgetHints): Advisory[] {
   const out: Advisory[] = [];
   if (stats.bankruptcyWarning) {
     out.push({ id: 'bankrupt', message: 'Treasury is bankrupt — take a bond in Budget, then raise taxes or trim funding.' });
@@ -323,9 +322,13 @@ function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherFore
     const months = Math.floor(stats.money / -net);
     if (months < DEFICIT_WARNING_MONTHS) {
       const shown = Math.max(1, months);
+      const gain = budget?.perTaxPoint ?? 0;
+      const taxes = gain > 0
+        ? `A point on every tax brings in about $${gain.toLocaleString()} a month (and empties about 4% of places)`
+        : 'Raise taxes';
       out.push({
         id: 'deficit',
-        message: `The budget is $${(-net).toLocaleString()}/mo in the red — money runs out in about ${shown} month${shown === 1 ? '' : 's'}. Raise taxes or trim police, fire, or road funding.`,
+        message: `The budget is $${(-net).toLocaleString()}/mo in the red — money runs out in about ${shown} month${shown === 1 ? '' : 's'}. ${taxes}, or trim police, fire, or road funding.`,
       });
     }
   }
@@ -333,12 +336,6 @@ function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherFore
   // (A power exodus has its own lines below.)
   const exodus = census.strugglingCount > 0 && census.strugglingCause !== 'power';
   if (exodus) out.push({ id: 'abandon', message: emptyingMessage(census, stats) });
-  // So does an empty town its residential tax keeps empty (not just "taxes are high").
-  const taxKeepsOut = stats.population === 0 && census.zonedCount > 0 &&
-    stats.residentialDemand <= 0 && stats.resTaxRate > 9;
-  if (taxKeepsOut) {
-    out.push({ id: 'tax-empty', message: `Nobody will move in at ${stats.resTaxRate}% residential tax — cut it toward 9%.` });
-  }
   if (census.lotsNeedRoad > 0) {
     out.push({
       id: 'roads',
@@ -459,8 +456,13 @@ function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherFore
       message: `Traffic is jammed on ${census.extremeRoads} roads — upgrade them to a highway or trolley line, or add a street behind the block.`,
     });
   }
-  if (!taxKeepsOut && (stats.resTaxRate >= 15 || stats.comTaxRate >= 15 || stats.indTaxRate >= 15)) {
-    out.push({ id: 'tax', message: 'Taxes are high — demand and approval will sag.' });
+  const topTax = Math.max(stats.resTaxRate, stats.comTaxRate, stats.indTaxRate);
+  if (topTax >= 15) {
+    const empty = Math.round((1 - taxOccupancy(topTax)) * 100);
+    out.push({
+      id: 'tax',
+      message: `Taxes are high — at ${topTax}% about ${empty}% of places stand empty and newcomers stay away, and approval sags.`,
+    });
   }
   const jobsFarBelow = stats.population >= JOBS_GAP_POPULATION && stats.jobs * 2 < stats.population;
   if (jobsFarBelow) {
@@ -488,7 +490,7 @@ function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherFore
           id: 'need-zone',
           message: 'Zone lots beside the street so houses can grow.',
         });
-      } else if (!taxKeepsOut) {
+      } else {
         out.push({
           id: 'waiting',
           message: 'Waiting for growth — houses appear each month on powered lots by the road.',

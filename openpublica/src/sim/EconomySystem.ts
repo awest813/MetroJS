@@ -7,6 +7,7 @@ import { RoadType, ZoneType, TerrainType } from './CityTile';
 import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 import { bondPayments, payBonds, type Bond } from './budgetLevers';
+import { taxOccupancy, taxPointGain } from './taxes';
 
 // ── Named constants ────────────────────────────────────────────────────────
 
@@ -83,8 +84,9 @@ export const SERVICE_BUILDING_MONTHLY_COST = 50;
  * ## Income formula
  * ```
  * monthlyIncome = population    × resTaxRate × RES_INCOME_PER_PERSON_PER_PCT
- *               + comJobs       × comTaxRate × COM_INCOME_PER_JOB_PER_PCT
- *               + indJobs       × indTaxRate × IND_INCOME_PER_JOB_PER_PCT
+ *               + comJobs × filled(comTaxRate) × comTaxRate × COM_INCOME_PER_JOB_PER_PCT
+ *               + indJobs × filled(indTaxRate) × indTaxRate × IND_INCOME_PER_JOB_PER_PCT
+ * (population already counts the homes the residential tax leaves empty; see taxes.ts)
  * ```
  *
  * ## Expense formula
@@ -165,6 +167,8 @@ export interface BudgetTally {
   /** Bond repayments due. */
   bondExpenses: number;
   expenses: number;
+  /** What one more point on each of the three taxes would add a month, counting the places it empties. */
+  perTaxPoint: number;
 }
 
 /**
@@ -194,9 +198,15 @@ export function tallyBudget(
   const serviceExpenses = serviceUpkeep(buildings, defs, levers.safetyFunding);
   const safetyExpenses = safetyUpkeep(buildings, defs, levers.safetyFunding);
 
+  // Population is counted with its vacancies; jobs are counted here, so fill them the same way.
   const resIncome = Math.floor(stats.population * stats.resTaxRate * RES_INCOME_PER_PERSON_PER_PCT);
-  const comIncome = Math.floor(comJobs * stats.comTaxRate * COM_INCOME_PER_JOB_PER_PCT);
-  const indIncome = Math.floor(indJobs * stats.indTaxRate * IND_INCOME_PER_JOB_PER_PCT);
+  const comIncome = Math.floor(comJobs * taxOccupancy(stats.comTaxRate) * stats.comTaxRate * COM_INCOME_PER_JOB_PER_PCT);
+  const indIncome = Math.floor(indJobs * taxOccupancy(stats.indTaxRate) * stats.indTaxRate * IND_INCOME_PER_JOB_PER_PCT);
+  const perTaxPoint = Math.round(
+    taxPointGain(resIncome, stats.resTaxRate) +
+    taxPointGain(comIncome, stats.comTaxRate) +
+    taxPointGain(indIncome, stats.indTaxRate),
+  );
 
   let roadUpkeepTotal = 0;
   map.forEach((tile) => {
@@ -218,6 +228,7 @@ export function tallyBudget(
     safetyExpenses,
     bondExpenses,
     expenses: roadExpenses + serviceExpenses + bondExpenses,
+    perTaxPoint,
   };
 }
 

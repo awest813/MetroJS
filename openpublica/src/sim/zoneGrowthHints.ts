@@ -6,25 +6,13 @@ import { RoadType, ZoneType, TerrainType } from './CityTile';
 import type { CityTile } from './CityTile';
 import { ROAD_STEPS, hasRoadFrontage, isBridgeAt } from './roadConnections';
 import { happinessDraw } from './happiness';
+import { taxDraw } from './taxes';
 
 /**
  * Opening residential demand. The monthly loop otherwise decays R-demand when
  * jobs ≤ population, so a new city that only paints houses would never grow.
  */
 export const STARTER_RESIDENTIAL_DEMAND = 40;
-
-/** Starter demand per point of residential tax under (or over) 9%. */
-export const STARTER_TAX_DEMAND = 6;
-
-/**
- * Housing demand in a city nobody lives in: the starter bar, moved by the
- * residential tax. At 16% and up nobody moves in, so a town its taxes
- * emptied stays empty until they come down, instead of regrowing on the
- * starter bar and emptying again every few years.
- */
-export function starterDemand(resTaxRate: number): number {
-  return Math.max(0, Math.min(100, STARTER_RESIDENTIAL_DEMAND + (9 - resTaxRate) * STARTER_TAX_DEMAND));
-}
 
 /**
  * Share of population and jobs counted while a building has no power.
@@ -256,22 +244,27 @@ export function growthChance(
 export function demandForZone(zoneType: ZoneType, stats: CityStats): number {
   switch (zoneType) {
     case ZoneType.Residential: return housingDemand(stats);
-    case ZoneType.Commercial:  return stats.commercialDemand;
-    case ZoneType.Industrial:  return stats.industrialDemand;
+    case ZoneType.Commercial:  return shopDemand(stats);
+    case ZoneType.Industrial:  return Math.round(stats.industrialDemand * taxDraw(stats.indTaxRate));
     case ZoneType.MixedUse:
-      return Math.min(housingDemand(stats), stats.commercialDemand);
+      return Math.min(housingDemand(stats), shopDemand(stats));
     default:
       return 0;
   }
 }
 
 /**
- * The housing demand people act on: residential demand times the share
- * happiness draws ({@link happinessDraw}). Jobs and taxes set the demand; an
- * unhappy city turns part of it away.
+ * The housing demand people act on: residential demand (set by jobs) times the
+ * share happiness draws ({@link happinessDraw}) and the share the residential
+ * tax draws ({@link taxDraw}), at most 100.
  */
+/** The shop demand shops act on: commercial demand times the share the commercial tax draws. */
+function shopDemand(stats: CityStats): number {
+  return Math.round(stats.commercialDemand * taxDraw(stats.comTaxRate));
+}
+
 export function housingDemand(stats: CityStats): number {
-  return Math.round(stats.residentialDemand * happinessDraw(stats.happiness));
+  return Math.min(100, Math.round(stats.residentialDemand * happinessDraw(stats.happiness) * taxDraw(stats.resTaxRate)));
 }
 
 /** Why this lot is empty, or null if it already has a building / nothing to say. */
@@ -322,20 +315,16 @@ export function formatGrowthHint(
   }
   if (demand <= 0) {
     if (tile.zoneType === ZoneType.Residential) {
-      return 'no housing demand — add jobs or cut residential tax';
+      return 'no housing demand — add jobs: people move in while jobs outnumber homes';
     }
     if (tile.zoneType === ZoneType.Commercial) {
       if (stats.population <= 0) return 'no shop demand — shops wait for residents; zone housing nearby';
-      return stats.comTaxRate > 9
-        ? `no shop demand — commercial tax at ${stats.comTaxRate}% keeps shops away`
-        : 'no shop demand — the residents already keep every shop busy; zone housing for more customers';
+      return 'no shop demand — the residents already keep every shop busy; zone housing for more customers';
     }
     if (tile.zoneType === ZoneType.MixedUse) {
       return 'mixed-use needs both housing and shop demand';
     }
-    return stats.indTaxRate > 9
-      ? `no industrial demand — industrial tax at ${stats.indTaxRate}% keeps factories away`
-      : 'no industrial demand — nearly every resident already has work';
+    return 'no industrial demand — nearly every resident already has work';
   }
 
   const hostile = lotTooHostile(tile);

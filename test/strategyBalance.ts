@@ -53,6 +53,28 @@ describe('strategy balance', () => {
     expect(run('no-services').endPopulation).toBeLessThan(0.8 * balanced.endPopulation);
   });
 
+  it('should make taxes a smooth trade of people for money, with no cliff (G2)', () => {
+    const nine = run('balanced');
+    const tax = (rate: number): StrategySummary => {
+      const id = `tax-${rate}`;
+      let summary = cache.get(id);
+      if (!summary) {
+        summary = summarize(playStrategy(taxStrategy(rate), MONTHS));
+        cache.set(id, summary);
+      }
+      return summary;
+    };
+    for (const rate of [11, 13]) {
+      const high = tax(rate);
+      expect(high.monthsInDebt).toBe(0);
+      // Fewer people than at 9%, but at most 12% fewer a point: a slope, not a cliff.
+      expect(high.endPopulation).toBeLessThan(nine.endPopulation);
+      expect(high.endPopulation).toBeGreaterThan(nine.endPopulation * (1 - 0.12 * (rate - 9)));
+      // And more money for it.
+      expect(high.endMoney).toBeGreaterThan(nine.endMoney);
+    }
+  });
+
   it('should roll the same dice for the tax sweep as for the balanced town', () => {
     const a = playStrategy(taxStrategy(9), 12);
     const b = playStrategy(STRATEGIES.find((s) => s.id === 'balanced')!, 12);

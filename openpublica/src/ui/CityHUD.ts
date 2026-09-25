@@ -1,9 +1,10 @@
 import type { CityStats } from '../sim/CitySim';
 import type { SimulationClock } from '../sim/SimulationClock';
 import { describeWeatherEffects, formatWeather, weatherLabel, type Weather } from '../sim/weather';
-import { commerceTooltip, formatPopulation, happinessTooltip, industryTooltip } from './chromeCopy';
+import { commerceTooltip, formatPopulation, happinessTooltip, housingTooltip, industryTooltip } from './chromeCopy';
 import { HAPPY_DRAW } from '../sim/happiness';
-import { housingDemand } from '../sim/zoneGrowthHints';
+import { demandForZone, housingDemand } from '../sim/zoneGrowthHints';
+import { ZoneType } from '../sim/CityTile';
 import { SHOP_JOBS_PER_RESIDENT } from '../sim/ZoneGrowthSystem';
 
 /** Where the HUD reads this month's weather and the forecast (the sim). */
@@ -166,21 +167,22 @@ export class CityHUD {
     this._advisory.textContent = alert ? stats.advisory : 'No mayor alerts.';
     this._advisory.classList.toggle('hud-advisory-alert', alert);
 
-    // Housing demand as people act on it: happiness turns part of it away.
+    // Housing demand as people act on it: happiness and the tax turn part of it away.
     const housing = housingDemand(stats);
     this._setBar(this._resFill, this._resLabel, housing);
     const resRow = this._resFill.closest('.demand-row');
     if (resRow instanceof HTMLElement) {
-      resRow.title = housing < stats.residentialDemand
-        ? `Housing demand ${stats.residentialDemand}%; happiness ${stats.happiness} turns people away, so ${housing}% move in`
-        : `Housing demand ${stats.residentialDemand}%`;
+      resRow.title = housingTooltip(stats, housing);
     }
-    this._setBar(this._comFill, this._comLabel, stats.commercialDemand);
-    this._setBar(this._indFill, this._indLabel, stats.industrialDemand);
+    // Shop and factory demand as they act on it, after their taxes.
+    const shops = demandForZone(ZoneType.Commercial, stats);
+    const works = demandForZone(ZoneType.Industrial, stats);
+    this._setBar(this._comFill, this._comLabel, shops);
+    this._setBar(this._indFill, this._indLabel, works);
     const comRow = this._comFill.closest('.demand-row');
-    if (comRow instanceof HTMLElement) comRow.title = commerceTooltip(stats, SHOP_JOBS_PER_RESIDENT);
+    if (comRow instanceof HTMLElement) comRow.title = commerceTooltip(stats, SHOP_JOBS_PER_RESIDENT, shops);
     const indRow = this._indFill.closest('.demand-row');
-    if (indRow instanceof HTMLElement) indRow.title = industryTooltip(stats);
+    if (indRow instanceof HTMLElement) indRow.title = industryTooltip(stats, works);
   }
 
   private _setBar(fill: HTMLElement, label: HTMLElement, value: number): void {

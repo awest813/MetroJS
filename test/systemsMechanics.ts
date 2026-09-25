@@ -5,8 +5,9 @@ import {
   SHOP_JOBS_PER_RESIDENT,
   nextCommercialDemand,
 } from '../openpublica/src/sim/ZoneGrowthSystem';
-import { STARTER_RESIDENTIAL_DEMAND, formatGrowthHint, starterDemand } from '../openpublica/src/sim/zoneGrowthHints';
-import { TAX_HINTS, commerceTooltip, industryTooltip } from '../openpublica/src/ui/chromeCopy';
+import { STARTER_RESIDENTIAL_DEMAND, demandForZone, formatGrowthHint, housingDemand } from '../openpublica/src/sim/zoneGrowthHints';
+import { taxDraw, taxOccupancy, taxPointGain } from '../openpublica/src/sim/taxes';
+import { TAX_HINTS, commerceTooltip, housingTooltip, industryTooltip } from '../openpublica/src/ui/chromeCopy';
 import { SaveCodec } from '../openpublica/src/save/SaveCodec';
 import { TEST_CITIES } from '../openpublica/src/scenarios/testCities';
 import { MONTH_SECONDS } from '../openpublica/src/data/constants';
@@ -32,11 +33,14 @@ describe('commercial demand', () => {
     expect(nextCommercialDemand({ ...base, shopJobs: 400, commercialDemand: 60 })).toBe(60 - COMMERCE_DEMAND_STEP);
   });
 
-  it('should be raised by walkable streets and transit, and lowered by tax', () => {
+  it('should be raised by walkable streets and transit, and scaled by tax where shops act on it', () => {
     const half = { ...base, shopJobs: 100 * SHOP_JOBS_PER_RESIDENT, commercialDemand: 50 };
     expect(nextCommercialDemand({ ...half, walkability: 30, transitAccess: 20 })).toBe(55);
-    expect(nextCommercialDemand({ ...half, comTaxRate: 14 })).toBe(45);
     expect(nextCommercialDemand({ ...half, population: 0 })).toBe(45);
+    // The tax does not move the demand; it scales what shops act on.
+    const stats = CitySim.createCity(4, 4).stats;
+    Object.assign(stats, { commercialDemand: 50, comTaxRate: 14 });
+    expect(demandForZone(ZoneType.Commercial, stats)).toBe(Math.round(50 * taxDraw(14)));
   });
 
   it('should count shop and mixed-use jobs in the census', () => {
@@ -73,27 +77,62 @@ describe('commercial demand', () => {
   });
 });
 
-describe('an emptied town at high tax', () => {
-  it('should draw nobody back while the residential tax is high', () => {
-    expect(starterDemand(9)).toBe(STARTER_RESIDENTIAL_DEMAND);
-    expect(starterDemand(12)).toBe(22);
-    expect(starterDemand(16)).toBe(0);
-    expect(starterDemand(0)).toBe(94);
+describe('taxes', () => {
+  it('should turn away 7% of newcomers a point over 9%, and draw 5% more a point under', () => {
+    expect(taxDraw(9)).toBe(1);
+    expect(taxDraw(12)).toBeCloseTo(0.79);
+    expect(taxDraw(20)).toBeCloseTo(0.3);
+    expect(taxDraw(5)).toBeCloseTo(1.2);
+    expect(taxDraw(0)).toBeCloseTo(1.3);
   });
 
-  it('should say the tax keeps people out of an empty town', () => {
+  it('should leave 4% of places empty a point over 9%, and never fill past full', () => {
+    expect(taxOccupancy(9)).toBe(1);
+    expect(taxOccupancy(5)).toBe(1);
+    expect(taxOccupancy(14)).toBeCloseTo(0.8);
+    expect(taxOccupancy(20)).toBeCloseTo(0.56);
+  });
+
+  it('should earn less and less from each point, counting the places it empties', () => {
+    // At 9%, $900 of take: the next point adds 10/9 of it, less the 4% it empties.
+    expect(taxPointGain(900, 9)).toBeCloseTo(900 / 9 * (10 * 0.96 - 9));
+    expect(taxPointGain(900, 9)).toBeGreaterThan(taxPointGain(900 * 13 * taxOccupancy(13) / 9, 13) / 2);
+    // Past about 16% another point takes in no more.
+    expect(taxPointGain(1000, 17)).toBeLessThanOrEqual(0);
+    expect(taxPointGain(0, 9)).toBe(0);
+  });
+
+  it('should empty homes and jobs in the census, and slow newcomers, but empty no town on its own', () => {
+    const sim = CitySim.createCity(12, 12);
+    const put = (x: number, zone: ZoneType, defId: string): void => {
+      Object.assign(sim.getTile(x, 3)!, { zoneType: zone, buildingId: defId, powered: true });
+      sim.growth.buildings.set(`${x},3`, { defId, x, y: 3 });
+    };
+    for (let x = 2; x < 7; x++) put(x, ZoneType.Residential, 'small_house');
+    put(8, ZoneType.Industrial, 'factory');
+    sim.growth.recomputeCensus(sim.stats, sim.map);
+    expect(sim.stats.population).toBe(20);
+    Object.assign(sim.stats, { resTaxRate: 14, indTaxRate: 14 });
+    sim.growth.recomputeCensus(sim.stats, sim.map);
+    expect(sim.stats.population).toBe(16);
+    expect(sim.stats.jobs).toBe(Math.floor(sim.growth.defs.get('factory')!.jobs * 0.8));
+    // Housing demand still follows jobs; the tax scales what acts.
+    Object.assign(sim.stats, { residentialDemand: 60, happiness: 100 });
+    expect(housingDemand(sim.stats)).toBe(Math.round(60 * taxDraw(14)));
+  });
+
+  it('should keep drawing people to an empty town, only fewer, at a high tax', () => {
     const sim = CitySim.createCity(16, 16);
     sim.stats.money = 100_000;
-    sim.placeRoad(4, 4, RoadType.Street);
-    sim.placeRoad(5, 4, RoadType.Street);
-    sim.placeServiceBuilding(4, 3, 'small_power_plant', 0);
-    sim.setZone(5, 5, ZoneType.Residential);
-    Object.assign(sim.stats, { resTaxRate: 17, residentialDemand: 0, pollutionAverage: 0 });
-    sim.evaluate();
-    expect(sim.stats.advisory).toBe('Nobody will move in at 17% residential tax — cut it toward 9%.');
+    sim.stats.resTaxRate = 17;
+    for (let x = 2; x < 14; x++) sim.placeRoad(x, 4, RoadType.Street);
+    sim.placeServiceBuilding(2, 3, 'small_power_plant', 0);
+    for (let x = 4; x < 14; x++) sim.setZone(x, 5, ZoneType.Residential);
     sim.tick(MONTH_SECONDS);
-    expect(sim.stats.residentialDemand).toBe(0);
-    expect(sim.getTile(5, 5)!.buildingId).toBeNull();
+    // The starter bar holds while nobody lives here; the tax only scales it.
+    expect(sim.stats.residentialDemand).toBe(STARTER_RESIDENTIAL_DEMAND);
+    for (let m = 0; m < 5; m++) sim.tick(MONTH_SECONDS);
+    expect(sim.stats.population).toBeGreaterThan(0);
   });
 });
 
@@ -163,15 +202,22 @@ describe('demand explained', () => {
       'Shop demand 68%: 972 residents keep up to 1,458 shop and office jobs busy; 560 are open. Walkable streets and transit raise it.',
     );
     expect(commerceTooltip({ commercialDemand: 0, population: 0, comTaxRate: 14 }, 1.5)).toBe(
-      'Shop demand 0%: shops wait for residents. Commercial tax at 14% holds it down. Walkable streets and transit raise it.',
+      'Shop demand 0%: shops wait for residents. Walkable streets and transit raise it. At 14% tax, 20% of shop jobs stand empty and 35% fewer shops open.',
     );
     expect(industryTooltip({ industrialDemand: 40, population: 300, jobs: 250, indTaxRate: 9 })).toBe(
       'Factory demand 40%: 50 residents have no job, and factories open to hire them.',
     );
     expect(industryTooltip({ industrialDemand: 0, population: 300, jobs: 320, indTaxRate: 16 })).toBe(
-      'Factory demand 0%: every resident has a job, so few new factories open. Industrial tax at 16% holds it down.',
+      'Factory demand 0%: every resident has a job, so few new factories open. At 16% tax, 28% of factory jobs stand empty and 49% fewer factories open.',
     );
-    expect(TAX_HINTS.com).toMatch(/shop demand target by 4/);
+    expect(TAX_HINTS.com).toMatch(/leaves 4% of shop jobs empty and slows new shops by 7%/);
+    // The bar shows the demand that acts; the tooltip says so when the tax moves it.
+    expect(commerceTooltip({ commercialDemand: 100, population: 100, shopJobs: 0, comTaxRate: 14 }, 1.5, 65)).toMatch(
+      /35% fewer shops open\. The bar shows the 65% that acts\.$/,
+    );
+    expect(housingTooltip({ residentialDemand: 80, happiness: 100, resTaxRate: 12 }, 63)).toBe(
+      'Housing demand 80%: people move in while jobs outnumber homes; 12% tax turns 21% away, so 63% act on it. At this tax 12% of homes stand empty.',
+    );
   });
 
   it('should tell an empty shop lot why it waits', () => {
@@ -182,7 +228,5 @@ describe('demand explained', () => {
     expect(formatGrowthHint(sim.getTile(4, 5)!, sim.map, sim.stats, {})).toBe('no shop demand — shops wait for residents; zone housing nearby');
     sim.stats.population = 120;
     expect(formatGrowthHint(sim.getTile(4, 5)!, sim.map, sim.stats, {})).toMatch(/residents already keep every shop busy/);
-    sim.stats.comTaxRate = 15;
-    expect(formatGrowthHint(sim.getTile(4, 5)!, sim.map, sim.stats, {})).toMatch(/commercial tax at 15% keeps shops away/);
   });
 });

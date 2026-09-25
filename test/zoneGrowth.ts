@@ -201,11 +201,9 @@ describe('industrial demand', () => {
     expect(demand).toBe(60);
   });
 
-  it('should fall twice as fast once the jobs gap closes, and less with high taxes', () => {
+  it('should fall twice as fast once the jobs gap closes, whatever the tax', () => {
     expect(nextIndustrialDemand(stats(100, 100, 60))).toBe(52);
-    expect(nextIndustrialDemand(stats(100, 80, 60, 14))).toBe(52);
-    let demand = 60;
-    for (let m = 0; m < 30; m++) demand = nextIndustrialDemand(stats(100, 80, demand, 14));
-    expect(demand).toBe(40);
+    // The tax scales what factories act on (taxes.ts), not the demand itself.
+    expect(nextIndustrialDemand(stats(100, 80, 60, 14))).toBe(60);
   });
 });

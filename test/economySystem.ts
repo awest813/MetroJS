@@ -64,9 +64,11 @@ describe('EconomySystem income', () => {
 
     tickOneMonth(sim);
 
-    // income_res = 100 × 10 × 0.3 = 300; road-maintenance is 0 (no road tiles).
-    expect(sim.stats.monthlyIncome).toBe(300);
-    expect(sim.budget.resIncome).toBe(300);
+    // income_res = 96 residents (10% leaves 4% of homes empty) × 10 × 0.3 = 288;
+    // road-maintenance is 0 (no road tiles).
+    expect(sim.stats.population).toBe(96);
+    expect(sim.stats.monthlyIncome).toBe(288);
+    expect(sim.budget.resIncome).toBe(288);
   });
 
   it('should generate road-maintenance expenses per street tile', () => {
@@ -192,9 +194,9 @@ describe('EconomySystem MixedUse job income', () => {
 
     tickOneMonth(sim);
 
-    // 2 commercial jobs × 10% × 0.25 = $5
-    expect(sim.stats.monthlyIncome).toBe(5);
-    expect(sim.budget.comIncome).toBe(5);
+    // 2 commercial jobs × 96% filled at 10% × 10% × 0.25 = $4.80
+    expect(sim.stats.monthlyIncome).toBe(4);
+    expect(sim.budget.comIncome).toBe(4);
   });
 });
 

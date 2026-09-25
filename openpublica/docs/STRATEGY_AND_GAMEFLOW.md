@@ -152,6 +152,15 @@ The score also drives nothing in the game.
 
 The cause is the housing-demand step. Each point over 9% takes 2 a month, and jobs outnumbering homes add 5, so at 12% and above housing demand falls every month even while jobs outnumber homes. Meanwhile the deficit advisory says "raise taxes" with no limit, and the tax tooltip describes a gentle slope.
 
+*Fixed by G2 (Gap AJ).* Taxes no longer drain demand. Each point over 9% turns away 7% of newcomers and leaves 4% of places empty, for all three taxes. The same sweep now reads:
+
+| Taxes | 5% | 7% | 9% | 10% | 11% | 12% | 13% | 15% | 17% | 20% |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Pop y10 | 372 | 668 | 700 | 625 | 596 | 542 | 584 | 519 | 432 | 365 |
+| Money y10 | −$38,428 | $16,796 | $96,787 | $138,957 | $125,053 | $139,499 | $151,558 | $141,164 | $138,089 | $122,211 |
+
+Population falls smoothly as taxes rise, money levels off past about 13% and falls by 20%, and no rate from 7% to 20% puts the careful town in debt. At 5% the taxes cannot cover upkeep.
+
 **F6 — The first plant is a trap.** The coach says to place the plant "beside the street". The natural spot is next to the first houses. A plant's smog is 60 at the stack and reaches 8 tiles, and factory smog adds up (45 each, 7 tiles), so a factory block next door pushes lots past the level that drives homes out.
 
 - The naive town stalls at 200–390 people for six years, against 700.
@@ -203,7 +212,7 @@ Slices are named G1–G11 here and become gap letters as they ship. Each has an 
 
 | Slice | Change | Exit |
 |---|---|---|
-| **G2 Honest taxes** | Take the tax term out of the monthly demand step. Instead, scale the demand people act on by a tax draw, as happiness already does: about 7% less per point over 9%, about 5% more per point under, between 0.3× and 1.3×. Demand still follows jobs, so no rate empties a town on its own. The deficit advisory suggests a specific raise with its monthly gain, and warns past 11%. The tooltips state the real effect. | In the harness tax sweep from 7% to 13%, population at year 10 falls smoothly (at most 12% per point) and no rate bankrupts a careful player. 11% costs visible growth against 9%. |
+| **G2 Honest taxes** (shipped as Gap AJ) | Take the tax term out of the monthly demand step. Instead, scale the demand people act on by a tax draw, as happiness already does: about 7% less per point over 9%, about 5% more per point under, between 0.3× and 1.3×. Demand still follows jobs, so no rate empties a town on its own. The deficit advisory suggests a specific raise with its monthly gain, and warns past 11%. The tooltips state the real effect. | In the harness tax sweep from 7% to 13%, population at year 10 falls smoothly (at most 12% per point) and no rate bankrupts a careful player. 11% costs visible growth against 9%. |
 | **G3 Mixed use with a trade-off** | The smallest mixed building houses 4 people and 1 job (a flat over a shop). Drop the 1.3× growth boost. Mixed lots grow only on land worth at least 35 (a main-street premium) or beside existing houses or shops. Their trips load the streets like shops' do. | Houses-then-mixed within +30% of the balanced town on population and money, and ahead on walkability and happiness. |
 | **G3b Mixed use can open a town** | While nobody lives in town, a mixed lot grows as flats: its housing half grows on the starter demand, and the shop half opens as residents arrive. | A mixed-use-first town reaches 100 people in year 1. |
 | **G4 Small-town services** | Cheaper first tiers: a volunteer fire hall and a water pump, at about half the price, reach, and upkeep. The fire and water advisories name the cheap tier until the budget can carry the full one. | The tiny village stays solvent. The advice-follower's cash low stays above $3,000. |

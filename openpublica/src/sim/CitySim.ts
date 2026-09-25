@@ -568,7 +568,7 @@ export class CitySim {
       label: weatherLabel(next.kind),
       powerLoadRatio: ahead.powerLoad / now.powerLoad,
       waterLoadRatio: ahead.waterLoad / now.waterLoad,
-    });
+    }, this.budget ? { perTaxPoint: this.budget.perTaxPoint } : undefined);
   }
 
   /**
