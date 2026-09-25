@@ -1,3 +1,5 @@
+import { HAPPY_DRAW, UNHAPPY_FLOOR, happinessDraw, type HappinessParts } from '../sim/happiness';
+
 /**
  * Shared chrome strings and money formatting. No DOM — Jest can load this.
  */
@@ -46,3 +48,20 @@ export function formatRunway(money: number, net: number): string | null {
 /** What a tax slider does, for its tooltip. */
 export const TAX_HINT =
   'Each point above 9% cuts this zone\'s demand by 2 a month; each point below adds 2.';
+
+/**
+ * The HUD's happiness tooltip: what cost it, what won some back, and how
+ * much of the housing demand it lets move in.
+ */
+export function happinessTooltip(happiness: number, parts: HappinessParts | undefined): string {
+  const share = Math.round(happinessDraw(happiness) * 100);
+  const why = parts
+    ? `jammed roads −${parts.jams}, crime −${parts.crime}; walkable streets +${parts.walk} and transit +${parts.transit} win some back`
+    : 'jammed roads and crime cost it; walkable streets and transit win some back';
+  const draw = share >= 100
+    ? `At ${HAPPY_DRAW} or more, everyone the housing demand calls for moves in.`
+    : share <= 0
+      ? `At ${UNHAPPY_FLOOR} or less nobody moves in, and residents leave.`
+      : `Below ${HAPPY_DRAW} fewer people move in: ${share}% of the housing demand now; none at ${UNHAPPY_FLOOR}.`;
+  return `Happiness ${happiness}: ${why}. ${draw}`;
+}

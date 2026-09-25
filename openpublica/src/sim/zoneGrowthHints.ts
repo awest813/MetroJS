@@ -5,6 +5,7 @@ import type { CityStats } from './CitySim';
 import { RoadType, ZoneType, TerrainType } from './CityTile';
 import type { CityTile } from './CityTile';
 import { ROAD_STEPS, hasRoadFrontage, isBridgeAt } from './roadConnections';
+import { happinessDraw } from './happiness';
 
 /**
  * Opening residential demand. The monthly loop otherwise decays R-demand when
@@ -241,14 +242,23 @@ export function growthChance(
 
 export function demandForZone(zoneType: ZoneType, stats: CityStats): number {
   switch (zoneType) {
-    case ZoneType.Residential: return stats.residentialDemand;
+    case ZoneType.Residential: return housingDemand(stats);
     case ZoneType.Commercial:  return stats.commercialDemand;
     case ZoneType.Industrial:  return stats.industrialDemand;
     case ZoneType.MixedUse:
-      return Math.min(stats.residentialDemand, stats.commercialDemand);
+      return Math.min(housingDemand(stats), stats.commercialDemand);
     default:
       return 0;
   }
+}
+
+/**
+ * The housing demand people act on: residential demand times the share
+ * happiness draws ({@link happinessDraw}). Jobs and taxes set the demand; an
+ * unhappy city turns part of it away.
+ */
+export function housingDemand(stats: CityStats): number {
+  return Math.round(stats.residentialDemand * happinessDraw(stats.happiness));
 }
 
 /** Why this lot is empty, or null if it already has a building / nothing to say. */
@@ -293,6 +303,10 @@ export function formatGrowthHint(
   }
 
   const demand = demandForZone(tile.zoneType, stats);
+  const housing = tile.zoneType === ZoneType.Residential || tile.zoneType === ZoneType.MixedUse;
+  if (demand <= 0 && housing && stats.residentialDemand > 0 && housingDemand(stats) <= 0) {
+    return `people are staying away — happiness is ${stats.happiness}; clear the jams and crime that weigh on it`;
+  }
   if (demand <= 0) {
     if (tile.zoneType === ZoneType.Residential) {
       return 'no housing demand — add jobs or cut residential tax';

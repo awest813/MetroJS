@@ -38,6 +38,35 @@ export interface HappinessInputs {
   crimeAverage: number;
 }
 
+/** What made this month's happiness: the two costs, and the bonuses that won some of it back. */
+export interface HappinessParts {
+  /** Lost to jammed roads. */
+  readonly jams: number;
+  /** Lost to crime. */
+  readonly crime: number;
+  /** Walkable streets' bonus (it only fills back up to 100). */
+  readonly walk: number;
+  /** Transit's bonus (likewise). */
+  readonly transit: number;
+}
+
+/** Happiness at or above this draws everyone housing demand promises. */
+export const HAPPY_DRAW = 80;
+
+/** At or below this nobody moves in, and unhappy residents leave a few buildings a month. */
+export const UNHAPPY_FLOOR = 30;
+
+/**
+ * Share of housing demand people act on at this happiness: all of it from
+ * {@link HAPPY_DRAW}, none at {@link UNHAPPY_FLOOR}, in a straight line
+ * between. A city of jams and crime stops drawing residents even while its
+ * jobs call for them.
+ */
+export function happinessDraw(happiness: number): number {
+  if (!Number.isFinite(happiness)) return 1;
+  return Math.max(0, Math.min(1, (happiness - UNHAPPY_FLOOR) / (HAPPY_DRAW - UNHAPPY_FLOOR)));
+}
+
 /**
  * One happiness write from the current map and overlay stats.
  *
@@ -46,7 +75,7 @@ export interface HappinessInputs {
  */
 export function composeHappiness(
   map: CityMap,
-  stats: HappinessInputs & { happiness: number },
+  stats: HappinessInputs & { happiness: number; happinessParts?: HappinessParts },
   applyCrime: boolean,
 ): void {
   let roads = 0;
@@ -57,8 +86,8 @@ export function composeHappiness(
     if (tile.trafficPressure >= EXTREME_TRAFFIC_PRESSURE) extreme += 1;
   });
 
-  let next = 100 - Math.round((JAM_HAPPINESS_WEIGHT * extreme) / Math.max(roads, JAM_MIN_ROADS));
-  next = Math.max(0, Math.min(100, next));
+  const jams = Math.min(100, Math.round((JAM_HAPPINESS_WEIGHT * extreme) / Math.max(roads, JAM_MIN_ROADS)));
+  let next = 100 - jams;
 
   const walkBonus = Math.min(
     WALK_MAX_HAPPINESS,
@@ -70,9 +99,9 @@ export function composeHappiness(
   );
   next = Math.max(0, Math.min(100, next + walkBonus + transitBonus));
 
-  if (applyCrime) {
-    next = Math.max(0, next - Math.round(stats.crimeAverage * CRIME_HAPPINESS_MULTIPLIER));
-  }
+  const crime = applyCrime ? Math.round(stats.crimeAverage * CRIME_HAPPINESS_MULTIPLIER) : 0;
+  next = Math.max(0, next - crime);
 
   stats.happiness = next;
+  stats.happinessParts = { jams, crime, walk: walkBonus, transit: transitBonus };
 }

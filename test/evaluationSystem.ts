@@ -228,6 +228,19 @@ describe('EvaluationSystem', () => {
       expect(sim.stats.advisory).toMatch(/Traffic is jammed on 3 roads/);
     });
 
+    it('should blame unhappiness when houses empty although jobs call for residents', () => {
+      const sim = town(10);
+      cover(sim, 60, true);
+      sim.map.forEach((t) => { if (t.buildingId === 'small_house') t.neglectMonths = 3; });
+      Object.assign(sim.stats, { residentialDemand: 50, happiness: 25 });
+      judge(sim);
+      expect(sim.stats.advisory).toBe('Houses are emptying — people are too unhappy to stay (happiness 25). Clear the jammed roads and crime.');
+      // With no housing demand at all, jobs are the cause, whatever the mood.
+      sim.stats.residentialDemand = 0;
+      judge(sim);
+      expect(sim.stats.advisory).toMatch(/more homes than jobs/);
+    });
+
     it('should leave a few dry buildings to the Water map', () => {
       const sim = town(10);
       cover(sim, 60, true);

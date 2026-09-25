@@ -1,7 +1,7 @@
 # OpenPublica — Next gaps (after Phases A–H)
 
 **Date:** 2026-09-24 (first written 2026-09-20)  
-**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AE below have shipped on top.
+**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AF below have shipped on top.
 
 This is an implementation plan for **what is still missing**, not a licence to rewrite sim formulas or import Micropolis art.
 
@@ -16,7 +16,7 @@ open items (city health, honest feedback, PBR/sky, the `App.ts` split) have
 all shipped. What is left (section 5) is depth, not missing systems:
 
 1. **Presentation** extras have shipped: SSAO as an opt-in after its full-city frame check (Gaps AB, AC), and GLB kits with seven starter models (Gap AE). What is left there is art: models for the other eight buildings, or an artist's kit.
-2. **Happiness** is shown in the HUD but drives nothing: not growth, demand, or the score (found in Gap AD's audit). Services now count in the score directly instead.
+2. **Happiness** now decides how many people move in (Gap AF): below 80, housing grows at a falling share of its demand, and at 30 or less residents leave.
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
 
@@ -733,6 +733,30 @@ builds exactly the models the defs name.
 awnings, offices window bands, factories sawtooth roofs; switch to Low and
 the procedural kits return.
 
+### Gap AF — Happiness that counts **shipped**
+
+Gap AD's audit found happiness composed every month (jammed roads and crime
+cost it; walkable streets and transit win some back) and read by nothing.
+Adding it to the monthly demand step would have let a happy city with no
+jobs keep drawing residents, and a city without jams sits at 100, so a bonus
+would only have sped every city up. Happiness now limits how many of the
+people housing demand calls for actually come.
+
+| Slice | What shipped |
+|---|---|
+| AF1 Draw | `housingDemand` = residential demand × `happinessDraw`: all of it at 80 or more, none at 30, a straight line between (half at 55). `demandForZone` uses it for houses and the housing half of mixed use, so growth, the monthly pace, densifying, and the hints all agree. |
+| AF2 Leaving | At 30 or less the draw is zero, so homes count as short of demand and a miserable city loses residents a few buildings a month (the existing exodus cap). The emptying advisory says so ("people are too unhappy to stay") when jobs still call for residents; with no demand at all it still blames the jobs. |
+| AF3 HUD | Happy turns amber below 80. Its tooltip gives what made it ("jammed roads −23, crime −8; walkable streets +0 and transit +0 win some back") and how much of the demand moves in. The Res bar shows the demand people act on, and its tooltip gives both numbers. An empty lot turned away by it says "people are staying away — happiness is 25". |
+
+The test cities come out the same: their happiness stays between 65 and 100.
+Hamlet (down to 65, its jammed crossroads) loses up to 30% of its housing
+demand in 21 of its 24 months, Troubled (down to 73) up to 14% in 28 of 36,
+and Sprawl (72 at the end) in 6 of 42, but their zoned lots, jobs, and grid
+limit them first.
+
+**Exit:** In `?city=hamlet`, hover Happy: it is amber at 69 and says 78% of
+the housing demand moves in; the Res bar reads 12%, not 15%.
+
 ---
 
 ## 4. Explicitly still out of scope (Phase I)
@@ -753,11 +777,10 @@ Unchanged from the 3D plan:
 
 The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped, and so has
 everything after it (D4 faster tests, the Gap AB frame check, the Gap AC SSAO
-opt-in, the Gap AE GLB kits). What is left:
+opt-in, the Gap AE GLB kits, Gap AF's happiness). What is left:
 
-1. **Happiness that counts.** It is composed every month and shown in the HUD, but nothing reads it (section 1).
-2. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
-3. **More models (optional).** Eight buildings still use their procedural kits (shop rows, workshops, works, the power plant, the police station, and the three mixed-use blocks); an artist's kit can replace the starter set under `public/models/ASSET_LICENSE.md`.
+1. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
+2. **More models (optional).** Eight buildings still use their procedural kits (shop rows, workshops, works, the power plant, the police station, and the three mixed-use blocks); an artist's kit can replace the starter set under `public/models/ASSET_LICENSE.md`.
 
 ---
 
@@ -790,6 +813,7 @@ opt-in, the Gap AE GLB kits). What is left:
 - Shops: open `?city=metro`, look at the shopping districts (glass-banded office blocks among shop rows), and check Traffic there.
 - Frame time: load a full city on High and run it at 4× (the only stutter is the month end), and let Metro reach its first rain (no stall when it starts); a bridge still shades the water under it.
 - Services: in `?city=riverside` the advisory names the dry buildings behind its full tower; Inspect a house (`dry`, `no fire cover`) and a police station (buildings covered, upkeep); a new fire station raises land value around it and the score once people live nearby.
+- Happiness: in `?city=hamlet` hover Happy (amber at 69: what cost it, and 78% of the housing demand moving in) and the Res bar (12% of a 15% demand).
 - Models: on High, Metro's houses, rowhouses, shops, offices, factories, fire stations, and water towers are GLB models; on Low they are procedural kits; rename a file under `public/models/` and that building keeps its procedural kit with one console warning.
 - Ambient occlusion: Settings → Ambient occlusion on (Quality: high): buildings and trees sit darker where they meet the ground, and open lawns stay light; open a map and the shade pauses; switch to Quality: low and the button greys out.
 - Test cities: open `?city=hamlet`, `riverside`, `metro`, `troubled`, and `sprawl` (or New → Or open a test city); each status line says what the city shows, the HUD and advisory match its row in Gap N, and New goes back to a fresh map.

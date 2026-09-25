@@ -34,7 +34,7 @@ import {
 } from './budgetLevers';
 import { WEATHER_EFFECTS, weatherFor, weatherLabel, weatherOfKind, type Weather, type WeatherKind } from './weather';
 import { DEFAULT_TERRAIN_SEED } from './TerrainGenerator';
-import { composeHappiness } from './happiness';
+import { composeHappiness, type HappinessParts } from './happiness';
 import { bridgeProblem, type BridgeProblem } from './roadConnections';
 
 /** Why a road cannot be laid on a tile at the sim layer (tools add cost/upgrade rules). */
@@ -74,8 +74,11 @@ export interface CityStats {
   /**
    * City-wide happiness [0–100]. Composed from extreme traffic, walkability,
    * transit access, and (on monthly ticks) crime — never stacked by placement.
+   * Below 80 it turns part of the housing demand away (see happinessDraw).
    */
   happiness: number;
+  /** What made this month's happiness, for the HUD (not saved: recomposed on load). */
+  happinessParts?: HappinessParts;
   /**
    * City-wide walkability score [0–100].  Average walkability across all
    * zoned tiles, computed by WalkabilitySystem each month.

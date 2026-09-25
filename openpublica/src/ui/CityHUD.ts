@@ -1,7 +1,9 @@
 import type { CityStats } from '../sim/CitySim';
 import type { SimulationClock } from '../sim/SimulationClock';
 import { describeWeatherEffects, formatWeather, weatherLabel, type Weather } from '../sim/weather';
-import { formatPopulation } from './chromeCopy';
+import { formatPopulation, happinessTooltip } from './chromeCopy';
+import { HAPPY_DRAW } from '../sim/happiness';
+import { housingDemand } from '../sim/zoneGrowthHints';
 
 /** Where the HUD reads this month's weather and the forecast (the sim). */
 export interface WeatherSource {
@@ -141,6 +143,8 @@ export class CityHUD {
       this._weather.classList.toggle('hud-weather-costly', now.kind === 'heat' || now.kind === 'snow');
     }
     this._happiness.textContent     = `Happy ${stats.happiness}`;
+    this._happiness.title = happinessTooltip(stats.happiness, stats.happinessParts);
+    this._happiness.classList.toggle('hud-money-warning', stats.happiness < HAPPY_DRAW);
     this._walkability.textContent   = `Walk ${stats.walkability}`;
     this._transitAccess.textContent = `Transit ${stats.transitAccess}`;
     this._pollution.textContent     = `Poll ${stats.pollutionAverage}`;
@@ -161,7 +165,15 @@ export class CityHUD {
     this._advisory.textContent = alert ? stats.advisory : 'No mayor alerts.';
     this._advisory.classList.toggle('hud-advisory-alert', alert);
 
-    this._setBar(this._resFill, this._resLabel, stats.residentialDemand);
+    // Housing demand as people act on it: happiness turns part of it away.
+    const housing = housingDemand(stats);
+    this._setBar(this._resFill, this._resLabel, housing);
+    const resRow = this._resFill.closest('.demand-row');
+    if (resRow instanceof HTMLElement) {
+      resRow.title = housing < stats.residentialDemand
+        ? `Housing demand ${stats.residentialDemand}%; happiness ${stats.happiness} turns people away, so ${housing}% move in`
+        : `Housing demand ${stats.residentialDemand}%`;
+    }
     this._setBar(this._comFill, this._comLabel, stats.commercialDemand);
     this._setBar(this._indFill, this._indLabel, stats.industrialDemand);
   }

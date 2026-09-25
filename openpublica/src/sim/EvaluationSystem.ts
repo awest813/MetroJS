@@ -5,7 +5,7 @@ import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
 import type { CityStats } from './CitySim';
 import { RoadType, ZoneType } from './CityTile';
-import { tileHasAdjacentRoad, zoneStress, type ZoneStress } from './zoneGrowthHints';
+import { housingDemand, tileHasAdjacentRoad, zoneStress, type ZoneStress } from './zoneGrowthHints';
 import { stationHasRoad } from './roadDispatch';
 import { EXTREME_TRAFFIC_PRESSURE } from './happiness';
 
@@ -267,9 +267,12 @@ function taxOverDefault(rate: number): number {
 }
 
 /** Why buildings are emptying, named by what troubles most of them. */
-function emptyingMessage(census: Census): string {
+function emptyingMessage(census: Census, stats: CityStats): string {
   switch (census.strugglingCause) {
     case 'demand':
+      if (census.strugglingHomes && stats.residentialDemand > 0 && housingDemand(stats) <= 0) {
+        return `Houses are emptying — people are too unhappy to stay (happiness ${stats.happiness}). Clear the jammed roads and crime.`;
+      }
       return census.strugglingHomes
         ? 'Houses are emptying — more homes than jobs. Zone shops or factories, or cut residential tax.'
         : 'Shops and factories are emptying — not enough demand. Grow the population or cut taxes.';
@@ -391,7 +394,7 @@ function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherFore
     }
   }
   if (census.strugglingCount > 0) {
-    out.push({ id: 'abandon', message: emptyingMessage(census) });
+    out.push({ id: 'abandon', message: emptyingMessage(census, stats) });
   }
   const serviced = stats.population >= SERVICE_ADVISORY_POPULATION && census.zonedCount > 0;
   const waterFull = serviced && stats.waterShort >= WATER_SHORT_ADVISORY;
