@@ -1,7 +1,7 @@
 {
   "name": "openpublica",
   "version": "0.1.0",
-  "description": "OpenPublica — a GPLv3 browser-native 3D city-builder",
+  "description": "OpenPublica \u2014 a GPLv3 browser-native 3D city-builder",
   "license": "GPL-3.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "models": "node scripts/build-models.mjs",
-    "test": "npm --prefix .. test -- --coverage=false"
+    "test": "npm --prefix .. test -- --coverage=false",
+    "strategies": "node scripts/strategies.mjs"
   },
   "dependencies": {
     "@babylonjs/core": "^9.0.0",

@@ -1,7 +1,7 @@
 # OpenPublica — Next gaps (after Phases A–H)
 
 **Date:** 2026-09-25 (first written 2026-09-20)  
-**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AH below have shipped on top.
+**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AI below have shipped on top.
 
 This is an implementation plan for **what is still missing**, not a licence to rewrite sim formulas or import Micropolis art.
 
@@ -827,6 +827,22 @@ These were checked and left alone:
 
 ---
 
+### Gap AI — Strategy harness (plan slice G1) **shipped**
+
+The scripted player from the strategy and gameflow audit ([STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md)) now lives in the repo, so later balance work is measured the same way.
+
+| Slice | What shipped |
+|---|---|
+| AI1 Player | `src/scenarios/strategyPlayer.ts` plays a new city on the default map with the real tools and prices: blocks on the north-west bank, a factory district across a link road, and services when the city needs them and the budget carries them. It has careful, advice-following, and naive policies. `STRATEGIES` holds the audit's twelve strategies; `taxStrategy` makes the tax sweep, which rolls the balanced town's dice. |
+| AI2 Report | `npm run strategies` prints the strategy table, the tax sweep, and the balanced town's gameflow, as in sections 3 and 4 of the plan. It loads the TypeScript through Vite, so it needs nothing new. `npm run strategies -- balanced taxes` runs only those. |
+| AI3 Balance test | `test/strategyBalance.ts` plays six years of five strategies. It checks that the careful town thrives and never goes into debt, that suburb and industry-late stay viable within 0.6–1.6× of it, that the naive layout stalls below 0.6×, and that services matter. Later slices add their bands there. |
+
+The plan's tables now come from this report. The findings stand, with some figures moved by the new dice: mixed use has 1.9× the people and 3.9× the money of the balanced town, and the 12% town ends with 140 people and in debt. Jest runs the simulation about 10× slower than Node does, so the test plays six years rather than twenty.
+
+**Exit:** `npm run strategies -- balanced` prints the balanced town at 576 people in year 5 and 700 in year 10.
+
+---
+
 ## 4. Explicitly still out of scope (Phase I)
 
 Unchanged from the 3D plan:
@@ -851,7 +867,7 @@ Gap AH's systems pass). What is left:
 1. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
 2. **An artist's kit (optional).** The fifteen models are generated; hand-made ones can replace them file by file under `public/models/ASSET_LICENSE.md`.
 3. **Something to spend on late.** Once a test city is built out, its money only grows: Riverside from $55k to $166k in ten years. Upgrades that cost money to run, such as larger plants, stadiums, or road repaving, would give a finished city decisions to make.
-4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). In order: a strategy harness in the repo, honest taxes, mixed use with a trade-off, steadier advice, the plant's smog in view, a rating that means success, milestones, small-town services, a bankruptcy ending, late civic buildings (which answer item 3), and new-game options with scenarios.
+4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). G1, the strategy harness, has shipped (Gap AI). Next, in order: honest taxes, mixed use with a trade-off, steadier advice, the plant's smog in view, a rating that means success, milestones, small-town services, a bankruptcy ending, late civic buildings (which answer item 3), and new-game options with scenarios.
 
 ---
 
@@ -867,6 +883,7 @@ Gap AH's systems pass). What is left:
 - Transit: in `?city=metro`, trolleys cross the highway at (44, 18) on rails set into it; Inspect there says level crossing and shows transit 100. Zone a big area in the open and its streets close into loops.
 - Commutes: in `?city=riverside` open Traffic and find the street bridge carrying the south bank's commuters; lay a long street between a row of houses and a block of shops and it reads busy along its whole length.
 - Tiles: in `?city=riverside`, Shift-drag a street diagonally across the river (one span at the shore, none floating), and drag the bulldozer over a row of houses (an orange preview lists them and their cost; Esc keeps them).
+- Strategies: `npm run strategies` (in `openpublica/`) prints the strategy tables; `test/strategyBalance.ts` holds the balance bands.
 - Systems: in `?city=troubled` the advisory names the industrial tax, and a few years on it says nobody will move in at 16%; in `?city=metro` Com's tooltip counts shop and office jobs; Save then Load leaves the HUD unchanged.
 - Growth and power: in `?city=sprawl` Inspect an empty lot at the end and it is waiting for power, with no house dark.
 - Streets: zone a 15-wide area in the open and its lines meet at a cross street halfway along as well as at both ends.

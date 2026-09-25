@@ -14,7 +14,7 @@ The earlier audits asked whether each system works. This one asks two different 
 
 A careful player can build a thriving town from the default $10,000. The opening coach works: houses appear in the first month, and careful play beats careless play by 2.5×.
 
-But the game has no goals, and its score ranks failure above success. One strategy — mixed-use zoning — beats the others with about twice the people and four times the money. Taxes up to 11% are free money, while at 12% a town loses nearly half its people. A new player's natural first move, the plant beside the first street, stalls the town for years. Bankruptcy never ends. After year 5–7 there is nothing left to decide, while the treasury climbs past $240,000.
+But the game has no goals, and its score ranks failure above success. One strategy — mixed-use zoning — beats the others with about twice the people and four times the money. Taxes up to 11% are nearly free money, while at 12% a town loses most of its people. A new player's natural first move, the plant beside the first street, stalls the town for years. Bankruptcy never ends. After year 5–7 there is nothing left to decide, while the treasury climbs past $240,000.
 
 The plan in section 6 is in four parts:
 
@@ -27,7 +27,7 @@ The plan in section 6 is in four parts:
 
 ## 2. How it was measured
 
-A scripted player plays the game from a new city: the default map (seed 2026), $10,000, and the real tools and prices. The script is in the session scratchpad, and slice G1 brings it into the repo. It works like this:
+A scripted player plays the game from a new city: the default map (seed 2026), $10,000, and the real tools and prices. It lives in `src/scenarios/strategyPlayer.ts`; `npm run strategies` (in `openpublica/`) prints the tables in sections 3 and 4, and `test/strategyBalance.ts` holds the balance bands. It works like this:
 
 - **Layout:** it builds on the north-west bank on a grid of 8-tile blocks, each ringed by an arterial road. Each block is zoned as one 7×6 area, with the zone tool's own streets. One strip per block is kept for services. There is room for 16 blocks.
 - **Expanding:** it adds the next block when fewer than 12 empty lots could grow, and only when it can pay for the block.
@@ -50,7 +50,8 @@ Caveats:
 - It is one map and one scripted player.
 - The player uses the north-west bank only, so the plateaus reflect that land, not the whole map.
 - Times are simulated months. At 1× a month is 30 seconds, so five years is 30 minutes.
-- Two bugs in the script (a link road that missed town, and a zone mix that fell back to housing) were fixed before these numbers were taken.
+- Each strategy rolls one set of growth dice, so a single run can swing: the 12% town ends with 140 people on these dice and about 400 on others. Read small differences as noise; the balance test checks relationships with margins.
+- Two bugs in the first draft of the script (a link road that missed town, and a zone mix that fell back to housing) were fixed before these numbers were taken.
 
 ---
 
@@ -61,13 +62,13 @@ Population, money, monthly net, and score at year 10:
 | Strategy | What it does | Pop y5 | Pop y10 | Money y10 | Net/mo | Score |
 |---|---|---:|---:|---:|---:|---:|
 | Balanced | Houses and shops in town, factory district across a link road, 9% taxes | 576 | 700 | $96,787 | +$1,366 | 47 |
-| Advice-follower | The same, building every service the advisories ask for | 648 | 668 | $93,305 | +$1,136 | 48 |
+| Advice-follower | The same, building every service the advisories ask for | 640 | 724 | $88,657 | +$1,256 | 48 |
 | Suburb | Mostly houses, highway rings | 832 | 808 | $52,737 | +$1,124 | 53 |
-| Houses, then mixed use | First block houses, then mixed use and shops | 1,586 | 1,546 | $394,541 | +$4,468 | 46 |
-| … with trolleys and parks | The same on trolley avenues, a park per block | 1,684 | 1,442 | $324,034 | +$2,484 | 50 |
-| Mixed use first | Mixed use from the first block | 0 | 0 | −$48,786 | −$1,898 | 57 |
+| Houses, then mixed use | First block houses, then mixed use and shops | 1,499 | 1,354 | $376,088 | +$3,790 | 47 |
+| … with trolleys and parks | The same on trolley avenues, a park per block | 1,734 | 1,738 | $342,871 | +$3,697 | 47 |
+| Mixed use first | Mixed use from the first block | 0 | 0 | −$18,726 | −$1,718 | 57 |
 | Industry late | Factory district every third block, industry tax 5% | 588 | 788 | $72,856 | +$1,147 | 48 |
-| Industry early | Factory district as the second block | 68 | 60 | −$25,602 | −$1,800 | 2 |
+| Industry early | Factory district as the second block | 92 | 84 | −$19,455 | −$1,538 | 12 |
 | No services | No police, fire, or water | 360 | 448 | $82,995 | +$1,082 | 37 |
 | Naive | Plant beside the first street, factories next to the houses | 352 | 276 | $20,600 | +$37 | 44 |
 | Tiny | Two blocks, then stop | 80 | 88 | −$870 | −$1,097 | 41 |
@@ -77,9 +78,10 @@ The same balanced town at different tax rates (all three taxes):
 
 | Taxes | 7% | 9% | 10% | 11% | 12% | 13% | 12% housing only |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Pop y10 | 624 | 700 | 696 | 716 | 400 | 12 | 200 |
-| Money y10 | $15,806 | $96,787 | $125,821 | $178,275 | $13,072 | −$21,927 | −$21,351 |
-| Score y10 | 47 | 47 | 38 | 28 | 23 | 15 | 10 |
+| Pop y10 | 644 | 700 | 640 | 656 | 140 | 48 | 388 |
+| Money y10 | $16,778 | $96,787 | $126,828 | $158,363 | −$1,165 | −$14,414 | $9,455 |
+| Net/mo y10 | +$406 | +$1,366 | +$1,638 | +$2,129 | −$1,265 | −$1,631 | −$517 |
+| Score y10 | 47 | 47 | 38 | 29 | 0 | 13 | 40 |
 
 The verdicts:
 
@@ -88,12 +90,12 @@ The verdicts:
 | Balanced, advice-follower | Viable, and the reference point. |
 | Suburb | Viable, with its own shape: the most people for a mostly-houses town, the least money. |
 | Industry late | Viable: the most jobs (1,911). |
-| Houses, then mixed use | Dominant: about 2.2× the balanced town's people and 4× its money, with no trade-off. |
+| Houses, then mixed use | Dominant: about 1.9× the balanced town's people and 3.9× its money (2.5× the people on trolley avenues), with no trade-off. |
 | Mixed use first | Broken: nobody ever moves in. |
 | Industry early, tiny | Broken: bankrupt. |
 | No services | Weaker, as it should be. |
 | Houses only | Fails, as it should, but see the score. |
-| 11% taxes | Dominant over 9%: the same people and 1.8× the money. |
+| 11% taxes | Nearly free: 6% fewer people than at 9%, and 1.6× the money. |
 | 12% and up | A cliff, not a slope. |
 
 ---
@@ -108,14 +110,14 @@ The careful balanced town, month by month:
 | Tight | Months 1–13 | Money falls to its low of $4,951 at month 13. The budget runs positive from month 7. |
 | Building out | Years 1–6 | The town adds blocks, a plant, a tower, and fire and police as it can pay. Money is back to $10,000 by month 34. |
 | Plateau | Year 5 on | The town reaches 90% of its peak population by month 63; the last block goes in at month 79. |
-| Watching | Year 6 on | Nothing left to do. Money reaches $97,000 at year 10 and $241,000 at year 20; the mixed-use town reaches $920,000. |
+| Watching | Year 6 on | Nothing left to do. Money reaches $97,000 at year 10 and $241,000 at year 20; the mixed-use town reaches $910,000. |
 
 How many months each year the player did anything:
 
 | Year | 1 | 2 | 3 | 5 | 10 | 20 |
 |---|---:|---:|---:|---:|---:|---:|
 | Balanced | 7 | 2 | 4 | 3 | 0 | 0 |
-| Mixed use | 7 | 5 | 7 | 3 | 0 | 0 |
+| Mixed use | 8 | 4 | 3 | 4 | 0 | 0 |
 
 At 1× the decisions fit in the first 30–40 minutes. After that the player watches.
 
@@ -129,11 +131,11 @@ At 1× the decisions fit in the first 30–40 minutes. After that the player wat
 
 - The houses-only town scores 80–85 in its first three years, and still 52 at year 10 while $47,584 in debt.
 - The tiny town scores 74–77.
-- The thriving towns score 46–53.
+- The thriving towns score 47–53.
 
 The score also drives nothing in the game.
 
-**F3 — Mixed use dominates.** On the same land at the same prices, a houses-then-mixed-use town has about 2.2× the balanced town's people and 4× its money. Mixed use wins on every count:
+**F3 — Mixed use dominates.** On the same land at the same prices, a houses-then-mixed-use town has about 1.9× the balanced town's people and 3.9× its money; on trolley avenues, 2.5× the people. Mixed use wins on every count:
 
 - Its smallest building houses 6 people and 2 jobs, against a house's 4 people.
 - It grows 1.3× faster.
@@ -144,9 +146,9 @@ The score also drives nothing in the game.
 
 **F5 — Taxes: free up to 11%, a cliff at 12%.**
 
-- From 9% to 11% profit nearly doubles ($1,366 to $2,599 a month at year 10) while the population holds. The only cost is score, which does nothing.
-- At 12% the town shrinks to about 57% of its size (400 people against 700 at year 10).
-- A 12% housing tax alone bankrupts it.
+- From 9% to 11% profit rises by half ($1,366 to $2,129 a month at year 10) for 6% fewer people. The other cost is score, which does nothing.
+- At 12% the town shrinks to a fifth of its size (140 people against 700 at year 10) and runs into debt.
+- A 12% housing tax alone costs 45% of the people and puts the budget in the red.
 
 The cause is the housing-demand step. Each point over 9% takes 2 a month, and jobs outnumbering homes add 5, so at 12% and above housing demand falls every month even while jobs outnumber homes. Meanwhile the deficit advisory says "raise taxes" with no limit, and the tax tooltip describes a gentle slope.
 
@@ -195,7 +197,7 @@ Slices are named G1–G11 here and become gap letters as they ship. Each has an 
 
 | Slice | Change | Exit |
 |---|---|---|
-| **G1 Strategy harness** | Move the scripted player into `src/scenarios/strategyPlayer.ts`, with its policies (careful, advice-follower, naive) and the strategy table. `npm run strategies` prints the tables in sections 3 and 4. A Jest test holds the balance bands below, so later passes cannot move them silently. | The tables above come out of the repo. The test starts with the current bands and tightens as Parts B–D land. |
+| **G1 Strategy harness** (shipped as Gap AI) | Move the scripted player into `src/scenarios/strategyPlayer.ts`, with its policies (careful, advice-follower, naive) and the strategy table. `npm run strategies` prints the tables in sections 3 and 4. A Jest test holds the balance bands below, so later passes cannot move them silently. | The tables above come out of the repo. The test starts with the current bands and tightens as Parts B–D land. |
 
 ### Part B — Balance the choices
 
