@@ -1,4 +1,5 @@
 import { city, describeCityBasics } from './support/testCityChecks';
+import { formatGrowthHint } from '../openpublica/src/sim/zoneGrowthHints';
 
 /** Scenario tests for the Troubled test city (see `openpublica/src/scenarios/testCities.ts`). */
 
@@ -7,7 +8,9 @@ describeCityBasics('troubled');
 describe('troubled', () => {
   it('should trip the warnings it was built to trip', () => {
     const { sim } = city('troubled');
-    expect(sim.stats.advisory).toMatch(/need a road next door/);
+    // The factories its tax drives off outrank the deep blocks with no frontage.
+    expect(sim.stats.advisory).toMatch(/^Factories are emptying — industrial tax at 14%/);
+    expect(formatGrowthHint(sim.getTile(10, 43)!, sim.map, sim.stats, {})).toBe('needs a road next door');
     expect(sim.stats.powerLoad).toBeGreaterThanOrEqual(0.95 * sim.stats.powerSupply);
     expect(sim.stats.darkPopulation).toBeGreaterThan(0);
     expect(sim.stats.pollutionAverage).toBeGreaterThanOrEqual(40);

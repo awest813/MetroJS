@@ -13,6 +13,8 @@ export interface SavedTile {
   zoneType:   number;
   buildingId: string | null;
   neglectMonths?: number;
+  /** Months its building has outgrown the lot (see ZoneGrowthSystem); omitted when 0. */
+  outgrownMonths?: number;
 }
 
 /** Serialised building instance. */
@@ -48,6 +50,8 @@ export interface SavedStats {
   waterAverage:      number;
   approval:          number;
   advisory:          string;
+  /** Buildings the power grid held back last month (the grid-full advisory). */
+  powerHeld?:        number;
 }
 
 /** Serialised budget levers beyond taxes. */

@@ -21,6 +21,7 @@ export class SaveCodec {
   static encode(sim: CitySim): SaveGame {
     const tiles: SaveGame['tiles'] = [];
     sim.map.forEach((tile) => {
+      const outgrown = sim.growth.outgrownMonths(tile.x, tile.y);
       tiles.push({
         x:          tile.x,
         y:          tile.y,
@@ -29,6 +30,7 @@ export class SaveCodec {
         zoneType:   tile.zoneType,
         buildingId: tile.buildingId,
         neglectMonths: tile.neglectMonths,
+        ...(outgrown > 0 ? { outgrownMonths: outgrown } : {}),
       });
     });
 
@@ -70,6 +72,7 @@ export class SaveCodec {
         waterAverage:      sim.stats.waterAverage,
         approval:          sim.stats.approval,
         advisory:          sim.stats.advisory,
+        powerHeld:         sim.stats.powerHeld ?? 0,
       },
       levers: {
         safetyFunding: sim.levers.safetyFunding,
@@ -111,6 +114,13 @@ export class SaveCodec {
       );
     }
     SaveCodec._reconcileBuildings(sim);
+    // How long each building has outgrown its lot, so a load shrinks it when the
+    // unsaved city would have.
+    sim.growth.restoreOutgrownMonths(
+      save.tiles
+        .filter((t) => (t.outgrownMonths ?? 0) > 0 && t.buildingId)
+        .map((t) => ({ x: t.x, y: t.y, months: t.outgrownMonths! })),
+    );
 
     // ── Stats ────────────────────────────────────────────────────────────────
     const s = save.stats;
@@ -138,6 +148,7 @@ export class SaveCodec {
     sim.stats.waterAverage      = s.waterAverage      ?? 0;
     sim.stats.approval          = s.approval          ?? 100;
     sim.stats.advisory          = s.advisory          ?? '';
+    sim.stats.powerHeld         = s.powerHeld         ?? 0;
 
     sim.restoreLevers(save.levers ?? {});
 

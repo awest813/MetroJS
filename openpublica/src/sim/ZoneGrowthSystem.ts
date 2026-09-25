@@ -20,7 +20,7 @@ import { TransitSystem } from './TransitSystem';
 import {
   NEIGHBOUR_GROWTH_PULL,
   POWERED_ROAD_GROWTH_BOOST,
-  STARTER_RESIDENTIAL_DEMAND,
+  starterDemand,
   UNPOWERED_FACTOR,
   demandForZone,
   growthChance,
@@ -62,6 +62,40 @@ const INDUSTRY_TAX_DEMAND = 4;
  * as fast, so factories stop converting soon after the jobs gap closes.
  */
 export const INDUSTRY_DEMAND_STEP = 4;
+
+/**
+ * Shop jobs each resident keeps busy. Past this many, shops have no more
+ * customers to open for, and commercial demand is gone.
+ */
+export const SHOP_JOBS_PER_RESIDENT = 1.5;
+
+/** Most commercial demand moves toward its target in a month, up or down. */
+export const COMMERCE_DEMAND_STEP = 5;
+
+/** Commercial demand target per point of commercial tax under (or over) 9%. */
+const COMMERCE_TAX_DEMAND = 4;
+
+/**
+ * Next month's commercial demand: a step toward a target set by the room
+ * residents leave for shops (all of it with no shops, none once every
+ * resident keeps {@link SHOP_JOBS_PER_RESIDENT} shop jobs busy), raised by
+ * walkable streets and transit (up to 10 each), and lowered by commercial
+ * tax over 9% ({@link COMMERCE_DEMAND_STEP} a month either way).
+ */
+export function nextCommercialDemand(
+  stats: Pick<CityStats, 'population' | 'shopJobs' | 'commercialDemand' | 'comTaxRate' | 'walkability' | 'transitAccess'>,
+): number {
+  let target = 0;
+  if (stats.population > 0) {
+    const room = 1 - (stats.shopJobs ?? 0) / (stats.population * SHOP_JOBS_PER_RESIDENT);
+    target = Math.max(0, Math.min(
+      MAX_DEMAND,
+      room * 100 + stats.walkability / 10 + stats.transitAccess / 10 + (9 - stats.comTaxRate) * COMMERCE_TAX_DEMAND,
+    ));
+  }
+  const step = Math.max(-COMMERCE_DEMAND_STEP, Math.min(COMMERCE_DEMAND_STEP, target - stats.commercialDemand));
+  return Math.max(0, Math.min(MAX_DEMAND, Math.round(stats.commercialDemand + step)));
+}
 
 /** Cast the imported JSON to a typed array once at module load. */
 const BUILDING_DEFS: BuildingDef[] = rawDefs as BuildingDef[];
@@ -109,7 +143,7 @@ export class ZoneGrowthSystem {
   private readonly _defsByZone: Map<ZoneType, BuildingDef[]>;
   /**
    * Consecutive months each outgrown building has spent too big for its lot,
-   * by tile key. Not saved: after a load the count starts again.
+   * by tile key. Saved per tile, so a load shrinks buildings on time.
    */
   private readonly _outgrownMonths = new Map<string, number>();
 
@@ -299,17 +333,18 @@ export class ZoneGrowthSystem {
    *
    * Rules (simple, readable):
    * - residential demand rises when jobs > workers (population).
-   * - commercial demand rises when population grows.
+   * - commercial demand heads for a target set by the shop jobs residents
+   *   can keep busy ({@link nextCommercialDemand}).
    * - industrial demand heads for a target set by the share of residents
    *   without a job ({@link nextIndustrialDemand}).
    * - higher tax rates suppress demand (penalty); lower rates boost it.
    */
-  /** Housing demand from last month's jobs. An empty city keeps the starter bar. */
+  /** Housing demand from last month's jobs. An empty city keeps the starter bar ({@link starterDemand}). */
   private _updateResidentialDemand(stats: CityStats): void {
     const resTaxMod = (9 - stats.resTaxRate) * 2;
     const TRANSIT_RES_DEMAND_DIVISOR = 50;
     if (stats.population === 0) {
-      stats.residentialDemand = STARTER_RESIDENTIAL_DEMAND;
+      stats.residentialDemand = starterDemand(stats.resTaxRate);
       return;
     }
     const jobBalance = stats.jobs - stats.population;
@@ -322,17 +357,7 @@ export class ZoneGrowthSystem {
 
   /** Shop and factory demand from the census just taken, including this month's houses. */
   private _updateJobDemand(stats: CityStats): void {
-    const comTaxMod = (9 - stats.comTaxRate) * 2;
-    const WALK_COM_DEMAND_DIVISOR = 25;
-    const TRANSIT_COM_DEMAND_DIVISOR = 20;
-    const popGrowthBoost = stats.population > 0 ? 3 : -1;
-    const walkBoost = Math.round(stats.walkability / WALK_COM_DEMAND_DIVISOR);
-    const transitComBoost = Math.round(stats.transitAccess / TRANSIT_COM_DEMAND_DIVISOR);
-    stats.commercialDemand = Math.max(
-      0,
-      Math.min(MAX_DEMAND, stats.commercialDemand + popGrowthBoost + walkBoost + transitComBoost + comTaxMod),
-    );
-
+    stats.commercialDemand = nextCommercialDemand(stats);
     stats.industrialDemand = nextIndustrialDemand(stats);
   }
 
@@ -584,6 +609,14 @@ export class ZoneGrowthSystem {
     return this._outgrownMonths.get(tileKey(x, y)) ?? 0;
   }
 
+  /** Put saved outgrown-month counts back (a load), replacing any held now. */
+  restoreOutgrownMonths(entries: Iterable<{ x: number; y: number; months: number }>): void {
+    this._outgrownMonths.clear();
+    for (const { x, y, months } of entries) {
+      if (Number.isFinite(months) && months > 0) this._outgrownMonths.set(tileKey(x, y), Math.min(SHRINK_MONTHS, Math.floor(months)));
+    }
+  }
+
   private _pickSmallerDef(zoneType: ZoneType, current: BuildingDef): BuildingDef | undefined {
     const bucket = this._defsByZone.get(zoneType);
     if (!bucket) return undefined;
@@ -606,6 +639,7 @@ export class ZoneGrowthSystem {
     let population = 0;
     let darkPopulation = 0;
     let jobs       = 0;
+    let shopJobs   = 0;
 
     for (const instance of this.buildings.values()) {
       const def = this._defs.get(instance.defId);
@@ -617,11 +651,15 @@ export class ZoneGrowthSystem {
       population += people;
       if (!powered) darkPopulation += people;
       if (!def.isService) jobs += def.jobs * factor;
+      if (!def.isService && (def.zoneType === ZoneType.Commercial || def.zoneType === ZoneType.MixedUse)) {
+        shopJobs += def.jobs * factor;
+      }
     }
 
     stats.population = Math.floor(population);
     stats.darkPopulation = Math.floor(darkPopulation);
     stats.jobs       = Math.floor(jobs);
+    stats.shopJobs   = Math.floor(shopJobs);
   }
 
   /**

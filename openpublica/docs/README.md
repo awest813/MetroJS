@@ -71,7 +71,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Mouse tile picking via terrain/water ray hits
 - [x] Tools: Inspect, Road, Highway, R/C/I/Mixed/Dezone brushes, Bulldoze, Power plant, Park, Police, Fire, Water, Trolley avenue (all three road tools bridge water)
 - [x] Overlays: power, land value, traffic, walkability, transit, pollution, crowd, crime, fire, water (one height-aware mesh)
-- [x] Save/load via `SaveSystem`
+- [x] Save/load via `SaveSystem`: a loaded city matches the saved one tile for tile and plays on exactly as it would have
 - [x] Perspective camera, sun/shadows, orbit vs paint input (Phase A)
 - [x] Heightfield, water basins, height-aware picking (Phase B)
 - [x] Map terrain generation (lakes, river, dirt beaches)
@@ -106,6 +106,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Buildings shrink: the biggest sizes step down, a few a month, when their land value falls well under the bar that grew them or industry declines
 - [x] Frame time checked in a full city on High (Gap AB): flat road pieces cast no shadows and draw only the faces that show, buildings stop recomputing their matrices, a month end routes traffic once, and weather shaders compile at load
 - [x] Happiness decides how many people move in: below 80 housing grows at a falling share of its demand, at 30 residents leave; the HUD shows what made it
+- [x] Demand that means something: shops open while residents have room for them (up to 1.5 shop and office jobs each) and factories while residents lack work; high taxes keep an emptied town empty; the demand bars and tax sliders explain themselves, and the emptying advice names the real cause
 - [x] GLB building kits: a model for every building (`npm run models`) replaces its procedural kit on High quality, baked to one instanced mesh each; any glTF following `public/models/ASSET_LICENSE.md` can replace one, and a missing model falls back to its kit
 - [x] Services count: fire cover raises land value, fire and water gaps cost score, the advisory names dry buildings behind full towers, and Inspect gives each service's reach, buildings covered, and upkeep
 - [x] Ambient occlusion (Settings, off by default, High only): soft shade where buildings and trees meet the ground, paused under data maps, with FXAA for the edges

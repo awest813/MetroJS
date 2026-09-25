@@ -1,7 +1,7 @@
 # OpenPublica — Next gaps (after Phases A–H)
 
 **Date:** 2026-09-25 (first written 2026-09-20)  
-**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AG below have shipped on top.
+**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AH below have shipped on top.
 
 This is an implementation plan for **what is still missing**, not a licence to rewrite sim formulas or import Micropolis art.
 
@@ -18,6 +18,7 @@ all shipped. What is left (section 5) is depth, not missing systems:
 1. **Presentation** extras have shipped: SSAO as an opt-in after its full-city frame check (Gaps AB, AC), and GLB kits with a model for every building (Gap AE). What is left there is art: an artist's kit can replace the generated one.
 2. **Happiness** now decides how many people move in (Gap AF): below 80, housing grows at a falling share of its demand, and at 30 or less residents leave.
 3. **Tile interactions** were audited tool by tile (Gap AG). Every outcome was consistent and every refusal had a reason. Two drags were not right: a freehand stroke across water bought bridge spans that joined nothing, and the bulldozer cleared tiles as the pointer crossed them, with no preview. Both are fixed.
+4. **Systems** were audited over ten-year runs of every test city (Gap AH). Shop demand now follows the residents instead of sitting at 100%. The advice names the real cause when buildings empty. High taxes keep an emptied town empty instead of letting it regrow and die in a loop. A loaded city now plays on exactly as the saved one would have.
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
 
@@ -794,6 +795,37 @@ These were checked and left alone:
 
 ---
 
+### Gap AH — Systems and mechanics **shipped**
+
+The audit ran every test city ten years past its script, and it compared each city with a saved-and-loaded copy of itself rolling the same dice. It turned up four faults:
+
+- Shop demand only rose. It gained 3 a month whenever anyone lived in town, and fell only with commercial tax above about 10%. Every healthy test city sat at 100% for all ten years, so the Com bar said nothing.
+- The emptying advice was wrong in Troubled. It said "more homes than jobs" while jobs outnumbered homes, because the city's 16/14/14% taxes were the cause.
+- Troubled emptied and regrew every four to five years (0 → 116 → 0 people). An empty city got the starter demand whatever its taxes.
+- A loaded city did not play on as the saved one would have. After one month, a loaded Troubled had 14 more jobs than the unsaved original.
+
+| Slice | What shipped |
+|---|---|
+| AH1 Shop demand | Commercial demand heads for a target, as industry's does (`nextCommercialDemand`). The target is the room residents leave for shops: 100 with no shops, 0 once shop and office jobs reach 1.5 per resident (`SHOP_JOBS_PER_RESIDENT`). Walkability and transit each add up to 10, and commercial tax moves it 4 a point. Demand steps 5 a month toward the target. The census counts `shopJobs`. Over ten years the test cities' Com bars now sit between 60 and 89. Metro grows 21 office blocks (was 17) at the same population, and Sprawl 6 (was 14). |
+| AH2 The cause, named | When houses empty for want of demand while jobs outnumber homes, the advice names the residential tax. With the tax at 9% or below, it says demand is climbing back. Shops and factories get their own lines, naming their tax when it is over 9%. People leaving for any reason but power now outrank lots waiting for a road, which have no one to lose. Troubled now opens with "Factories are emptying — industrial tax at 14% drives them off." Empty shop and factory lots give the same reasons. |
+| AH3 High taxes, empty town | An empty city's housing demand is the starter 40 plus 6 per point of residential tax under 9%, or minus 6 per point over (`starterDemand`). Nobody moves in at 16% or more. Troubled now empties and stays empty, and the advice reads "Nobody will move in at 16% residential tax — cut it toward 9%." |
+| AH4 Save and load | Two counters were not saved: how long each building has outgrown its lot (the shrink countdown) and how many buildings waited for power (the grid-full advisory). Both are saved now. The refresh also computed land value before fire coverage, although land value counts fire cover. A new fire station's bonus therefore waited for the next edit, and a loaded Metro started a point low on about 380 tiles. Coverage now comes first, and a duplicate water pass is gone. All five test cities now load identical to the saved city on every tile and stat, and play the next 36 months identically. |
+| AH5 Explained | The Com bar's tooltip gives residents, the shop and office jobs they keep busy, how many are open, and the tax. The Ind bar's gives residents without work. Each tax slider says what it does: the old shared line said every tax moved demand by 2 a month, which was wrong for shops and factories. |
+
+These were checked and left alone:
+
+- Built-out cities pile up money. Riverside goes from $55k to $166k in ten years, and nothing asks for it once the city is built.
+- Houses churn at balance: where people equal jobs, housing demand dips to 0 and a few houses leave and regrow. The advice now says whether demand is on its way back.
+- Smog keeps many of Sprawl's and Metro's lots empty, and their hints say so.
+
+**Exit:**
+
+- In `?city=troubled`, the advisory names the 14% industrial tax.
+- In `?city=metro`, hover Com. It reads 68%, with 619 of 1,458 shop and office jobs open.
+- Save, then Load, any city. The HUD is unchanged.
+
+---
+
 ## 4. Explicitly still out of scope (Phase I)
 
 Unchanged from the 3D plan:
@@ -812,10 +844,12 @@ Unchanged from the 3D plan:
 
 The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped, and so has
 everything after it (D4 faster tests, the Gap AB frame check, the Gap AC SSAO
-opt-in, the Gap AE GLB kits, Gap AF's happiness, Gap AG's tile interactions). What is left:
+opt-in, the Gap AE GLB kits, Gap AF's happiness, Gap AG's tile interactions,
+Gap AH's systems pass). What is left:
 
 1. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
 2. **An artist's kit (optional).** The fifteen models are generated; hand-made ones can replace them file by file under `public/models/ASSET_LICENSE.md`.
+3. **Something to spend on late.** Once a test city is built out, its money only grows: Riverside from $55k to $166k in ten years. Upgrades that cost money to run, such as larger plants, stadiums, or road repaving, would give a finished city decisions to make.
 
 ---
 
@@ -831,6 +865,7 @@ opt-in, the Gap AE GLB kits, Gap AF's happiness, Gap AG's tile interactions). Wh
 - Transit: in `?city=metro`, trolleys cross the highway at (44, 18) on rails set into it; Inspect there says level crossing and shows transit 100. Zone a big area in the open and its streets close into loops.
 - Commutes: in `?city=riverside` open Traffic and find the street bridge carrying the south bank's commuters; lay a long street between a row of houses and a block of shops and it reads busy along its whole length.
 - Tiles: in `?city=riverside`, Shift-drag a street diagonally across the river (one span at the shore, none floating), and drag the bulldozer over a row of houses (an orange preview lists them and their cost; Esc keeps them).
+- Systems: in `?city=troubled` the advisory names the industrial tax, and a few years on it says nobody will move in at 16%; in `?city=metro` Com's tooltip counts shop and office jobs; Save then Load leaves the HUD unchanged.
 - Growth and power: in `?city=sprawl` Inspect an empty lot at the end and it is waiting for power, with no house dark.
 - Streets: zone a 15-wide area in the open and its lines meet at a cross street halfway along as well as at both ends.
 - Shrinking: Inspect an office block whose block lost its land value (bulldoze the shops around it, or put a plant next door) and it counts down to stepping down.

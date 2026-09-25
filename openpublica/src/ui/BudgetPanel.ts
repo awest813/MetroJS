@@ -12,7 +12,7 @@ import {
   bondDebt,
   newBond,
 } from '../sim/budgetLevers';
-import { TAX_HINT, formatBudgetNet, formatRunway, formatSignedMoney } from './chromeCopy';
+import { TAX_HINTS, formatBudgetNet, formatRunway, formatSignedMoney } from './chromeCopy';
 
 type TaxChangeCallback = (
   resTaxRate: number,
@@ -87,7 +87,7 @@ export class BudgetPanel {
   constructor(root: HTMLElement) {
     this._root = root;
     const taxRows = TAXES.map((t) => `
-          <div class="tax-row" title="${t.title}${TAX_HINT}">
+          <div class="tax-row" title="${t.title}${TAX_HINTS[t.id]}">
             <label class="tax-label" for="tax-${t.id}">${t.label}</label>
             <input class="tax-slider" id="tax-${t.id}" type="range" min="0" max="20" value="9" step="1" />
             <span class="tax-rate" id="tax-${t.id}-rate">9%</span>

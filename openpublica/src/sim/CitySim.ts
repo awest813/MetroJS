@@ -49,6 +49,11 @@ export interface CityStats {
    */
   darkPopulation:    number;
   jobs:              number;
+  /**
+   * Jobs in shops and the shop half of mixed use (part of `jobs`). Set by the
+   * census; commercial demand compares it with the population.
+   */
+  shopJobs?:         number;
   money:             number;
   residentialDemand: number;
   commercialDemand:  number;
@@ -491,8 +496,10 @@ export class CitySim {
 
   /**
    * One snapshot of derived map state.
-   * Traffic first, then the smog and happiness that read it, then land value
-   * (after water) so crime sees the values the player is about to see.
+   * Traffic first, then the smog and happiness that read it; coverage (police,
+   * fire, water) before land value, which counts fire and water; land value
+   * before crime, which reads it, so crime sees the values the player is about
+   * to see.
    *
    * `trafficFresh` skips traffic, walk, and transit when they already ran on
    * the current roads and buildings (a month's last step runs them), which
@@ -501,9 +508,9 @@ export class CitySim {
   private _syncPublishedState(applyCrimeHappiness: boolean, notify: boolean, trafficFresh = false): void {
     if (!trafficFresh) this._refreshTrafficLayers();
     this.pollution.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
-    this.water.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+    this._refreshCoverage();
     this.landValue.tick(this.map, this.growth.buildings, this.growth.defs);
-    this._refreshCityHealth(applyCrimeHappiness, notify);
+    this._refreshCrimeAndHappiness(applyCrimeHappiness, notify);
     this.previewEconomy();
     this.evaluate();
   }
@@ -522,14 +529,24 @@ export class CitySim {
   }
 
   private _refreshCityHealth(applyCrimeHappiness: boolean, notify = true): void {
+    this._refreshCoverage();
+    this._refreshCrimeAndHappiness(applyCrimeHappiness, notify);
+    this.evaluate();
+  }
+
+  /** Density, then the police, fire, and water coverage laid over it. */
+  private _refreshCoverage(): void {
     this.density.tick(this.map, this.growth.buildings, this.growth.defs);
     const safety = this.growth.economy.safetyFunding;
     this.police.tick(this.map, this.growth.buildings, this.growth.defs, safety);
     this.fire.tick(this.map, this.growth.buildings, this.growth.defs, this.stats, safety);
     this.water.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+  }
+
+  /** Crime from density, land value, and police; then happiness, which crime costs. */
+  private _refreshCrimeAndHappiness(applyCrimeHappiness: boolean, notify: boolean): void {
     this.crime.tick(this.map, this.stats);
     if (applyCrimeHappiness) composeHappiness(this.map, this.stats, true);
-    this.evaluate();
     if (notify && this.onCrimeChanged) this.onCrimeChanged();
   }
 

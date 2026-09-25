@@ -1,9 +1,10 @@
 import type { CityStats } from '../sim/CitySim';
 import type { SimulationClock } from '../sim/SimulationClock';
 import { describeWeatherEffects, formatWeather, weatherLabel, type Weather } from '../sim/weather';
-import { formatPopulation, happinessTooltip } from './chromeCopy';
+import { commerceTooltip, formatPopulation, happinessTooltip, industryTooltip } from './chromeCopy';
 import { HAPPY_DRAW } from '../sim/happiness';
 import { housingDemand } from '../sim/zoneGrowthHints';
+import { SHOP_JOBS_PER_RESIDENT } from '../sim/ZoneGrowthSystem';
 
 /** Where the HUD reads this month's weather and the forecast (the sim). */
 export interface WeatherSource {
@@ -176,6 +177,10 @@ export class CityHUD {
     }
     this._setBar(this._comFill, this._comLabel, stats.commercialDemand);
     this._setBar(this._indFill, this._indLabel, stats.industrialDemand);
+    const comRow = this._comFill.closest('.demand-row');
+    if (comRow instanceof HTMLElement) comRow.title = commerceTooltip(stats, SHOP_JOBS_PER_RESIDENT);
+    const indRow = this._indFill.closest('.demand-row');
+    if (indRow instanceof HTMLElement) indRow.title = industryTooltip(stats);
   }
 
   private _setBar(fill: HTMLElement, label: HTMLElement, value: number): void {

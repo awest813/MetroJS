@@ -45,9 +45,36 @@ export function formatRunway(money: number, net: number): string | null {
   return `Money runs out in about ${months} month${months === 1 ? '' : 's'} at this rate.`;
 }
 
-/** What a tax slider does, for its tooltip. */
-export const TAX_HINT =
-  'Each point above 9% cuts this zone\'s demand by 2 a month; each point below adds 2.';
+/** What each tax slider does, for its tooltip. */
+export const TAX_HINTS: Readonly<Record<'res' | 'com' | 'ind', string>> = {
+  res: 'Each point above 9% cuts housing demand by 2 a month; each point below adds 2. At 16% an empty town draws nobody.',
+  com: 'Each point above 9% lowers the shop demand target by 4; each point below raises it by 4.',
+  ind: 'Each point above 9% lowers the factory demand target by 4; each point below raises it by 4.',
+};
+
+/** Shop demand: how many shop and office jobs the residents keep busy, and how many are open. */
+export function commerceTooltip(
+  stats: { commercialDemand: number; population: number; shopJobs?: number; comTaxRate: number },
+  jobsPerResident: number,
+): string {
+  const room = Math.round(stats.population * jobsPerResident);
+  const open = stats.shopJobs ?? 0;
+  const why = stats.population <= 0
+    ? 'shops wait for residents'
+    : `${stats.population.toLocaleString()} residents keep up to ${room.toLocaleString()} shop and office jobs busy; ${open.toLocaleString()} are open`;
+  const tax = stats.comTaxRate > 9 ? `. Commercial tax at ${stats.comTaxRate}% holds it down` : '';
+  return `Shop demand ${Math.round(stats.commercialDemand)}%: ${why}${tax}. Walkable streets and transit raise it.`;
+}
+
+/** Factory demand: the residents without work, and the tax. */
+export function industryTooltip(stats: { industrialDemand: number; population: number; jobs: number; indTaxRate: number }): string {
+  const idle = Math.max(0, stats.population - stats.jobs);
+  const why = idle > 0
+    ? `${idle.toLocaleString()} residents have no job, and factories open to hire them`
+    : 'every resident has a job, so few new factories open';
+  const tax = stats.indTaxRate > 9 ? `. Industrial tax at ${stats.indTaxRate}% holds it down` : '';
+  return `Factory demand ${Math.round(stats.industrialDemand)}%: ${why}${tax}.`;
+}
 
 /**
  * The HUD's happiness tooltip: what cost it, what won some back, and how

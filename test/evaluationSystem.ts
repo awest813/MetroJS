@@ -236,9 +236,18 @@ describe('EvaluationSystem', () => {
       judge(sim);
       expect(sim.stats.advisory).toBe('Houses are emptying — people are too unhappy to stay (happiness 25). Clear the jammed roads and crime.');
       // With no housing demand at all, jobs are the cause, whatever the mood.
-      sim.stats.residentialDemand = 0;
+      Object.assign(sim.stats, { residentialDemand: 0, population: 40, jobs: 20 });
       judge(sim);
       expect(sim.stats.advisory).toMatch(/more homes than jobs/);
+      // With work to spare, it is the tax that keeps people away.
+      Object.assign(sim.stats, { population: 40, jobs: 60, resTaxRate: 15 });
+      judge(sim);
+      expect(sim.stats.advisory).toBe(
+        'Houses are emptying — there is work, but residential tax at 15% keeps people away. Cut it toward 9%.',
+      );
+      sim.stats.resTaxRate = 9;
+      judge(sim);
+      expect(sim.stats.advisory).toMatch(/housing demand ran dry and is climbing back/);
     });
 
     it('should leave a few dry buildings to the Water map', () => {
@@ -302,9 +311,38 @@ describe('EvaluationSystem', () => {
     sim.getTile(10, 11)!.powered = true;
     sim.getTile(10, 11)!.neglectMonths = 2;
     sim.growth.buildings.set('10,11', { defId: 'small_house', x: 10, y: 11 });
-    sim.stats.residentialDemand = 0;
+    Object.assign(sim.stats, { residentialDemand: 0, population: 4, jobs: 0 });
     sim.evaluate();
     expect(sim.stats.advisory).toMatch(/Houses are emptying — more homes than jobs/);
+  });
+
+  it('should name the shops or factories that empty, and the tax when it is the cause', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    placeConnectedPlant(sim, 0, 0);
+    sim.stats.pollutionAverage = 0;
+    sim.placeRoad(10, 10, RoadType.Street);
+    sim.placeRoad(11, 10, RoadType.Street);
+    const lot = (x: number, zone: ZoneType, defId: string): void => {
+      const tile = sim.getTile(x, 11)!;
+      Object.assign(tile, { zoneType: zone, buildingId: defId, powered: true, neglectMonths: 2 });
+      sim.growth.buildings.set(`${x},11`, { defId, x, y: 11 });
+    };
+    lot(10, ZoneType.Commercial, 'small_shop');
+    Object.assign(sim.stats, { commercialDemand: 0, population: 4, jobs: 3 });
+    sim.evaluate();
+    expect(sim.stats.advisory).toBe(
+      'Shops are emptying — there are more shops than residents to keep them busy. Zone housing for more customers.',
+    );
+    sim.stats.comTaxRate = 14;
+    sim.evaluate();
+    expect(sim.stats.advisory).toBe('Shops are emptying — commercial tax at 14% drives them off. Cut it toward 9%.');
+
+    sim.getTile(10, 11)!.neglectMonths = 0;
+    lot(11, ZoneType.Industrial, 'factory');
+    Object.assign(sim.stats, { industrialDemand: 0, indTaxRate: 16 });
+    sim.evaluate();
+    expect(sim.stats.advisory).toBe('Factories are emptying — industrial tax at 16% drives them off. Cut it toward 9%.');
   });
 
   it('should warn when a station sits outside the plant radius', () => {

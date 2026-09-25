@@ -13,6 +13,19 @@ import { happinessDraw } from './happiness';
  */
 export const STARTER_RESIDENTIAL_DEMAND = 40;
 
+/** Starter demand per point of residential tax under (or over) 9%. */
+export const STARTER_TAX_DEMAND = 6;
+
+/**
+ * Housing demand in a city nobody lives in: the starter bar, moved by the
+ * residential tax. At 16% and up nobody moves in, so a town its taxes
+ * emptied stays empty until they come down, instead of regrowing on the
+ * starter bar and emptying again every few years.
+ */
+export function starterDemand(resTaxRate: number): number {
+  return Math.max(0, Math.min(100, STARTER_RESIDENTIAL_DEMAND + (9 - resTaxRate) * STARTER_TAX_DEMAND));
+}
+
 /**
  * Share of population and jobs counted while a building has no power.
  * Census and the density overlay both use this so Pop and Crowd match.
@@ -312,12 +325,16 @@ export function formatGrowthHint(
       return 'no housing demand — add jobs or cut residential tax';
     }
     if (tile.zoneType === ZoneType.Commercial) {
-      return 'no shop demand — grow population or add transit';
+      return stats.comTaxRate > 9
+        ? `no shop demand — commercial tax at ${stats.comTaxRate}% keeps shops away`
+        : 'no shop demand — the residents already keep every shop busy; zone housing for more customers';
     }
     if (tile.zoneType === ZoneType.MixedUse) {
       return 'mixed-use needs both housing and shop demand';
     }
-    return 'no industrial demand — cut industrial tax';
+    return stats.indTaxRate > 9
+      ? `no industrial demand — industrial tax at ${stats.indTaxRate}% keeps factories away`
+      : 'no industrial demand — nearly every resident already has work';
   }
 
   const hostile = lotTooHostile(tile);
