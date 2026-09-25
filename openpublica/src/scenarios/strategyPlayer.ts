@@ -327,9 +327,13 @@ export interface StrategySummary {
   readonly moneyY10: number;
   readonly netY10: number;
   readonly approvalY10: number;
-  /** Population and treasury in the run's last month. */
+  /** Population, treasury, happiness, and walkability in the run's last month. */
   readonly endPopulation: number;
   readonly endMoney: number;
+  readonly endHappiness: number;
+  readonly endWalkability: number;
+  /** First month with 100 residents (Infinity if never). */
+  readonly monthTo100: number;
   /** Months in debt over the run. */
   readonly monthsInDebt: number;
   /** Month the treasury was lowest, and how low. */
@@ -353,6 +357,9 @@ export function summarize(run: StrategyRun): StrategySummary {
     approvalY10: at(120).approval,
     endPopulation: run.months[run.months.length - 1].population,
     endMoney: run.months[run.months.length - 1].money,
+    endHappiness: run.months[run.months.length - 1].happiness,
+    endWalkability: run.sim.stats.walkability,
+    monthTo100: run.months.find((m) => m.population >= 100)?.month ?? Infinity,
     monthsInDebt: run.months.filter((m) => m.money < 0).length,
     lowMonth: low.month,
     lowMoney: low.money,

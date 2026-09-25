@@ -28,7 +28,7 @@ const TOOL_TITLES: Readonly<Record<string, string>> = {
   zoneResidentialLow: 'Housing lots — $5. Drag a rectangle; deep areas get streets ($10 a tile, S toggles); Shift paints freehand (key Z)',
   zoneCommercialLow: 'Shop lots — $5. Drag a rectangle (S toggles streets). Need residents before they fill (key C)',
   zoneIndustrialLight: 'Factory lots — $5. Drag a rectangle (S toggles streets) (key N). I stays inspect',
-  zoneMixedUse: 'Housing and shops on one lot — $5. Drag a rectangle (S toggles streets) (key U). M stays mute',
+  zoneMixedUse: 'Flats over shops on one lot — $5. Walkable, and it can start a town; it needs dearer land than houses to build larger. Drag a rectangle (S toggles streets) (key U). M stays mute',
   zoneClear: 'Remove zoning — drag a rectangle. Buildings must be bulldozed first',
   placePowerPlant: 'Power plant — $500, $80/mo. Place beside a street: power runs along every street joined to it, up to 400 load (about 100 houses). Smoggy, so keep it away from homes (key G)',
   placePark: 'Park — $200, $20/mo. Raises nearby land value (key K)',

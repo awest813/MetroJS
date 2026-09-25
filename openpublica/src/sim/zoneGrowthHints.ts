@@ -139,10 +139,22 @@ export function industrialTier(demand: number, freight: boolean): number {
   return 0;
 }
 
+/**
+ * Land value a mixed-use lot needs over a house's or shop's to step up a size:
+ * flats over shops are a main-street premium. (Its own street life lifts a
+ * mixed block's land, so without it mixed use outbuilt every other zone.)
+ */
+export const MAIN_STREET_PREMIUM = 15;
+
+/** Land value as a lot's zone judges it for its size: mixed use pays the main-street premium. */
+function tierLandValue(tile: CityTile): number {
+  return tile.zoneType === ZoneType.MixedUse ? tile.landValue - MAIN_STREET_PREMIUM : tile.landValue;
+}
+
 /** The size a lot can support: by land value and demand, or for industry by demand and freight. */
 export function lotTier(map: CityMap, tile: CityTile, demand: number): number {
   if (tile.zoneType === ZoneType.Industrial) return industrialTier(demand, hasFreightAccess(map, tile.x, tile.y));
-  return developmentTier(tile.landValue, demand);
+  return developmentTier(tierLandValue(tile), demand);
 }
 
 /**
@@ -181,7 +193,7 @@ export function outgrownLot(
     const sustained = demand >= INDUSTRY_DECLINE_DEMAND ? TALL_DEMAND : demand + SHRINK_SLACK;
     return size > industrialTier(sustained, hasFreightAccess(map, tile.x, tile.y));
   }
-  return size > developmentTier(tile.landValue + SHRINK_SLACK, TALL_DEMAND);
+  return size > developmentTier(tierLandValue(tile) + SHRINK_SLACK, TALL_DEMAND);
 }
 
 export function rankedZoneDefs<T extends GrowthDef>(defs: readonly T[]): T[] {
@@ -241,13 +253,23 @@ export function growthChance(
   return Math.min(0.9, 0.32 * lvFactor * demandFactor * mixedBoost * power);
 }
 
+/** Below this many residents, mixed-use flats grow before their shops have customers. */
+export const MIXED_FLATS_FIRST = 50;
+
 export function demandForZone(zoneType: ZoneType, stats: CityStats): number {
   switch (zoneType) {
     case ZoneType.Residential: return housingDemand(stats);
     case ZoneType.Commercial:  return shopDemand(stats);
     case ZoneType.Industrial:  return Math.round(stats.industrialDemand * taxDraw(stats.indTaxRate));
-    case ZoneType.MixedUse:
-      return Math.min(housingDemand(stats), shopDemand(stats));
+    case ZoneType.MixedUse: {
+      // Mixed use grows on the weaker of its two demands. In a town of fewer
+      // than MIXED_FLATS_FIRST residents, before shops have customers, its
+      // flats grow at half the housing pace anyway, so a mixed-use town can start.
+      const housing = housingDemand(stats);
+      const shops = shopDemand(stats);
+      const start = stats.population < MIXED_FLATS_FIRST ? Math.round(housing / 2) : 0;
+      return Math.min(housing, Math.max(shops, start));
+    }
     default:
       return 0;
   }

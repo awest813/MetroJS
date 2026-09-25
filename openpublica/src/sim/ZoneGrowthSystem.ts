@@ -388,10 +388,8 @@ export class ZoneGrowthSystem {
       const demand = demandForZone(tile.zoneType, stats);
       if (demand <= 0) return;
 
-      const mixedBoost = (tile.zoneType === ZoneType.MixedUse &&
-        this._hasAdjacentActiveZone(map, tile.x, tile.y)) ? 1.3 : 1.0;
       const poweredBoost = tile.powered ? POWERED_ROAD_GROWTH_BOOST : 1;
-      const chance = growthChance(tile.landValue, demand, mixedBoost, poweredBoost);
+      const chance = growthChance(tile.landValue, demand, 1, poweredBoost);
       if (this.random() > chance) return;
 
       const bucket = this._defsByZone.get(tile.zoneType);
@@ -668,25 +666,5 @@ export class ZoneGrowthSystem {
     stats.shopJobs   = Math.floor(shopJobs);
   }
 
-  /**
-   * Returns true if any orthogonal neighbour is zoned Residential, Commercial,
-   * or MixedUse — any "active" (people/jobs-generating) zone type.
-   * Used to give mixed-use tiles a growth bonus in already-active neighbourhoods.
-   */
-  private _hasAdjacentActiveZone(map: CityMap, x: number, y: number): boolean {
-    const neighbours = [
-      map.getTile(x,     y - 1),
-      map.getTile(x,     y + 1),
-      map.getTile(x - 1, y),
-      map.getTile(x + 1, y),
-    ];
-    return neighbours.some(
-      (t) =>
-        t !== undefined &&
-        (t.zoneType === ZoneType.Residential ||
-         t.zoneType === ZoneType.Commercial  ||
-         t.zoneType === ZoneType.MixedUse),
-    );
-  }
 
 }

@@ -75,6 +75,20 @@ describe('strategy balance', () => {
     }
   });
 
+  it('should give mixed use a trade-off: ahead, but in a band, and walkable (G3)', () => {
+    const balanced = run('balanced');
+    const mixed = run('mixed');
+    expect(mixed.endPopulation).toBeGreaterThan(balanced.endPopulation);
+    expect(mixed.endPopulation).toBeLessThan(1.5 * balanced.endPopulation);
+    expect(mixed.endWalkability).toBeGreaterThan(balanced.endWalkability + 20);
+    expect(mixed.endHappiness).toBeGreaterThan(balanced.endHappiness);
+  });
+
+  it('should let a town start with mixed use (G3b)', () => {
+    const first = summarize(playStrategy(STRATEGIES.find((s) => s.id === 'mixed-first')!, 12));
+    expect(first.monthTo100).toBeLessThanOrEqual(12);
+  });
+
   it('should roll the same dice for the tax sweep as for the balanced town', () => {
     const a = playStrategy(taxStrategy(9), 12);
     const b = playStrategy(STRATEGIES.find((s) => s.id === 'balanced')!, 12);

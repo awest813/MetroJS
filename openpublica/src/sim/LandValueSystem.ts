@@ -164,9 +164,12 @@ export class LandValueSystem {
       }
     }
 
-    // ── Mixed-use walkability bonus ────────────────────────────────────────
-    // Mixed-use buildings boost walkability on nearby tiles and grant a modest
-    // land value bonus (smaller than parks, reflecting street-level vitality).
+    // ── Street-life bonus ──────────────────────────────────────────────────
+    // Walkable buildings (mixed use, shop rows, offices) lend nearby lots a
+    // modest bonus, smaller than a park's. Each lot takes the strongest one
+    // in reach rather than their sum: a lively street is worth so much, and
+    // a block of mixed use no longer lifts its own land to the top tier.
+    const streetLife = new Float32Array(map.width * map.height);
     for (const instance of buildings.values()) {
       const def = defs.get(instance.defId);
       if (!def?.walkabilityRadius || def.walkabilityRadius <= 0) continue;
@@ -178,14 +181,18 @@ export class LandValueSystem {
         for (let dx = -wr; dx <= wr; dx++) {
           const dist2 = dx * dx + dy * dy;
           if (dist2 > wr2) continue;
-          const tile = map.getTile(instance.x + dx, instance.y + dy);
-          if (!tile) continue;
-          const dist = Math.sqrt(dist2);
-          const bonus = Math.round(WALKABILITY_BONUS * (1 - dist / wr));
-          tile.landValue   += bonus;
+          const x = instance.x + dx;
+          const y = instance.y + dy;
+          if (x < 0 || y < 0 || x >= map.width || y >= map.height) continue;
+          const bonus = Math.round(WALKABILITY_BONUS * (1 - Math.sqrt(dist2) / wr));
+          const i = y * map.width + x;
+          if (bonus > streetLife[i]) streetLife[i] = bonus;
         }
       }
     }
+    map.forEach((tile) => {
+      tile.landValue += streetLife[tile.y * map.width + tile.x];
+    });
 
     // ── Industrial proximity penalty (pollution / noise proxy) ─────────────
     const ir  = INDUSTRIAL_RADIUS;

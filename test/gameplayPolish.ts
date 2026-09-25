@@ -40,10 +40,17 @@ describe('zoneGrowthHints', () => {
     expect(hint).toMatch(/beside the street/);
   });
 
-  it('should use the weaker demand for mixed-use', () => {
+  it('should grow mixed use on the weaker demand, but housing first: at least half the housing pace', () => {
     const stats = CitySim.createCity(8, 8).stats;
     stats.residentialDemand = 40;
     stats.commercialDemand = 0;
+    // No shop demand yet (an empty town): flats still grow at half the housing pace.
+    expect(demandForZone(ZoneType.MixedUse, stats)).toBe(20);
+    stats.commercialDemand = 30;
+    expect(demandForZone(ZoneType.MixedUse, stats)).toBe(30);
+    stats.commercialDemand = 90;
+    expect(demandForZone(ZoneType.MixedUse, stats)).toBe(40);
+    stats.residentialDemand = 0;
     expect(demandForZone(ZoneType.MixedUse, stats)).toBe(0);
   });
 });

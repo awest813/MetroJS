@@ -144,6 +144,21 @@ The score also drives nothing in the game.
 
 **F4 — Mixed use cannot open a town.** A town zoned only mixed use, or only shops, stays empty. Shop demand needs residents, and mixed use needs shop demand. The advisory explains it ("Shops wait for residents"), but a walkable mixed-use town is not something you can start with.
 
+*F3 and F4 were fixed by G3 (Gap AK).* Two changes took most of mixed use's edge:
+- **Street life stops stacking.** Each lot now takes only the strongest walkable neighbour's land-value bonus. It used to add up every one in reach, so a mixed block could lift its own land to the top tier.
+- **Main-street premium.** Mixed buildings need 15 more land value than houses or shops to build larger, and the smaller mixed buildings are trimmed.
+
+A town can now start with mixed use.
+
+| Year 10 | Balanced | Houses then mixed | … with trolleys and parks | Mixed use first |
+|---|---:|---:|---:|---:|
+| Before: people | 700 | 1,354 (1.9×) | 1,738 (2.5×) | 0 |
+| After: people | 700 | 961 (1.37×) | 1,370 (1.96×) | 998 (100 by month 3) |
+| After: money | $96,787 | $190,730 (2.0×) | $212,934 | $208,842 |
+
+The houses-then-mixed town now has walkability 46 against 1 and happiness 88 against 76. It banks about twice the balanced town's money because it fills its land faster; its monthly net at year 10 is 1.5×. Mixed use with trolleys and parks is the strongest combination left. It costs the most up front: trolley rings bankrupt a balanced town that tries them.
+
+
 **F5 — Taxes: free up to 11%, a cliff at 12%.**
 
 - From 9% to 11% profit rises by half ($1,366 to $2,129 a month at year 10) for 6% fewer people. The other cost is score, which does nothing.
@@ -213,8 +228,8 @@ Slices are named G1–G11 here and become gap letters as they ship. Each has an 
 | Slice | Change | Exit |
 |---|---|---|
 | **G2 Honest taxes** (shipped as Gap AJ) | Take the tax term out of the monthly demand step. Instead, scale the demand people act on by a tax draw, as happiness already does: about 7% less per point over 9%, about 5% more per point under, between 0.3× and 1.3×. Demand still follows jobs, so no rate empties a town on its own. The deficit advisory suggests a specific raise with its monthly gain, and warns past 11%. The tooltips state the real effect. | In the harness tax sweep from 7% to 13%, population at year 10 falls smoothly (at most 12% per point) and no rate bankrupts a careful player. 11% costs visible growth against 9%. |
-| **G3 Mixed use with a trade-off** | The smallest mixed building houses 4 people and 1 job (a flat over a shop). Drop the 1.3× growth boost. Mixed lots grow only on land worth at least 35 (a main-street premium) or beside existing houses or shops. Their trips load the streets like shops' do. | Houses-then-mixed within +30% of the balanced town on population and money, and ahead on walkability and happiness. |
-| **G3b Mixed use can open a town** | While nobody lives in town, a mixed lot grows as flats: its housing half grows on the starter demand, and the shop half opens as residents arrive. | A mixed-use-first town reaches 100 people in year 1. |
+| **G3 Mixed use with a trade-off** (shipped as Gap AK) | The smallest mixed building houses 4 people and 1 job (a flat over a shop). Drop the 1.3× growth boost. Mixed lots grow only on land worth at least 35 (a main-street premium) or beside existing houses or shops. Their trips load the streets like shops' do. | Houses-then-mixed within +30% of the balanced town on population and money, and ahead on walkability and happiness. |
+| **G3b Mixed use can open a town** (shipped with Gap AK) | While nobody lives in town, a mixed lot grows as flats: its housing half grows on the starter demand, and the shop half opens as residents arrive. | A mixed-use-first town reaches 100 people in year 1. |
 | **G4 Small-town services** | Cheaper first tiers: a volunteer fire hall and a water pump, at about half the price, reach, and upkeep. The fire and water advisories name the cheap tier until the budget can carry the full one. | The tiny village stays solvent. The advice-follower's cash low stays above $3,000. |
 
 ### Part C — Guide the opening

@@ -16,10 +16,16 @@ describe('metro', () => {
     expect(tiles(sim, (t) => t.buildingId === 'rowhouse').length).toBeGreaterThan(0);
   });
 
-  it('should grow a downtown of shop rows and office blocks where land is dear', () => {
+  it('should grow a downtown of shop rows, shopfront flats, and offices where land is dearest', () => {
     const { sim } = city('metro');
-    expect(tiles(sim, (t) => t.buildingId === 'office_block').length).toBeGreaterThan(5);
-    expect(tiles(sim, (t) => t.buildingId === 'shop_row').length).toBeGreaterThan(0);
+    // Street life no longer stacks (a lot takes its strongest walkable neighbour)
+    // and mixed use pays a main-street premium, so offices and main-street
+    // blocks need the dearest land and are few; shop rows and shopfront flats
+    // make the downtown.
+    expect(tiles(sim, (t) => t.buildingId === 'office_block').length).toBeGreaterThan(0);
+    expect(tiles(sim, (t) => t.buildingId === 'shop_row').length).toBeGreaterThan(5);
+    const grownMixed = tiles(sim, (t) => t.buildingId === 'shopfront_apartments' || t.buildingId === 'main_street_block');
+    expect(grownMixed.length).toBeGreaterThan(5);
     // Offices only grow on dear land (their own traffic can wear it down later).
     const value = (id: string): number => mean(tiles(sim, (t) => t.buildingId === id).map((t) => t.landValue));
     expect(value('office_block')).toBeGreaterThan(value('small_shop'));

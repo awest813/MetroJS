@@ -1,7 +1,7 @@
 # OpenPublica — Next gaps (after Phases A–H)
 
 **Date:** 2026-09-25 (first written 2026-09-20)  
-**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AJ below have shipped on top.
+**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AK below have shipped on top.
 
 This is an implementation plan for **what is still missing**, not a licence to rewrite sim formulas or import Micropolis art.
 
@@ -864,6 +864,24 @@ Strategies at 9% are unchanged. The industry-late town, which sets a 5% factory 
 
 ---
 
+### Gap AK — Mixed use with a trade-off (plan slices G3, G3b) **shipped**
+
+The strategy audit found mixed use dominant. At year 10 a houses-then-mixed town had 1.9× the balanced town's people and 3.9× its money, with no downside. A town zoned only mixed use never grew at all. The cause was land value. Every walkable building (mixed use, shop rows, offices) added up to +20 to each lot in reach, and the bonuses summed, so a mixed block lifted its own land to the top tier while the balanced town's houses never reached rowhouse land.
+
+| Slice | What shipped |
+|---|---|
+| AK1 Street life stops stacking | Each lot takes the strongest street-life bonus in reach, not the sum. |
+| AK2 Main-street premium | Mixed use judges its land 15 points lower when it steps up a size (`MAIN_STREET_PREMIUM`), and when it counts as outgrown. The smaller mixed buildings are trimmed: corner store flats 5+3 → 4+1, shopfront apartments 6+2 → 5+2, main street block 10+5 → 8+4. The 1.3× growth boost beside other zones is gone. |
+| AK3 Flats first | In a town of fewer than 50 residents, mixed use grows at half the housing pace even before shops have customers, so a mixed-use town can start. After that it grows on the weaker of its two demands, as before. |
+
+At year 10 the houses-then-mixed town has 961 people (1.37× balanced), $190,730 (2.0×; it fills its land faster), walkability 46 against 1, and happiness 88 against 76. A mixed-use-first town reaches 100 people by month 3 and 998 by year 10. With trolleys and parks, mixed use reaches 1,370 people (1.96×). That is the strongest combination left, and it costs the most up front.
+
+Metro's downtown is now shop rows and shopfront flats, with a couple of office and main-street blocks where land is dearest; it used to have 17–21 office blocks on stacked bonuses. `test/strategyBalance.ts` holds the band: mixed use ahead of balanced but under 1.5×, ahead on walkability and happiness, and a mixed-first town at 100 people within a year.
+
+**Exit:** Start a new city and zone only mixed use beside a street, with a plant. Flats grow in the first months.
+
+---
+
 ## 4. Explicitly still out of scope (Phase I)
 
 Unchanged from the 3D plan:
@@ -888,7 +906,7 @@ Gap AH's systems pass). What is left:
 1. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
 2. **An artist's kit (optional).** The fifteen models are generated; hand-made ones can replace them file by file under `public/models/ASSET_LICENSE.md`.
 3. **Something to spend on late.** Once a test city is built out, its money only grows: Riverside from $55k to $166k in ten years. Upgrades that cost money to run, such as larger plants, stadiums, or road repaving, would give a finished city decisions to make.
-4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). G1 and G2 have shipped (Gaps AI, AJ). Next, in order: mixed use with a trade-off, steadier advice, the plant's smog in view, a rating that means success, milestones, small-town services, a bankruptcy ending, late civic buildings (which answer item 3), and new-game options with scenarios.
+4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). G1–G3 have shipped (Gaps AI–AK). Next, in order: steadier advice, the plant's smog in view, a rating that means success, milestones, small-town services, a bankruptcy ending, late civic buildings (which answer item 3), and new-game options with scenarios.
 
 ---
 
@@ -905,6 +923,7 @@ Gap AH's systems pass). What is left:
 - Commutes: in `?city=riverside` open Traffic and find the street bridge carrying the south bank's commuters; lay a long street between a row of houses and a block of shops and it reads busy along its whole length.
 - Tiles: in `?city=riverside`, Shift-drag a street diagonally across the river (one span at the shore, none floating), and drag the bulldozer over a row of houses (an orange preview lists them and their cost; Esc keeps them).
 - Strategies: `npm run strategies` (in `openpublica/`) prints the strategy tables; `test/strategyBalance.ts` holds the balance bands.
+- Mixed use: zone only mixed use in a new city; flats grow in the first months.
 - Taxes: raise a tax in Budget and hover its bar: the tooltip names the empty places and the newcomers turned away, and the town keeps its people.
 - Systems: in `?city=troubled` the advisory names the industrial tax, and a few years on it says nobody will move in at 16%; in `?city=metro` Com's tooltip counts shop and office jobs; Save then Load leaves the HUD unchanged.
 - Growth and power: in `?city=sprawl` Inspect an empty lot at the end and it is waiting for power, with no house dark.
