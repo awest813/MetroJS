@@ -6,6 +6,7 @@ import type { CitySim } from '../sim/CitySim';
 import { RoadType, TerrainType, ZoneType } from '../sim/CityTile';
 import { ROAD_STEPS, bridgeProblem, isLandRoad } from '../sim/roadConnections';
 import { groveStrengths, isWooded } from '../sim/woods';
+import { formatSmogReach, smogReach, type SmogReach } from '../sim/smogReach';
 import { ROAD_COST } from './RoadTool';
 import type { ZoneBrushTool } from './ZoneBrushTool';
 
@@ -467,6 +468,8 @@ export interface AreaPlan {
   readonly streetsHelp: boolean;
   /** Wooded tiles the new streets and zones would clear. */
   readonly woods: number;
+  /** For a factory area: the homes and shops its first factories' smog would reach. */
+  readonly smog?: SmogReach;
 }
 
 /**
@@ -550,7 +553,24 @@ export function planZoneArea(
     blocked,
     streetsHelp: layout.length > 0,
     woods: _woodedAmong(sim, [...pavedStreets, ...lots]),
+    ...(zone === ZoneType.Industrial ? { smog: _factorySmog(sim, lots) } : {}),
   };
+}
+
+/** The smog the area's first factories (the smallest that grow) would spread onto homes and shops. */
+function _factorySmog(sim: CitySim, lots: readonly TileCoord[]): SmogReach {
+  let first: { pollutionOutput?: number; pollutionRadius?: number; population: number; jobs: number } | undefined;
+  for (const def of sim.growth.defs.values()) {
+    if (def.zoneType !== ZoneType.Industrial || def.isService) continue;
+    if (!first || def.population + def.jobs < first.population + first.jobs) first = def;
+  }
+  return smogReach(
+    sim.map,
+    lots,
+    first?.pollutionOutput ?? 0,
+    first?.pollutionRadius ?? 0,
+    new Set(lots.map((t) => key(t.x, t.y))),
+  );
 }
 
 function _woodedAmong(sim: CitySim, tiles: readonly TileCoord[]): number {
@@ -580,6 +600,8 @@ export function formatAreaPlan(label: string, plan: AreaPlan, withStreets: boole
   }
   if (plan.noStreet > 0) parts.push(`${plan.noStreet} without a street won't grow yet`);
   if (!dezone && plan.woods > 0) parts.push(`clears woods on ${plan.woods} tile${plan.woods === 1 ? '' : 's'}`);
+  const smog = plan.smog ? formatSmogReach(plan.smog, "its factories'") : null;
+  if (smog) parts.push(smog);
   if (plan.blocked.length > 0) {
     const reasons = Array.from(new Set(plan.blocked.map((t) =>
       t.reason === 'funds' ? 'not enough money' : 'buildings in the way')));

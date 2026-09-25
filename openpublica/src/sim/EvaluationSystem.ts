@@ -495,17 +495,17 @@ function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherFore
     if (!census.hasRoad && census.zonedCount === 0 && census.buildingCount === 0) {
       out.push({
         id: 'start',
-        message: 'Paint a street, zone lots beside it, then place a power plant beside the street.',
+        message: 'Paint a street, zone lots beside it, then place a power plant beside the street, away from the houses (its smog carries 8 tiles).',
       });
     } else if (census.hasRoad && census.zonedCount === 0 && census.buildingCount === 0) {
       out.push({
         id: 'start-zone',
-        message: 'Zone empty lots beside the street, then place a power plant beside it.',
+        message: 'Zone empty lots beside the street, then place a power plant beside it, away from the houses (its smog carries 8 tiles).',
       });
     } else {
       out.push({
         id: 'no-plant',
-        message: 'Place a power plant beside a street — power runs along the streets from it.',
+        message: 'Place a power plant beside a street, away from the houses — power runs along the streets from it, and its smog carries 8 tiles.',
       });
     }
   }

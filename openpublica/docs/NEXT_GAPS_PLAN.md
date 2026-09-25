@@ -1,7 +1,7 @@
 # OpenPublica — Next gaps (after Phases A–H)
 
 **Date:** 2026-09-25 (first written 2026-09-20)  
-**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AL below have shipped on top.
+**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AM below have shipped on top.
 
 This is an implementation plan for **what is still missing**, not a licence to rewrite sim formulas or import Micropolis art.
 
@@ -898,6 +898,23 @@ With no player edits, the naive town's advisory changes 13 times in 36 months, a
 
 ---
 
+### Gap AM — Plant smog in view (plan slice G5) **shipped**
+
+The strategy audit found the opening a trap. The coach said to place the plant "beside the street", and the natural spot is beside the first houses. A plant's smog (60 at the stack, 8 tiles) plus factories next door (their smog adds up) drove homes out, so the naive town stalled at 200–390 people for six years, against 700. Nothing warned before the plant went down.
+
+| Slice | What shipped |
+|---|---|
+| AM1 Smog reach | `sim/smogReach.ts` spreads a would-be source's smog exactly as PollutionSystem does. It finds the homes and shops it would reach (at least 10 smog) and those it would push past the level that drives them out (60, counting the smog already there). |
+| AM2 Plant tool | Hovering the Plant tool tints those lots (light brown where reached, dark where driven out) beside the power reach, and the status line says so: "Plant here: its smog would reach 30 homes and 13 shop lots, enough to drive 17 out — place it further from the houses (smog carries 8 tiles)." Away from town it reads "no homes or shops in its smog". The placement note repeats the warning, judged before the plant went down. |
+| AM3 Factory areas | Dragging an industrial zone area tints the homes and shops its first factories' smog would reach, and adds "its factories' smog would reach 8 homes…" to the status. |
+| AM4 Coach | The opening advice says to place the plant beside a street, away from the houses (its smog carries 8 tiles). |
+
+The scripted player gets a `heedSmog` policy. The new `naive-heeds` strategy is the naive player following the warnings: plants go where their smog reaches the fewest homes (the first one at the end of a road out of town) and factories go in their own district. It reaches 724 people at year 10, against 276 for the naive player and 700 for the balanced one, whose first plant still sits in town. `test/strategyBalance.ts` holds the band: at least 0.8× balanced and 1.5× naive.
+
+**Exit:** In `?city=hamlet`, pick the Plant tool and hover beside the crossroads. The homes around turn brown and the status line counts them.
+
+---
+
 ## 4. Explicitly still out of scope (Phase I)
 
 Unchanged from the 3D plan:
@@ -922,7 +939,7 @@ Gap AH's systems pass). What is left:
 1. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
 2. **An artist's kit (optional).** The fifteen models are generated; hand-made ones can replace them file by file under `public/models/ASSET_LICENSE.md`.
 3. **Something to spend on late.** Once a test city is built out, its money only grows: Riverside from $55k to $166k in ten years. Upgrades that cost money to run, such as larger plants, stadiums, or road repaving, would give a finished city decisions to make.
-4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). G1–G3 and G6 have shipped (Gaps AI–AL). Next, in order: the plant's smog in view, a rating that means success, milestones, small-town services, a bankruptcy ending, late civic buildings (which answer item 3), and new-game options with scenarios.
+4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). G1–G3, G5 and G6 have shipped (Gaps AI–AM). Next, in order: a rating that means success, milestones, small-town services, a bankruptcy ending, late civic buildings (which answer item 3), and new-game options with scenarios.
 
 ---
 
@@ -941,6 +958,7 @@ Gap AH's systems pass). What is left:
 - Strategies: `npm run strategies` (in `openpublica/`) prints the strategy tables; `test/strategyBalance.ts` holds the balance bands.
 - Mixed use: zone only mixed use in a new city; flats grow in the first months.
 - Advice: the top advisory holds for up to three months; click it (↗) to go to the trouble.
+- Smog: hover the Plant tool beside houses (they tint brown and the status counts them), or drag a factory area beside them.
 - Taxes: raise a tax in Budget and hover its bar: the tooltip names the empty places and the newcomers turned away, and the town keeps its people.
 - Systems: in `?city=troubled` the advisory names the industrial tax, and a few years on it says nobody will move in at 16%; in `?city=metro` Com's tooltip counts shop and office jobs; Save then Load leaves the HUD unchanged.
 - Growth and power: in `?city=sprawl` Inspect an empty lot at the end and it is waiting for power, with no house dark.

@@ -188,6 +188,9 @@ export class RoadLineMode implements DragMode {
 }
 
 const NO_STREET_TINT = { r: 0.98, g: 0.62, b: 0.12 };
+/** Homes and shops a factory area's smog would reach, and those it would drive out. */
+const SMOG_TINT = { r: 0.62, g: 0.52, b: 0.34 };
+const SMOG_OUT_TINT = { r: 0.5, g: 0.3, b: 0.12 };
 const STREET_TINT = { r: 0.30, g: 0.30, b: 0.34 };
 const CLEAR_TINT = { r: 0.94, g: 0.94, b: 0.94 };
 const BLOCKED_TINT = LINE_TINT.blocked;
@@ -249,8 +252,15 @@ export class ZoneAreaMode implements DragMode {
       }
     };
     const dezone = brush.zoneType === ZoneType.None;
+    // A factory area also shows the homes and shops its smog would reach.
+    const smog = (plan.smog?.tiles ?? []).map((t) => ({
+      x: t.x,
+      y: t.y,
+      rgb: t.drivesOut ? SMOG_OUT_TINT : SMOG_TINT,
+      alpha: t.drivesOut ? 0.6 : 0.38,
+    }));
     return {
-      tints: plan.tiles.map((t) => ({ x: t.x, y: t.y, rgb: tint(t.verdict), alpha: AREA_ALPHA[t.verdict] })),
+      tints: [...plan.tiles.map((t) => ({ x: t.x, y: t.y, rgb: tint(t.verdict), alpha: AREA_ALPHA[t.verdict] })), ...smog],
       status: formatAreaPlan(brush.label, plan, this._streets, dezone),
       targetBlocked: plan.tiles.some((t) => t.x === target.x && t.y === target.y && t.verdict === 'blocked'),
     };

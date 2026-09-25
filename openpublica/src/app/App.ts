@@ -38,6 +38,7 @@ import {
 import { AudioBus } from '../audio/AudioBus';
 import { BANKRUPT_VOICE, FAIL_VOICE, GROWTH_VOICE, sfxForTool } from '../audio/voices';
 import { explainToolFailure, formatStrokeStatus } from '../tools/toolFeedback';
+import { formatSmogReach, smogReach, type SmogReach } from '../sim/smogReach';
 import { formatGrowthHint } from '../sim/zoneGrowthHints';
 import { WeatherRenderer } from '../render/WeatherRenderer';
 import { AmbientOcclusion } from '../render/AmbientOcclusion';
@@ -72,6 +73,9 @@ import {
 
 /** Lots a utility network reaches but cannot serve. */
 const SHORT_TINT = { r: 0.95, g: 0.25, b: 0.2 };
+/** Homes and shops a new plant's smog would reach, and those it would drive out. */
+const SMOG_TINT = { r: 0.62, g: 0.52, b: 0.34 };
+const SMOG_OUT_TINT = { r: 0.5, g: 0.3, b: 0.12 };
 
 /** The box around every road and building, or null on an empty map. */
 function developedBounds(sim: CitySim): { x0: number; y0: number; x1: number; y1: number } | null {
@@ -327,6 +331,16 @@ export class App {
      * in red), or, while placing one, the streets it would join. Parks show a
      * disc; police and fire the lots their crews reach by road.
      */
+    /** What a smoggy building placed at `coord` would do to the homes and shops around it. */
+    const smogFrom = (coord: { x: number; y: number }, def: BuildingDef | undefined): SmogReach | null => {
+      if (!def?.pollutionOutput || !def.pollutionRadius) return null;
+      return smogReach(sim.map, [coord], def.pollutionOutput, def.pollutionRadius, new Set([`${coord.x},${coord.y}`]));
+    };
+    const smogWarning = (reach: SmogReach | null, radius: number): string | null => {
+      const line = reach ? formatSmogReach(reach, 'its') : null;
+      return line ? `${line} — place it further from the houses (smog carries ${radius} tiles)` : null;
+    };
+
     const showServiceReach = (coord: { x: number; y: number }, spec: ServiceSpec, placing: boolean): void => {
       const def = sim.growth.defs.get(spec.defId);
       if (spec.coverage === 'power' || spec.coverage === 'water') {
@@ -334,12 +348,24 @@ export class App {
         const tiles = grid
           ? networkTilesAt(sim.map, grid, coord.x, coord.y)
           : [coord, ...networkReachFrom(sim.map, coord.x, coord.y)].map((t) => ({ ...t, state: GRID_LINE }));
-        view.previewTints(tiles.map((t) => ({
+        const tints = tiles.map((t) => ({
           x: t.x,
           y: t.y,
           rgb: t.state === GRID_SHORT ? SHORT_TINT : spec.preview,
           alpha: t.state === GRID_LINE ? 0.55 : t.state === GRID_SHORT ? 0.5 : 0.32,
-        })));
+        }));
+        // A plant about to go down shows the homes its smog would reach.
+        const smog = placing ? smogFrom(coord, def) : null;
+        if (smog) {
+          for (const t of smog.tiles) {
+            tints.push({ x: t.x, y: t.y, rgb: t.drivesOut ? SMOG_OUT_TINT : SMOG_TINT, alpha: t.drivesOut ? 0.62 : 0.4 });
+          }
+          const warning = smogWarning(smog, def?.pollutionRadius ?? 0);
+          statusEl.textContent = warning
+            ? `Plant here: ${warning}.`
+            : 'Plant here: no homes or shops in its smog.';
+        }
+        view.previewTints(tints);
         return;
       }
       const radius = serviceRadius(def, sim.levers.safetyFunding);
@@ -507,6 +533,10 @@ export class App {
         view.highlight.show(coord, view.surface, plannedDrag.targetBlocked);
         return;
       }
+      // Judge a plant's smog before it goes down (after, it counts its own smog).
+      const plantSpec = serviceSpecForTool(toolController.activeTool.name);
+      const plantDef = plantSpec ? sim.growth.defs.get(plantSpec.defId) : undefined;
+      const smogBefore = via === 'down' && plantDef?.pollutionOutput ? smogFrom(coord, plantDef) : null;
       const result = toolController.applyToTile(coord, sim);
       view.highlight.show(coord, view.surface);
       previewCoverage(coord);
@@ -547,7 +577,10 @@ export class App {
         sim.levers.safetyFunding,
         stationReach > 0 ? buildingsInReach(sim.map, coord.x, coord.y, stationReach) : undefined,
       );
-      if (placing && result === 'applied') placementNote = serviceHint;
+      if (placing && result === 'applied') {
+        const smog = smogWarning(smogBefore, plantDef?.pollutionRadius ?? 0);
+        placementNote = [serviceHint, smog].filter((part): part is string => !!part).join('; ') || null;
+      }
       const growthHint = tile
         ? formatGrowthHint(tile, sim.map, sim.stats, {
           gridFull: sim.gridFullAt(tile.x, tile.y),

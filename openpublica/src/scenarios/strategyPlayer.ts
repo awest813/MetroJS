@@ -8,6 +8,7 @@ import { RoadType, TerrainType, ZoneType } from '../sim/CityTile';
 import { STARTING_MONEY } from '../sim/EconomySystem';
 import { DEFAULT_TERRAIN_SEED, generateTerrain } from '../sim/TerrainGenerator';
 import { lotTooHostile, tileHasAdjacentRoad } from '../sim/zoneGrowthHints';
+import { smogReach } from '../sim/smogReach';
 import { InspectTool } from '../tools/InspectTool';
 import type { PlaceServiceTool } from '../tools/PlaceServiceTool';
 import { RoadTool } from '../tools/RoadTool';
@@ -60,6 +61,8 @@ export interface Strategy {
   readonly followAdvice?: boolean;
   /** Name of the growth dice (default: the id), so variants can roll the same dice. */
   readonly dice?: string;
+  /** Heed the smog warnings: plants go where their smog reaches the fewest homes, even the first. */
+  readonly heedSmog?: boolean;
 }
 
 /** One simulated month of a strategy's city. */
@@ -150,6 +153,7 @@ export function playStrategy(strategy: Strategy, months = 240, seed = DEFAULT_TE
   const factories: Block[] = [];
   let linked = false;
   let expansions = 0;
+  let hasPlant = false;
 
   const apply = (tiles: readonly TileCoord[], tool: RoadTool | ZoneBrushTool | PlaceServiceTool): number => {
     tools.applyTiles(tiles, sim, tool);
@@ -205,6 +209,64 @@ export function playStrategy(strategy: Strategy, months = 240, seed = DEFAULT_TE
     return true;
   };
 
+  /** A road down the west bank joins the factory district to town. False if it cannot be paid for with `spare` left. */
+  const link = (spare: number): boolean => {
+    // From the first town block's corner west to the bank, then south.
+    const start = town[0] ?? { X: 4, Y: 42 };
+    const path = [
+      ...roadLinePath({ x: start.X, y: start.Y }, { x: 4, y: start.Y }),
+      ...roadLinePath({ x: 4, y: start.Y }, { x: 4, y: 10 }).slice(1),
+    ];
+    if (sim.stats.money - RESERVE < planRoadLine(arterial, path, sim).cost + spare) return false;
+    apply(path, arterial);
+    linked = true;
+    did('link');
+    return true;
+  };
+  /** Lots beside the link road's far end, well away from town. */
+  const linkSlots: Block[] = [{ X: 4, Y: 10 }];
+
+  /**
+   * Place a power plant. A player who heeds the smog warning puts it where its
+   * smog reaches the fewest homes, laying the link road out of town for the
+   * first one if every lot in town is too close.
+   */
+  const placePlant = (): boolean => {
+    const tool = services.get('placePowerPlant')!;
+    if (!strategy.heedSmog) {
+      const where = hasPlant ? (strategy.naive || factories.length === 0 ? [...town].reverse() : factories) : town;
+      return place('placePowerPlant', where, 'plant');
+    }
+    const def = sim.growth.defs.get(tool.spec.defId)!;
+    const candidates: TileCoord[] = [];
+    const consider = (blocks: readonly Block[]): void => {
+      for (const b of blocks) {
+        for (let x = b.X + 1; x <= b.X + 7; x++) {
+          const tile = sim.getTile(x, b.Y + 1);
+          if (tile && !tile.buildingId && tile.roadType === RoadType.None && tileHasAdjacentRoad(sim.map, x, b.Y + 1)) {
+            candidates.push({ x, y: b.Y + 1 });
+          }
+        }
+      }
+    };
+    consider(factories);
+    consider(town);
+    if (linked) consider(linkSlots);
+    const homesIn = (c: TileCoord): number =>
+      smogReach(sim.map, [c], def.pollutionOutput ?? 0, def.pollutionRadius ?? 0, new Set([`${c.x},${c.y}`])).homes;
+    candidates.sort((a, b) => homesIn(a) - homesIn(b));
+    let best = candidates[0];
+    if ((!best || homesIn(best) > 0) && !linked && link(tool.spec.cost)) {
+      candidates.length = 0;
+      consider(linkSlots);
+      best = candidates[0];
+    }
+    if (!best || sim.stats.money - RESERVE < tool.spec.cost) return false;
+    if (apply([best], tool) === 0) return false;
+    did(`plant@${best.x},${best.y}`);
+    return true;
+  };
+
   const expand = (): boolean => {
     if (town.length + factories.length >= (strategy.maxBlocks ?? Infinity)) return false;
     const every = strategy.industryEvery ?? 0;
@@ -212,14 +274,7 @@ export function playStrategy(strategy: Strategy, months = 240, seed = DEFAULT_TE
     if (factoryTurn && !strategy.naive) {
       const b = factoryBlocks[factories.length];
       if (!b) return false;
-      if (!linked) {
-        // A road down the west bank joins the factory district to town.
-        const path = roadLinePath({ x: 4, y: 42 }, { x: 4, y: 10 });
-        if (sim.stats.money - RESERVE < planRoadLine(arterial, path, sim).cost + BLOCK_ZONE_COST) return false;
-        apply(path, arterial);
-        linked = true;
-        did('link');
-      }
+      if (!linked && !link(BLOCK_ZONE_COST)) return false;
       if (!buildBlock(b, 'I', factories)) return false;
       expansions += 1;
       return true;
@@ -245,7 +300,6 @@ export function playStrategy(strategy: Strategy, months = 240, seed = DEFAULT_TE
   };
 
   const log: StrategyMonth[] = [];
-  let hasPlant = false;
   let hasTower = false;
   let lastFire = -Infinity;
   let lastPolice = -Infinity;
@@ -253,10 +307,8 @@ export function playStrategy(strategy: Strategy, months = 240, seed = DEFAULT_TE
     acted = false;
     const s = sim.stats;
     if (town.length === 0) expand();
-    if (!hasPlant) hasPlant = place('placePowerPlant', town, 'plant');
-    if (hasPlant && ((s.powerHeld ?? 0) > 0 || s.powerShort > 0 || s.powerLoad > 0.85 * s.powerSupply)) {
-      place('placePowerPlant', strategy.naive || factories.length === 0 ? [...town].reverse() : factories, 'plant');
-    }
+    if (!hasPlant) hasPlant = placePlant();
+    else if ((s.powerHeld ?? 0) > 0 || s.powerShort > 0 || s.powerLoad > 0.85 * s.powerSupply) placePlant();
     if ((strategy.water ?? true) && s.population >= 40 && (!hasTower || s.waterShort >= 5) && affordable('placeWaterTower')) {
       if (place('placeWaterTower', town, 'tower')) hasTower = true;
     }
@@ -303,6 +355,7 @@ export const STRATEGIES: readonly Strategy[] = [
   { id: 'industry-early', label: 'The factory district as the second block', mix: ['R', 'C'], industryEvery: 2, arterial: RoadType.Street, taxes: taxes(9, 9, 5) },
   { id: 'no-services', label: 'No police, fire, or water', mix: ['R', 'C', 'R'], industryEvery: 3, arterial: RoadType.Street, taxes: T9, police: false, fire: false, water: false },
   { id: 'naive', label: 'Plant beside the first street, factories next to the houses', mix: ['R', 'C', 'R', 'I'], arterial: RoadType.Street, taxes: T9, naive: true, followAdvice: true },
+  { id: 'naive-heeds', label: 'The naive player heeding the smog warnings: plants and factories away from the houses', mix: ['R', 'C', 'R'], industryEvery: 4, arterial: RoadType.Street, taxes: T9, followAdvice: true, heedSmog: true },
   { id: 'tiny', label: 'Two blocks, then stop', mix: ['R', 'C'], arterial: RoadType.Street, taxes: T9, maxBlocks: 2 },
   { id: 'houses-only', label: 'No shops or factories', mix: ['R'], arterial: RoadType.Street, taxes: T9 },
 ];

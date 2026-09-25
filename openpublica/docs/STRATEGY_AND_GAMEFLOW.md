@@ -182,6 +182,12 @@ Population falls smoothly as taxes rise, money levels off past about 13% and fal
 - Its top advisory changes 37 times in months 5–71, cycling through crime, smog, "restore power, demand, or road access", smog spike, and back.
 - It is never told plainly that its plant sits among its houses.
 
+*Addressed by G5 (Gap AM).*
+- **Plant tool:** hovering it tints the homes and shops its smog would reach, and the status line warns: "Plant here: its smog would reach 30 homes and 13 shop lots, enough to drive 17 out — place it further from the houses."
+- **Factory areas:** a factory zone area shows the same while you drag.
+- **Coach:** it now says to place the plant away from the houses.
+- **Result:** a naive player who heeds these warnings grows like a careful one: 724 people at year 10, against 276 for the naive player and 700 for the balanced one.
+
 **F7 — Small towns cannot carry flat upkeep.** A two-block village of about 90 people cannot carry the upkeep of its plant, roads, and services, and slides into debt. The fire and water advisories begin at 40 residents. An early factory district across a link road also bankrupts a young town. The services and districts that make a big city work are all-or-nothing for a small one.
 
 **F8 — Bankruptcy never ends.** A bankrupt city runs on indefinitely:
@@ -238,7 +244,7 @@ Slices are named G1–G11 here and become gap letters as they ship. Each has an 
 
 | Slice | Change | Exit |
 |---|---|---|
-| **G5 Plant smog in view** | The plant tool previews its smog reach and warns when homes or housing lots fall inside it ("12 homes would breathe this plant's smog"). The coach says "beside a street, away from the houses". An industrial zone area shows which housing lots its factories would smog. | In the browser, placing a plant beside the first houses shows the warning. A naive-player variant that heeds it reaches at least 80% of the balanced town's population. |
+| **G5 Plant smog in view** (shipped as Gap AM) | The plant tool previews its smog reach and warns when homes or housing lots fall inside it ("12 homes would breathe this plant's smog"). The coach says "beside a street, away from the houses". An industrial zone area shows which housing lots its factories would smog. | In the browser, placing a plant beside the first houses shows the warning. A naive-player variant that heeds it reaches at least 80% of the balanced town's population. |
 | **G6 Steadier, located advice** (shipped as Gap AL) | Keep the top advisory for at least 3 months unless something more urgent appears. Name where the trouble is, with a jump like Inspect's. Put the jobs lesson ahead of fire and water, as `JOBS_GAP_POPULATION` intends (F10). | The naive run's top advisory changes at most once per 3 months, except for urgent ones. At 44 people and no jobs, it says to zone shops. |
 
 ### Part D — Give the game an arc

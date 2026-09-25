@@ -89,6 +89,13 @@ describe('strategy balance', () => {
     expect(first.monthTo100).toBeLessThanOrEqual(12);
   });
 
+  it('should reward heeding the smog warnings: the naive player who does grows like a careful one (G5)', () => {
+    const balanced = run('balanced');
+    const heeds = run('naive-heeds');
+    expect(heeds.endPopulation).toBeGreaterThan(0.8 * balanced.endPopulation);
+    expect(heeds.endPopulation).toBeGreaterThan(1.5 * run('naive').endPopulation);
+  });
+
   it('should roll the same dice for the tax sweep as for the balanced town', () => {
     const a = playStrategy(taxStrategy(9), 12);
     const b = playStrategy(STRATEGIES.find((s) => s.id === 'balanced')!, 12);
