@@ -19,6 +19,7 @@ all shipped. What is left (section 5) is depth, not missing systems:
 2. **Happiness** now decides how many people move in (Gap AF): below 80, housing grows at a falling share of its demand, and at 30 or less residents leave.
 3. **Tile interactions** were audited tool by tile (Gap AG). Every outcome was consistent and every refusal had a reason. Two drags were not right: a freehand stroke across water bought bridge spans that joined nothing, and the bulldozer cleared tiles as the pointer crossed them, with no preview. Both are fixed.
 4. **Systems** were audited over ten-year runs of every test city (Gap AH). Shop demand now follows the residents instead of sitting at 100%. The advice names the real cause when buildings empty. High taxes keep an emptied town empty instead of letting it regrow and die in a loop. A loaded city now plays on exactly as the saved one would have.
+5. **Strategy and gameflow** were audited with a scripted player (see [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md)). Careful play builds a thriving town, but the game has no goals, its score ranks failure above success, mixed use dominates, and taxes are free up to 11% and a cliff at 12%. That document plans the fixes (G1–G11).
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
 
@@ -850,6 +851,7 @@ Gap AH's systems pass). What is left:
 1. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
 2. **An artist's kit (optional).** The fifteen models are generated; hand-made ones can replace them file by file under `public/models/ASSET_LICENSE.md`.
 3. **Something to spend on late.** Once a test city is built out, its money only grows: Riverside from $55k to $166k in ten years. Upgrades that cost money to run, such as larger plants, stadiums, or road repaving, would give a finished city decisions to make.
+4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). In order: a strategy harness in the repo, honest taxes, mixed use with a trade-off, steadier advice, the plant's smog in view, a rating that means success, milestones, small-town services, a bankruptcy ending, late civic buildings (which answer item 3), and new-game options with scenarios.
 
 ---
 

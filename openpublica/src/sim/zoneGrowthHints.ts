@@ -325,6 +325,7 @@ export function formatGrowthHint(
       return 'no housing demand — add jobs or cut residential tax';
     }
     if (tile.zoneType === ZoneType.Commercial) {
+      if (stats.population <= 0) return 'no shop demand — shops wait for residents; zone housing nearby';
       return stats.comTaxRate > 9
         ? `no shop demand — commercial tax at ${stats.comTaxRate}% keeps shops away`
         : 'no shop demand — the residents already keep every shop busy; zone housing for more customers';

@@ -4,6 +4,7 @@ A GPLv3 browser-native city-builder. The live renderer is a Babylon.js
 **perspective 3D** city (orbit / iso / top). Remaining work is city-health sim
 and presentation depth — see [NEXT_GAPS_PLAN.md](./NEXT_GAPS_PLAN.md).
 The original camera/height/kit slices are in [FULL_3D_WEB_PORT_PLAN.md](./FULL_3D_WEB_PORT_PLAN.md).
+How strategies compare and how a game plays out over time are audited, with a plan, in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md).
 
 ## Licence
 

@@ -178,7 +178,9 @@ describe('demand explained', () => {
     const sim = CitySim.createCity(12, 12);
     sim.placeRoad(4, 4, RoadType.Street);
     sim.setZone(4, 5, ZoneType.Commercial);
-    Object.assign(sim.stats, { commercialDemand: 0, comTaxRate: 9 });
+    Object.assign(sim.stats, { commercialDemand: 0, comTaxRate: 9, population: 0 });
+    expect(formatGrowthHint(sim.getTile(4, 5)!, sim.map, sim.stats, {})).toBe('no shop demand — shops wait for residents; zone housing nearby');
+    sim.stats.population = 120;
     expect(formatGrowthHint(sim.getTile(4, 5)!, sim.map, sim.stats, {})).toMatch(/residents already keep every shop busy/);
     sim.stats.comTaxRate = 15;
     expect(formatGrowthHint(sim.getTile(4, 5)!, sim.map, sim.stats, {})).toMatch(/commercial tax at 15% keeps shops away/);
