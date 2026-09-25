@@ -101,8 +101,9 @@ describe('strategy balance', () => {
     for (const id of ['balanced', 'suburb', 'mixed', 'industry-late']) {
       expect(run(id).endRating).toBeGreaterThan(naive.endRating);
     }
-    // The small towns run out of money slowly; twenty years of them (cheap to play).
-    for (const id of ['tiny', 'houses-only']) {
+    // Houses-only runs out of money slowly; twenty years of it (cheap to play).
+    // (The tiny village carries its small-town services since G4.)
+    for (const id of ['houses-only']) {
       const broke = summarize(playStrategy(STRATEGIES.find((s) => s.id === id)!, 240));
       expect(broke.monthsInDebt).toBeGreaterThan(24);
       expect(broke.endRating).toBeLessThan(naive.endRating);
@@ -124,6 +125,13 @@ describe('strategy balance', () => {
     expect(run('naive').milestoneMonths[town]).toBe(Infinity);
     expect(run('naive').milestoneMonths[village]).toBeLessThanOrEqual(12);
     expect(summarize(playStrategy(STRATEGIES.find((s) => s.id === 'houses-only')!, MONTHS)).milestoneMonths[town]).toBe(Infinity);
+  });
+
+  it('should let a tiny village carry its services, and keep the advice-follower in cash (G4)', () => {
+    // Twenty years of the two-block village (cheap to play): never in debt.
+    const tiny = summarize(playStrategy(STRATEGIES.find((s) => s.id === 'tiny')!, 240));
+    expect(tiny.monthsInDebt).toBe(0);
+    expect(run('advice').lowMoney).toBeGreaterThan(3_000);
   });
 
   it('should roll the same dice for the tax sweep as for the balanced town', () => {

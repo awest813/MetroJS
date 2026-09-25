@@ -80,7 +80,7 @@ The project enforces a strict boundary between simulation and rendering:
 - [x] Building kits + instancing (Phase D)
 - [x] Parks, street trees, and plant smoke (Phase E)
 - [x] Moving cars and trolleys on a render-only road graph (Phase F)
-- [x] Gameplay: starter housing demand, sim speed/pause, placement and growth feedback, opening coach (street → lots → plant); the top advisory holds still for up to three months and is a link to the trouble it names; the Plant tool and factory areas show the homes their smog would reach before you build; the city rating (size, happiness, services, budget, less smog, high taxes, and debt) shows its parts on hover; milestones (Village, Town, City, Capital) show progress in the HUD, pay a grant, and announce themselves with a banner
+- [x] Gameplay: starter housing demand, sim speed/pause, placement and growth feedback, opening coach (street → lots → plant); the top advisory holds still for up to three months and is a link to the trouble it names; the Plant tool and factory areas show the homes their smog would reach before you build; the city rating (size, happiness, services, budget, less smog, high taxes, and debt) shows its parts on hover; milestones (Village, Town, City, Capital) show progress in the HUD, pay a grant, and announce themselves with a banner; villages start with a water pump, police post, and volunteer fire hall, and upgrade them in place when the budget can carry a tower or station
 - [x] Unified 3D overlay mesh including pollution (Phase G)
 - [x] Procedural sound (paint, growth, mute); unlocked on first gesture, M to mute
 - [x] Camera polish: HTML minimap, Home/Frame, sun slider, High/Low quality

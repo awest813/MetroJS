@@ -1,7 +1,7 @@
 # OpenPublica — Next gaps (after Phases A–H)
 
 **Date:** 2026-09-25 (first written 2026-09-20)  
-**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AO below have shipped on top.
+**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AP below have shipped on top.
 
 This is an implementation plan for **what is still missing**, not a licence to rewrite sim formulas or import Micropolis art.
 
@@ -948,6 +948,22 @@ The thresholds are tuned to the harness, not the plan's first guess: City at 900
 
 ---
 
+### Gap AP — Small-town services (plan slice G4) **shipped**
+
+The strategy audit found that a two-block village of about 90 people cannot carry the flat upkeep of its plant, roads, and services. The tiny town ran $450 a month short, borrowed from year 7, and was $39,517 in debt at year 20.
+
+| Slice | What shipped |
+|---|---|
+| AP1 Tiers | Three village buildings sit beside their full tiers: a water pump ($150, $15 a month, 200 load, against a tower's $350, $40, and 600), a police post, and a volunteer fire hall ($200, $25 and $20 a month, reach 11 road tiles, against a station's $400, $60, and 14). `sim/serviceTiers.ts` pairs them. They have models, kits, minimap colours, and toolbar buttons (Pump, Post, Fire hall). Shift with W, O, or F picks them. |
+| AP2 Advice | The water, crime, and fire advice names the cheap tier until the budget carries the full one with as much again to spare (net at least twice its upkeep). A village whose fire hall reaches every building is not asked for more fire cover until it can carry a station. |
+| AP3 Upgrade | A full tier placed on its own small tier replaces it for the difference in price: a pump becomes a tower for $200. Hovering shows "Upgrade the water pump to a water tower: $200, the difference in price." Once the budget carries it, the advice says so and points at the building. |
+
+A hall's reach is 11, not the plan's "half" (7): crews drive the roads, and at 8 one hall could not reach a single ring block, so the advice asked for hall after hall. The scripted players choose tiers the same way the advice does. They build near the trouble the advice points at, and they upgrade from money to spare ($3,000 over the price), since the next block comes first. In the harness the tiny village is never in debt in 20 years (lowest $1,856; it was $39,517 in debt). The advice-follower's lowest treasury is $5,936. Balanced is a little ahead of before (652 at year 5, against 576), since its early services cost less. `test/strategyBalance.ts` holds the band: tiny never in debt, and the advice-follower above $3,000.
+
+**Exit:** In `?city=hamlet`, place a pump (Shift+W), then pick Water and hover it. The status offers the upgrade for $200.
+
+---
+
 ## 4. Explicitly still out of scope (Phase I)
 
 Unchanged from the 3D plan:
@@ -970,9 +986,9 @@ opt-in, the Gap AE GLB kits, Gap AF's happiness, Gap AG's tile interactions,
 Gap AH's systems pass). What is left:
 
 1. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
-2. **An artist's kit (optional).** The fifteen models are generated; hand-made ones can replace them file by file under `public/models/ASSET_LICENSE.md`.
+2. **An artist's kit (optional).** The eighteen models are generated; hand-made ones can replace them file by file under `public/models/ASSET_LICENSE.md`.
 3. **Something to spend on late.** Once a test city is built out, its money only grows: Riverside from $55k to $166k in ten years. Upgrades that cost money to run, such as larger plants, stadiums, or road repaving, would give a finished city decisions to make.
-4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). G1–G3 and G5–G8 have shipped (Gaps AI–AO). Next, in order: small-town services, a bankruptcy ending, late civic buildings (which answer item 3), and new-game options with scenarios.
+4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). G1–G8 have shipped (Gaps AI–AP). Next, in order: a bankruptcy ending, late civic buildings (which answer item 3), and new-game options with scenarios.
 
 ---
 
@@ -993,6 +1009,7 @@ Gap AH's systems pass). What is left:
 - Advice: the top advisory holds for up to three months; click it (↗) to go to the trouble.
 - Rating: hover Rating in the HUD to see its parts; a city in debt rates 40 at most.
 - Milestones: the gold readout after the rating shows the next tier; its tooltip says what is missing. Reaching one shows a banner and pays a grant.
+- Village services: Shift+W/O/F place a pump, police post, or fire hall; a tower, station, or fire station placed on one upgrades it for the difference.
 - Smog: hover the Plant tool beside houses (they tint brown and the status counts them), or drag a factory area beside them.
 - Taxes: raise a tax in Budget and hover its bar: the tooltip names the empty places and the newcomers turned away, and the town keeps its people.
 - Systems: in `?city=troubled` the advisory names the industrial tax, and a few years on it says nobody will move in at 16%; in `?city=metro` Com's tooltip counts shop and office jobs; Save then Load leaves the HUD unchanged.

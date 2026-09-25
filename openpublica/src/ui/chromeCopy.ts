@@ -9,7 +9,7 @@ import type { CityStats } from '../sim/CitySim';
  */
 
 export const SETTINGS_SHORTCUTS =
-  'R road · I inspect · Z housing · C shops · N industry · U mixed · G plant · O police · F fire · W water · K park · 1–3 views · P pause · [ ] speed · M mute · Ctrl+S save · Esc · Home frame';
+  'R road · I inspect · Z housing · C shops · N industry · U mixed · G plant · O police · F fire · W water (Shift: village post, hall, pump) · K park · 1–3 views · P pause · [ ] speed · M mute · Ctrl+S save · Esc · Home frame';
 
 /** HUD population. Dark residents stay visible after the lights come on for everyone else. */
 export function formatPopulation(population: number, darkPopulation: number): string {

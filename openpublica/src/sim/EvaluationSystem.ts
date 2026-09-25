@@ -9,6 +9,7 @@ import { housingDemand, tileHasAdjacentRoad, zoneStress, type ZoneStress } from 
 import { stationHasRoad } from './roadDispatch';
 import { EXTREME_TRAFFIC_PRESSURE } from './happiness';
 import { TAX_NEUTRAL_RATE, taxOccupancy } from './taxes';
+import { SERVICE_TIERS, budgetCarries, tierOf, tierToBuild, type TieredService } from './serviceTiers';
 
 /** Warn about a deficit once the treasury would run dry within this many months. */
 const DEFICIT_WARNING_MONTHS = 12;
@@ -214,6 +215,8 @@ interface Places {
   worstRoad?: AdvisoryPlace;
   smoggiest?: AdvisoryPlace;
   mostCrime?: AdvisoryPlace;
+  /** A small-tier building of each service (pump, fire hall, police post), to upgrade. */
+  smallTier?: Partial<Record<TieredService, AdvisoryPlace>>;
 }
 
 interface Census {
@@ -275,6 +278,11 @@ function survey(
     if ((def?.powerCapacity || def?.waterCapacity) && !stationHasRoad(map, instance.x, instance.y)) {
       strandedUtilities += 1;
       places.strandedUtility ??= at(instance.x, instance.y);
+    }
+    const tier = tierOf(instance.defId);
+    if (tier?.small) {
+      places.smallTier ??= {};
+      places.smallTier[tier.service] ??= at(instance.x, instance.y);
     }
     if (instance.defId === 'small_park') continue;
     buildingCount += 1;
@@ -483,13 +491,17 @@ function emptyingMessage(cause: ZoneStress, group: StruggleGroup, stats: CitySta
     case 'smog':
       return 'Buildings are emptying in the smog — move plants and factories away from them, or add parks.';
     case 'crime':
-      return 'Buildings are emptying to crime — add a powered police station on a street nearby.';
+      return `Buildings are emptying to crime — add a powered ${tierToBuild('police', stats).name} on a street nearby.`;
     default:
       return 'Buildings are emptying — restore power, demand, or road access.';
   }
 }
 
 function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherForecast, budget?: BudgetHints): Advisory[] {
+  // A village is told of the cheap tier until its budget carries the full one (G4).
+  const water = tierToBuild('water', stats).name;
+  const police = tierToBuild('police', stats).name;
+  const fire = tierToBuild('fire', stats).name;
   const out: Advisory[] = [];
   if (stats.bankruptcyWarning) {
     out.push({ id: 'bankrupt', message: 'Treasury is bankrupt — take a bond in Budget, then raise taxes or trim funding.' });
@@ -607,7 +619,7 @@ function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherFore
     if (load > stats.waterSupply) {
       out.push({
         id: 'forecast-water',
-        message: `${forecast.label} next month will push water load to about ${load} of ${stats.waterSupply} — add a water tower before it comes.`,
+        message: `${forecast.label} next month will push water load to about ${load} of ${stats.waterSupply} — add a ${water} before it comes.`,
       });
     }
   }
@@ -634,24 +646,27 @@ function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherFore
     out.push({
       id: 'water-full',
       at: census.places.dry,
-      message: `Water towers are at capacity (${stats.waterLoad}/${stats.waterSupply}) — ${stats.waterShort} building${one ? ' is' : 's are'} dry. Add a tower on the mains.`,
+      message: `The water mains are at capacity (${stats.waterLoad}/${stats.waterSupply}) — ${stats.waterShort} building${one ? ' is' : 's are'} dry. Add a ${water} on the mains.`,
     });
   }
   if (stats.pollutionAverage >= 40) {
     out.push({ id: 'smog', message: 'Smog spike — industrial and plants are fouling the air.', at: census.places.smoggiest });
   }
   if (stats.crimeAverage >= 35) {
-    out.push({ id: 'crime', message: 'Crime is high — add a powered police station on a street near housing.', at: census.places.mostCrime });
+    out.push({ id: 'crime', message: `Crime is high — add a powered ${police} on a street near housing.`, at: census.places.mostCrime });
   }
-  // A one-click fix, so it comes before the city's chronic traffic.
-  if (stats.population >= SERVICE_ADVISORY_POPULATION && stats.fireAverage < 20) {
+  // A one-click fix, so it comes before the city's chronic traffic. A village
+  // whose fire hall reaches every building is not asked for more until its
+  // budget carries a station.
+  const fireWanted = census.unprotectedBuildings > 0 || fire === SERVICE_TIERS.fire.full.name;
+  if (stats.population >= SERVICE_ADVISORY_POPULATION && stats.fireAverage < 20 && fireWanted) {
     const n = census.unprotectedBuildings;
     out.push({
       id: 'fire',
       at: census.places.unprotected,
       message: n > 0
-        ? `Fire coverage is thin — ${n} building${n === 1 ? ' has' : 's have'} no fire engine in reach. Place a powered fire station on a street near them.`
-        : 'Fire coverage is thin — place a powered fire station on a street.',
+        ? `Fire coverage is thin — ${n} building${n === 1 ? ' has' : 's have'} no fire engine in reach. Place a powered ${fire} on a street near them.`
+        : `Fire coverage is thin — place a powered ${fire} on a street.`,
     });
   }
   if (census.extremeRoads >= 3) {
@@ -699,9 +714,22 @@ function listAdvisories(stats: CityStats, census: Census, forecast?: WeatherFore
       id: 'water',
       at: census.places.dry,
       message: stats.waterShort > 0
-        ? `Water towers are running dry (${stats.waterLoad}/${stats.waterSupply}) — add a tower on the mains.`
-        : 'Lots are dry — place a water tower beside a powered street.',
+        ? `The water mains are running dry (${stats.waterLoad}/${stats.waterSupply}) — add a ${water} on the mains.`
+        : `Lots are dry — place a ${water} beside a powered street.`,
     });
+  }
+  // Once the budget carries the full tier, a village's pump, fire hall, or
+  // police post can be upgraded in place (G4).
+  for (const service of ['water', 'fire', 'police'] as const) {
+    const place = census.places.smallTier?.[service];
+    const tiers = SERVICE_TIERS[service];
+    if (place && budgetCarries(stats, tiers.full.upkeep - tiers.small.upkeep)) {
+      out.push({
+        id: `upgrade:${service}`,
+        at: place,
+        message: `The budget can carry a ${tiers.full.name} now — place one on the ${tiers.small.name} to upgrade it, for the difference in price.`,
+      });
+    }
   }
   if (
     census.hasPlant &&

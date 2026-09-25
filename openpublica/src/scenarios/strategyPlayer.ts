@@ -10,13 +10,14 @@ import { DEFAULT_TERRAIN_SEED, generateTerrain } from '../sim/TerrainGenerator';
 import { lotTooHostile, tileHasAdjacentRoad } from '../sim/zoneGrowthHints';
 import { smogReach } from '../sim/smogReach';
 import { MILESTONES } from '../sim/milestones';
+import { SERVICE_TIERS, tierToBuild, type TieredService } from '../sim/serviceTiers';
 import { InspectTool } from '../tools/InspectTool';
 import type { PlaceServiceTool } from '../tools/PlaceServiceTool';
 import { RoadTool } from '../tools/RoadTool';
 import { ToolController } from '../tools/ToolController';
 import { ZoneBrushTool } from '../tools/ZoneBrushTool';
 import { planRoadLine, roadLinePath } from '../tools/roadLine';
-import { createServiceTools } from '../tools/serviceCatalog';
+import { createServiceTools, serviceSpecForDef } from '../tools/serviceCatalog';
 import { planZoneArea } from '../tools/zoneArea';
 
 /**
@@ -106,13 +107,24 @@ const UPKEEP: Record<string, number> = {
   placeFireStation: 60,
   placePoliceStation: 60,
   placePark: 20,
+  placeWaterPump: 15,
+  placeFireHall: 20,
+  placePolicePost: 25,
 };
+
+/** The tool for a service's tier the advice names now: the full one once the budget carries it (G4). */
+function tierTool(service: TieredService, stats: CitySim['stats']): string {
+  return serviceSpecForDef(tierToBuild(service, stats).defId)!.toolName;
+}
 
 /** Rough price of zoning one block: its lots plus the streets the zone tool lays. */
 const BLOCK_ZONE_COST = 42 * 5 + 14 * 10;
 
 /** Keep this much in hand. */
 const RESERVE = 300;
+
+/** Upgrade a village service only with this much to spare. */
+const UPGRADE_SPARE = 3000;
 
 /** Add a block when fewer empty lots than this could grow. */
 const EXPAND_BELOW_LOTS = 12;
@@ -171,21 +183,32 @@ export function playStrategy(strategy: Strategy, months = 240, seed = DEFAULT_TE
     const corners: Array<[number, number]> = [[b.X, b.Y], [b.X + 8, b.Y], [b.X + 8, b.Y + 8], [b.X, b.Y + 8], [b.X, b.Y]];
     return corners.slice(1).map(([x, y], i) => roadLinePath({ x: corners[i][0], y: corners[i][1] }, { x, y }));
   };
-  const freeSlot = (blocks: readonly Block[]): TileCoord | null => {
+  /** The first free strip slot of `blocks`, or the free one nearest `near`. */
+  const freeSlot = (blocks: readonly Block[], near?: TileCoord | null): TileCoord | null => {
+    let best: TileCoord | null = null;
+    let bestD = Infinity;
     for (const b of blocks) {
       for (let x = b.X + 1; x <= b.X + 7; x++) {
         const tile = sim.getTile(x, b.Y + 1)!;
         if (!tile.buildingId && tile.roadType === RoadType.None && tileHasAdjacentRoad(sim.map, x, b.Y + 1)) {
-          return { x, y: b.Y + 1 };
+          if (!near) return { x, y: b.Y + 1 };
+          const d = Math.abs(x - near.x) + Math.abs(b.Y + 1 - near.y);
+          if (d < bestD) {
+            best = { x, y: b.Y + 1 };
+            bestD = d;
+          }
         }
       }
     }
-    return null;
+    return best;
   };
-  /** Place a civic building in the first free strip slot of `blocks`. */
-  const place = (toolName: string, blocks: readonly Block[], what: string): boolean => {
+  /** Where the advice of this id points, if it is listed and has a place. */
+  const advisedAt = (...ids: string[]): TileCoord | null =>
+    sim.evaluation.advisories.find((a) => ids.includes(a.id) && a.at)?.at ?? null;
+  /** Place a civic building in the first free strip slot of `blocks`, or the one nearest `near`. */
+  const place = (toolName: string, blocks: readonly Block[], what: string, near?: TileCoord | null): boolean => {
     const tool = services.get(toolName)!;
-    const slot = freeSlot(blocks);
+    const slot = freeSlot(blocks, near);
     if (!slot || sim.stats.money - RESERVE < tool.spec.cost) return false;
     if (apply([slot], tool) === 0) return false;
     did(`${what}@${slot.x},${slot.y}`);
@@ -312,15 +335,29 @@ export function playStrategy(strategy: Strategy, months = 240, seed = DEFAULT_TE
     if (town.length === 0) expand();
     if (!hasPlant) hasPlant = placePlant();
     else if ((s.powerHeld ?? 0) > 0 || s.powerShort > 0 || s.powerLoad > 0.85 * s.powerSupply) placePlant();
-    if ((strategy.water ?? true) && s.population >= 40 && (!hasTower || s.waterShort >= 5) && affordable('placeWaterTower')) {
-      if (place('placeWaterTower', town, 'tower')) hasTower = true;
+    const water = tierTool('water', s);
+    if ((strategy.water ?? true) && s.population >= 40 && (!hasTower || s.waterShort >= 5) && affordable(water)) {
+      if (place(water, town, water === 'placeWaterPump' ? 'pump' : 'tower', advisedAt('water-full', 'water'))) hasTower = true;
     }
-    if ((strategy.fire ?? true) && s.population >= 40 && s.fireAverage < 20 && month - lastFire >= 12 && affordable('placeFireStation')) {
-      if (place('placeFireStation', town, 'fire')) lastFire = month;
+    const fire = tierTool('fire', s);
+    const fireAdvised = sim.evaluation.advisories.some((a) => a.id === 'fire');
+    if ((strategy.fire ?? true) && fireAdvised && month - lastFire >= 12 && affordable(fire)) {
+      if (place(fire, town, fire === 'placeFireHall' ? 'hall' : 'fire', advisedAt('fire'))) lastFire = month;
     }
     const crimeBar = strategy.followAdvice ? 25 : 30;
-    if ((strategy.police ?? true) && s.crimeAverage >= crimeBar && month - lastPolice >= 12 && affordable('placePoliceStation')) {
-      if (place('placePoliceStation', town, 'police')) lastPolice = month;
+    const police = tierTool('police', s);
+    if ((strategy.police ?? true) && s.crimeAverage >= crimeBar && month - lastPolice >= 12 && affordable(police)) {
+      if (place(police, town, police === 'placePolicePost' ? 'post' : 'police', advisedAt('crime', 'abandon:crime'))) lastPolice = month;
+    }
+    // Once the budget carries it, upgrade a village service in place (one a
+    // month), from money to spare: the next block comes first.
+    const upgrade = sim.evaluation.advisories.find((a) => a.id.startsWith('upgrade:') && a.at);
+    if (upgrade?.at) {
+      const full = serviceSpecForDef(SERVICE_TIERS[upgrade.id.slice('upgrade:'.length) as TieredService].full.defId)!;
+      const tool = services.get(full.toolName)!;
+      if (sim.stats.money - UPGRADE_SPARE >= tool.costAt(upgrade.at, sim) && apply([upgrade.at], tool) > 0) {
+        did(`upgrade ${full.toolName}@${upgrade.at.x},${upgrade.at.y}`);
+      }
     }
     if (growableLots() < EXPAND_BELOW_LOTS) expand();
     // In debt, borrow (the game allows three bonds at a time).

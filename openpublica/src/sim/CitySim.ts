@@ -37,6 +37,7 @@ import { DEFAULT_TERRAIN_SEED } from './TerrainGenerator';
 import { composeHappiness, type HappinessParts } from './happiness';
 import { bridgeProblem, type BridgeProblem } from './roadConnections';
 import { milestoneReady, nextMilestone, type Milestone } from './milestones';
+import { isTierUpgrade } from './serviceTiers';
 
 /** Why a road cannot be laid on a tile at the sim layer (tools add cost/upgrade rules). */
 export type RoadPlacementBlock = 'off-map' | 'building' | BridgeProblem;
@@ -415,6 +416,8 @@ export class CitySim {
    * Place a service building (e.g. a power plant) on the tile at (x, y).
    *
    * - Deducts `cost` from the treasury; fails silently if insufficient funds.
+   * - On a lot holding the same service's small tier (a pump, a fire hall, a
+   *   police post), replaces it: the tool charges only the difference.
    * - Registers the building in the growth system's buildings registry.
    * - Immediately recalculates power coverage so the overlay updates at once.
    *
@@ -435,11 +438,14 @@ export class CitySim {
     return true;
   }
 
-  /** The dry, empty, road-free lot a known service building can go on, or null. */
+  /**
+   * The dry, empty, road-free lot a known service building can go on, or
+   * null. A lot holding the same service's small tier can take the full one.
+   */
   private _serviceLot(x: number, y: number, defId: string): CityTile | null {
     const tile = this.map.getTile(x, y);
     if (!tile || tile.terrain === TerrainType.Water) return null;
-    if (tile.buildingId !== null) return null;
+    if (tile.buildingId !== null && !isTierUpgrade(tile.buildingId, defId)) return null;
     if (tile.roadType !== RoadType.None) return null;
     if (!this.growth.defs.has(defId)) return null;
     return tile;

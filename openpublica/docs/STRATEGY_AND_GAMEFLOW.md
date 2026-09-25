@@ -203,6 +203,12 @@ Population falls smoothly as taxes rise, money levels off past about 13% and fal
 
 **F7 — Small towns cannot carry flat upkeep.** A two-block village of about 90 people cannot carry the upkeep of its plant, roads, and services, and slides into debt. The fire and water advisories begin at 40 residents. An early factory district across a link road also bankrupts a young town. The services and districts that make a big city work are all-or-nothing for a small one.
 
+*Addressed by G4 (Gap AP).* A village now has cheap first tiers of three services, which it can upgrade in place later:
+- **Tiers:** a water pump ($15 a month), a police post ($25), and a volunteer fire hall ($20).
+- **Advice:** it names the cheap tier until the budget carries the full one.
+- **Upgrade:** placing the full tier on the small one costs the difference in price.
+- **Result:** the tiny town stays solvent for 20 years (lowest $1,856). The advice-follower's lowest treasury is $5,936.
+
 **F8 — Bankruptcy never ends.** A bankrupt city runs on indefinitely:
 
 - The houses-only town spent 186 of 240 months in debt and reached −$124,501.
@@ -251,7 +257,7 @@ Slices are named G1–G11 here and become gap letters as they ship. Each has an 
 | **G2 Honest taxes** (shipped as Gap AJ) | Take the tax term out of the monthly demand step. Instead, scale the demand people act on by a tax draw, as happiness already does: about 7% less per point over 9%, about 5% more per point under, between 0.3× and 1.3×. Demand still follows jobs, so no rate empties a town on its own. The deficit advisory suggests a specific raise with its monthly gain, and warns past 11%. The tooltips state the real effect. | In the harness tax sweep from 7% to 13%, population at year 10 falls smoothly (at most 12% per point) and no rate bankrupts a careful player. 11% costs visible growth against 9%. |
 | **G3 Mixed use with a trade-off** (shipped as Gap AK) | The smallest mixed building houses 4 people and 1 job (a flat over a shop). Drop the 1.3× growth boost. Mixed lots grow only on land worth at least 35 (a main-street premium) or beside existing houses or shops. Their trips load the streets like shops' do. | Houses-then-mixed within +30% of the balanced town on population and money, and ahead on walkability and happiness. |
 | **G3b Mixed use can open a town** (shipped with Gap AK) | While nobody lives in town, a mixed lot grows as flats: its housing half grows on the starter demand, and the shop half opens as residents arrive. | A mixed-use-first town reaches 100 people in year 1. |
-| **G4 Small-town services** | Cheaper first tiers: a volunteer fire hall and a water pump, at about half the price, reach, and upkeep. The fire and water advisories name the cheap tier until the budget can carry the full one. | The tiny village stays solvent. The advice-follower's cash low stays above $3,000. |
+| **G4 Small-town services** (shipped as Gap AP) | Cheaper first tiers: a volunteer fire hall and a water pump, at about half the price, reach, and upkeep. The fire and water advisories name the cheap tier until the budget can carry the full one. | The tiny village stays solvent. The advice-follower's cash low stays above $3,000. |
 
 ### Part C — Guide the opening
 

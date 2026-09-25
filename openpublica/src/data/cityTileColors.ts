@@ -140,13 +140,13 @@ export function cityTileColor(tile: CityTile): TileColor {
   if (tile.buildingId === 'small_park') {
     return PARK_GROUND;
   }
-  if (tile.buildingId === 'small_police_station') {
+  if (tile.buildingId === 'small_police_station' || tile.buildingId === 'police_post') {
     return POLICE_GROUND;
   }
-  if (tile.buildingId === 'small_fire_station') {
+  if (tile.buildingId === 'small_fire_station' || tile.buildingId === 'volunteer_fire_hall') {
     return FIRE_GROUND;
   }
-  if (tile.buildingId === 'small_water_tower') {
+  if (tile.buildingId === 'small_water_tower' || tile.buildingId === 'water_pump') {
     return WATER_GROUND;
   }
   if (tile.buildingId !== null && tile.zoneType !== ZoneType.None) {

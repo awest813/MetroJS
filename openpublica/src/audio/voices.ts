@@ -83,10 +83,13 @@ export function sfxForTool(toolName: string): Voice | null {
     case 'placePark':
       return { kind: 'blip', freq: 523, duration: 0.11, gain: 0.05, type: 'sine', slide: 90 };
     case 'placePoliceStation':
+    case 'placePolicePost':
       return { kind: 'blip', freq: 220, duration: 0.09, gain: 0.05, type: 'square' };
     case 'placeFireStation':
+    case 'placeFireHall':
       return { kind: 'blip', freq: 196, duration: 0.10, gain: 0.05, type: 'sawtooth' };
     case 'placeWaterTower':
+    case 'placeWaterPump':
       return { kind: 'blip', freq: 262, duration: 0.10, gain: 0.05, type: 'sine', slide: 40 };
     default:
       return { kind: 'blip', freq: 280, duration: 0.04, gain: 0.035, type: 'sine' };

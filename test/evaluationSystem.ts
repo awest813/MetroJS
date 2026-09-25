@@ -161,7 +161,8 @@ describe('EvaluationSystem', () => {
 
     sim.stats.jobs = 40;
     sim.evaluate();
-    expect(sim.stats.advisory).toMatch(/water tower/i);
+    // No budget for a tower yet: a village is told of a pump.
+    expect(sim.stats.advisory).toMatch(/place a water pump/i);
   });
 
   describe('fire and water', () => {
@@ -181,6 +182,8 @@ describe('EvaluationSystem', () => {
       Object.assign(sim.stats, {
         population: 100, jobs: 100, pollutionAverage: 0, crimeAverage: 0,
         fireAverage: 100, waterAverage: 100, waterShort: 0, waterLoad: 0, waterSupply: 0,
+        // A budget that carries the full tiers.
+        projectedIncome: 1_000, projectedExpenses: 0,
       });
       return sim;
     }
@@ -231,7 +234,7 @@ describe('EvaluationSystem', () => {
       for (let x = 2; x < 5; x++) sim.getTile(x, 10)!.trafficPressure = 12;
       Object.assign(sim.stats, { fireAverage: 0, waterShort: WATER_SHORT_ADVISORY + 7, waterLoad: 600, waterSupply: 600, waterAverage: 60 });
       judge(sim);
-      expect(sim.stats.advisory).toBe('Water towers are at capacity (600/600) — 12 buildings are dry. Add a tower on the mains.');
+      expect(sim.stats.advisory).toBe('The water mains are at capacity (600/600) — 12 buildings are dry. Add a water tower on the mains.');
 
       sim.stats.waterShort = 0;
       judge(sim);
@@ -283,8 +286,11 @@ describe('EvaluationSystem', () => {
     sim.stats.jobs = 40;
     sim.stats.fireAverage = 0;
     sim.stats.waterAverage = 100;
+    // A budget that carries a station (a village whose hall reaches everyone is not nagged).
+    sim.stats.projectedIncome = 1_000;
+    sim.stats.projectedExpenses = 0;
     sim.evaluate();
-    expect(sim.stats.advisory).toMatch(/fire station/i);
+    expect(sim.stats.advisory).toMatch(/place a powered fire station/i);
   });
 
   it('should tell shop-only cities to zone housing', () => {

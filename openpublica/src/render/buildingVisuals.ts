@@ -54,6 +54,9 @@ export const BUILDING_SHAPES: Record<string, BuildingShape> = {
   small_police_station: { width: 0.70, depth: 0.62, height: 0.55 },
   small_fire_station:   { width: 0.72, depth: 0.64, height: 0.48 },
   small_water_tower:    { width: 0.42, depth: 0.42, height: 0.85 },
+  volunteer_fire_hall:  { width: 0.56, depth: 0.50, height: 0.44 },
+  police_post:          { width: 0.46, depth: 0.42, height: 0.40 },
+  water_pump:           { width: 0.54, depth: 0.44, height: 0.44 },
   shopfront_apartments: { width: 0.75, depth: 0.55, height: 0.65 },
   corner_store_flats:   { width: 0.65, depth: 0.65, height: 0.60 },
   main_street_block:    { width: 0.85, depth: 0.60, height: 0.75 },
@@ -63,9 +66,9 @@ export const BUILDING_SHAPES: Record<string, BuildingShape> = {
 export const DEFAULT_SHAPE: BuildingShape = { width: 0.50, depth: 0.50, height: 0.40 };
 
 export const SERVICE_DEF_IDS = new Set(['small_power_plant']);
-export const CIVIC_DEF_IDS = new Set(['small_police_station']);
-export const FIRE_DEF_IDS = new Set(['small_fire_station']);
-export const WATER_DEF_IDS = new Set(['small_water_tower']);
+export const CIVIC_DEF_IDS = new Set(['small_police_station', 'police_post']);
+export const FIRE_DEF_IDS = new Set(['small_fire_station', 'volunteer_fire_hall']);
+export const WATER_DEF_IDS = new Set(['small_water_tower', 'water_pump']);
 
 export const SKIP_MESH_DEF_IDS = new Set(['small_park']);
 
@@ -252,6 +255,39 @@ const KITS: BuildingKit[] = [
       cylinder('body', 0.36, 0.32, 0, 0.46, 0),
       box('roof', 0.38, 0.04, 0.38, 0, 0.64, 0),
       cylinder('accent', 0.08, 0.16, 0, 0.76, 0),
+    ],
+  },
+  {
+    // A one-bay hall under a gable, with a bell post: a village's volunteers.
+    defId: 'volunteer_fire_hall',
+    shape: BUILDING_SHAPES.volunteer_fire_hall,
+    parts: [
+      box('body', 0.50, 0.22, 0.44, 0, 0.11, 0),
+      prism('roof', 0.56, 0.14, 0.48, 0, 0.29, 0),
+      box('accent', 0.24, 0.16, 0.03, 0, 0.08, 0.225),
+      box('trim', 0.08, 0.40, 0.08, 0.22, 0.20, -0.16),
+    ],
+  },
+  {
+    // A small flat-roofed post with a window and a lamp over the door.
+    defId: 'police_post',
+    shape: BUILDING_SHAPES.police_post,
+    parts: [
+      box('body', 0.40, 0.24, 0.36, 0, 0.12, 0),
+      box('roof', 0.44, 0.05, 0.40, 0, 0.265, 0),
+      box('glass', 0.18, 0.09, 0.02, -0.07, 0.15, 0.185),
+      box('accent', 0.07, 0.07, 0.07, 0.10, 0.33, 0.10),
+    ],
+  },
+  {
+    // A pump house beside a squat tank.
+    defId: 'water_pump',
+    shape: BUILDING_SHAPES.water_pump,
+    parts: [
+      box('body', 0.24, 0.20, 0.26, -0.13, 0.10, 0.04),
+      box('roof', 0.28, 0.04, 0.30, -0.13, 0.22, 0.04),
+      cylinder('accent', 0.26, 0.30, 0.13, 0.15, -0.02),
+      box('trim', 0.14, 0.04, 0.04, 0.0, 0.12, 0.04),
     ],
   },
   {

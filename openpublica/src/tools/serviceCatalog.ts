@@ -28,6 +28,10 @@ export const PARK_COST = 200;
 export const POLICE_STATION_COST = 400;
 export const FIRE_STATION_COST = 400;
 export const WATER_TOWER_COST = 350;
+/** Small-town tiers (G4): about half the price and reach, a third of the upkeep. */
+export const FIRE_HALL_COST = 200;
+export const POLICE_POST_COST = 200;
+export const WATER_PUMP_COST = 150;
 
 export const POWER_PLANT_SERVICE: ServiceSpec = {
   toolName: 'placePowerPlant',
@@ -76,12 +80,44 @@ export const WATER_SERVICE: ServiceSpec = {
   preview: { r: 0.22, g: 0.68, b: 0.9 },
 };
 
+export const POLICE_POST_SERVICE: ServiceSpec = {
+  toolName: 'placePolicePost',
+  label: 'Police post',
+  defId: 'police_post',
+  cost: POLICE_POST_COST,
+  coverage: 'police',
+  dispatch: true,
+  preview: POLICE_SERVICE.preview,
+};
+
+export const FIRE_HALL_SERVICE: ServiceSpec = {
+  toolName: 'placeFireHall',
+  label: 'Volunteer fire hall',
+  defId: 'volunteer_fire_hall',
+  cost: FIRE_HALL_COST,
+  coverage: 'fire',
+  dispatch: true,
+  preview: FIRE_SERVICE.preview,
+};
+
+export const WATER_PUMP_SERVICE: ServiceSpec = {
+  toolName: 'placeWaterPump',
+  label: 'Water pump',
+  defId: 'water_pump',
+  cost: WATER_PUMP_COST,
+  coverage: 'water',
+  preview: WATER_SERVICE.preview,
+};
+
 export const SERVICE_SPECS: ReadonlyArray<ServiceSpec> = [
   POWER_PLANT_SERVICE,
   PARK_SERVICE,
   POLICE_SERVICE,
   FIRE_SERVICE,
   WATER_SERVICE,
+  POLICE_POST_SERVICE,
+  FIRE_HALL_SERVICE,
+  WATER_PUMP_SERVICE,
 ];
 
 const BY_TOOL = new Map(SERVICE_SPECS.map((spec) => [spec.toolName, spec]));
@@ -165,8 +201,9 @@ function _serviceStatus(
     return formatNetwork('power', network);
   }
   if (def.waterCapacity) {
-    if (!hasRoad) return 'no street — water mains run along streets, so pave one beside this tower';
-    if (!powered) return 'dark — the tower pumps once a powered street reaches it';
+    const what = def.waterCapacity < 600 ? 'pump' : 'tower';
+    if (!hasRoad) return `no street — water mains run along streets, so pave one beside this ${what}`;
+    if (!powered) return `dark — the ${what} pumps once a powered street reaches it`;
     return formatNetwork('water', network);
   }
   const radius = serviceRadius(def, safetyFunding);

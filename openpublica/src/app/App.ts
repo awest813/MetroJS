@@ -23,6 +23,8 @@ import { OverlayBar } from '../ui/OverlayBar';
 import { CameraBar } from '../ui/CameraBar';
 import { CityHUD } from '../ui/CityHUD';
 import { MilestoneBanner } from '../ui/MilestoneBanner';
+import { PlaceServiceTool } from '../tools/PlaceServiceTool';
+import { SERVICE_TIERS, tierOf } from '../sim/serviceTiers';
 import { milestoneBanner as milestoneBannerText } from '../ui/chromeCopy';
 import { BudgetPanel, formatBonds } from '../ui/BudgetPanel';
 import { BOND_AMOUNT } from '../sim/budgetLevers';
@@ -384,6 +386,12 @@ export class App {
       const toolSpec = coord ? serviceSpecForTool(tool.name) : undefined;
       if (coord && toolSpec) {
         showServiceReach(coord, toolSpec, true);
+        // A full tier over its own small tier upgrades it for the difference.
+        const tier = tierOf(toolSpec.defId);
+        if (tier && tool instanceof PlaceServiceTool && tool.upgrades(coord, sim)) {
+          const { full, small } = SERVICE_TIERS[tier.service];
+          statusEl.textContent = `Upgrade the ${small.name} to a ${full.name}: $${tool.costAt(coord, sim).toLocaleString()}, the difference in price.`;
+        }
         return;
       }
       if (coord) {

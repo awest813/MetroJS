@@ -118,6 +118,39 @@
     "visualRef": "models/small_water_tower.glb"
   },
   {
+    "id": "volunteer_fire_hall",
+    "name": "Volunteer Fire Hall",
+    "zoneType": 0,
+    "population": 0,
+    "jobs": 1,
+    "isService": true,
+    "fireRadius": 11,
+    "monthlyCost": 20,
+    "visualRef": "models/volunteer_fire_hall.glb"
+  },
+  {
+    "id": "police_post",
+    "name": "Police Post",
+    "zoneType": 0,
+    "population": 0,
+    "jobs": 2,
+    "isService": true,
+    "policeRadius": 11,
+    "monthlyCost": 25,
+    "visualRef": "models/police_post.glb"
+  },
+  {
+    "id": "water_pump",
+    "name": "Water Pump",
+    "zoneType": 0,
+    "population": 0,
+    "jobs": 1,
+    "isService": true,
+    "waterCapacity": 200,
+    "monthlyCost": 15,
+    "visualRef": "models/water_pump.glb"
+  },
+  {
     "id": "small_park",
     "name": "Small Park",
     "zoneType": 0,

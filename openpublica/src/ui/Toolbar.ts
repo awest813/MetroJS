@@ -7,7 +7,8 @@ const TOOL_GROUPS: ReadonlyArray<ReadonlyArray<string>> = [
   ['inspect', 'bulldoze'],
   ['road', 'highway', 'trolleyAvenue'],
   ['zoneResidentialLow', 'zoneCommercialLow', 'zoneIndustrialLight', 'zoneMixedUse', 'zoneClear'],
-  ['placePowerPlant', 'placeWaterTower', 'placePark', 'placePoliceStation', 'placeFireStation'],
+  // Each service beside its small-town tier (G4).
+  ['placePowerPlant', 'placePark', 'placeWaterTower', 'placeWaterPump', 'placePoliceStation', 'placePolicePost', 'placeFireStation', 'placeFireHall'],
 ];
 
 /** Short button text; status lines keep each tool's full label. */
@@ -17,6 +18,9 @@ const BUTTON_LABELS: Readonly<Record<string, string>> = {
   placeWaterTower: 'Water',
   placePoliceStation: 'Police',
   placeFireStation: 'Fire',
+  placeWaterPump: 'Pump',
+  placePolicePost: 'Post',
+  placeFireHall: 'Fire hall',
 };
 
 const TOOL_TITLES: Readonly<Record<string, string>> = {
@@ -35,6 +39,9 @@ const TOOL_TITLES: Readonly<Record<string, string>> = {
   placePoliceStation: 'Police — $400, $60/mo. Needs power and a street; patrols reach lots along the roads (key O)',
   placeFireStation: 'Fire — $400, $60/mo. Needs power and a street; engines reach lots along the roads (key F)',
   placeWaterTower: 'Water tower — $350, $40/mo. Place beside a powered street: mains run along the streets, up to 600 load (key W)',
+  placeWaterPump: 'Water pump — $150, $15/mo. A village\'s first water: like a tower, but up to 200 load (Shift+W)',
+  placePolicePost: 'Police post — $200, $25/mo. A village\'s first police: patrols reach 11 road tiles, a station 14 (Shift+O)',
+  placeFireHall: 'Volunteer fire hall — $200, $20/mo. A village\'s first fire cover: engines reach 11 road tiles, a station 14 (Shift+F)',
 };
 
 const TOOL_KEYS: Readonly<Record<string, string>> = {
@@ -54,9 +61,23 @@ const TOOL_KEYS: Readonly<Record<string, string>> = {
   w: 'placeWaterTower',
 };
 
-const KEY_FOR_TOOL: ReadonlyMap<string, string> = new Map(
-  Object.entries(TOOL_KEYS).map(([key, tool]) => [tool, key]),
-);
+/** Shift plus a service's key picks its small-town tier. */
+const SHIFT_TOOL_KEYS: Readonly<Record<string, string>> = {
+  w: 'placeWaterPump',
+  o: 'placePolicePost',
+  f: 'placeFireHall',
+};
+
+const KEY_FOR_TOOL: ReadonlyMap<string, string> = new Map([
+  ...Object.entries(TOOL_KEYS).map(([key, tool]): [string, string] => [tool, key.toUpperCase()]),
+  ...Object.entries(SHIFT_TOOL_KEYS).map(([key, tool]): [string, string] => [tool, `⇧${key.toUpperCase()}`]),
+]);
+
+/** The tool a key press picks, if any. */
+export function toolForKey(key: string, shift: boolean): string | undefined {
+  const k = key.toLowerCase();
+  return (shift ? SHIFT_TOOL_KEYS[k] : undefined) ?? TOOL_KEYS[k];
+}
 
 /**
  * Left-rail tool buttons. Owns no game state.
@@ -77,7 +98,7 @@ export class Toolbar {
     window.addEventListener('keydown', (event) => {
       if (keyBelongsToField(event)) return;
       if (event.ctrlKey || event.metaKey || event.altKey) return;
-      const tool = TOOL_KEYS[event.key.toLowerCase()];
+      const tool = toolForKey(event.key, event.shiftKey);
       if (!tool) return;
       event.preventDefault();
       this.select(tool);
@@ -125,10 +146,10 @@ export class Toolbar {
       if (key) {
         const badge = document.createElement('span');
         badge.className = 'tool-key';
-        badge.textContent = key.toUpperCase();
+        badge.textContent = key;
         badge.setAttribute('aria-hidden', 'true');
         btn.appendChild(badge);
-        btn.setAttribute('aria-keyshortcuts', key.toUpperCase());
+        btn.setAttribute('aria-keyshortcuts', key.replace('⇧', 'Shift+'));
       }
       btn.title = TOOL_TITLES[tool.name] ?? tool.label;
       btn.setAttribute('aria-label', tool.label);

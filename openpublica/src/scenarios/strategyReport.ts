@@ -12,9 +12,9 @@ const money = (n: number): string => `${n < 0 ? '−' : ''}$${Math.abs(n).toLoca
 const pad = (text: string | number, width: number): string => String(text).padStart(width);
 
 function strategyTable(rows: readonly StrategySummary[]): string[] {
-  const out = ['strategy         pop y5  pop y10   money y10  net/mo y10 rating y10  months in debt'];
+  const out = ['strategy         pop y5  pop y10   money y10  net/mo y10 rating y10  months in debt  lowest money'];
   for (const r of rows) {
-    out.push(`${r.id.padEnd(16)} ${pad(r.populationY5, 6)} ${pad(r.populationY10, 8)} ${pad(money(r.moneyY10), 11)} ${pad(money(r.netY10), 11)} ${pad(r.approvalY10, 10)} ${pad(r.monthsInDebt, 15)}`);
+    out.push(`${r.id.padEnd(16)} ${pad(r.populationY5, 6)} ${pad(r.populationY10, 8)} ${pad(money(r.moneyY10), 11)} ${pad(money(r.netY10), 11)} ${pad(r.approvalY10, 10)} ${pad(r.monthsInDebt, 15)} ${pad(money(r.lowMoney), 13)}`);
   }
   return out;
 }

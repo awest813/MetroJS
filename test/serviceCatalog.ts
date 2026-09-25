@@ -30,6 +30,9 @@ describe('serviceCatalog', () => {
       'placePoliceStation',
       'placeFireStation',
       'placeWaterTower',
+      'placePolicePost',
+      'placeFireHall',
+      'placeWaterPump',
     ]);
   });
 

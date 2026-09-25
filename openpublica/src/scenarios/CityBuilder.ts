@@ -16,7 +16,7 @@ import { planZoneArea } from '../tools/zoneArea';
 import type { PlaceServiceTool } from '../tools/PlaceServiceTool';
 
 /** Civic buildings a script can place, by short name. */
-export type ServiceKind = 'plant' | 'tower' | 'park' | 'police' | 'fire';
+export type ServiceKind = 'plant' | 'tower' | 'park' | 'police' | 'fire' | 'pump' | 'post' | 'hall';
 
 const SERVICE_TOOL: Record<ServiceKind, string> = {
   plant: 'placePowerPlant',
@@ -24,6 +24,9 @@ const SERVICE_TOOL: Record<ServiceKind, string> = {
   park: 'placePark',
   police: 'placePoliceStation',
   fire: 'placeFireStation',
+  pump: 'placeWaterPump',
+  post: 'placePolicePost',
+  hall: 'placeFireHall',
 };
 
 /**

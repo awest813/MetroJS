@@ -330,6 +330,50 @@ function policeStation() {
   ].flat();
 }
 
+/** A village's volunteer fire hall: one bay under a gable, and a bell post. */
+function volunteerFireHall() {
+  const red = [0.72, 0.22, 0.14], roof = [0.30, 0.12, 0.09], gold = [0.95, 0.72, 0.12];
+  return [
+    box(STONE, 0.50, 0.02, 0.44, 0, 0, 0),
+    box(red, 0.46, 0.22, 0.40, 0, 0.02, 0),
+    gable(roof, 0.52, 0.13, 0.46, 0, 0.24, 0),
+    box(WHITE, 0.22, 0.17, 0.012, -0.06, 0.02, 0.206),
+    box(gold, 0.24, 0.03, 0.012, -0.06, 0.19, 0.207),
+    box(GLASS, 0.07, 0.07, 0.01, 0.15, 0.10, 0.205),
+    box(METAL, 0.025, 0.38, 0.025, 0.22, 0, -0.17),
+    box(METAL, 0.10, 0.02, 0.025, 0.22, 0.38, -0.17),
+    cyl(gold, 0.03, 0.05, 0.22, 0.33, -0.17, 8, 0.018),
+  ].flat();
+}
+
+/** A police post: a small flat-roofed office with a lamp over the door. */
+function policePost() {
+  const body = [0.24, 0.36, 0.54], roof = [0.12, 0.16, 0.24], trim = [0.72, 0.74, 0.78];
+  return [
+    box(STONE, 0.42, 0.02, 0.38, 0, 0, 0),
+    box(body, 0.38, 0.24, 0.34, 0, 0.02, 0),
+    box(roof, 0.42, 0.03, 0.38, 0, 0.26, 0),
+    box(DOOR, 0.08, 0.14, 0.012, 0.10, 0.02, 0.176),
+    box(GLASS, 0.14, 0.08, 0.01, -0.07, 0.10, 0.175),
+    box(trim, 0.16, 0.012, 0.02, -0.07, 0.09, 0.177),
+    box([0.25, 0.45, 0.95], 0.05, 0.04, 0.05, 0.10, 0.29, 0.10),
+  ].flat();
+}
+
+/** A water pump: a pump house beside a squat tank, joined by a pipe. */
+function waterPump() {
+  const house = [0.62, 0.66, 0.66], roof = [0.14, 0.28, 0.38], tank = [0.22, 0.48, 0.62];
+  return [
+    box(STONE, 0.52, 0.02, 0.42, 0, 0, 0),
+    box(house, 0.22, 0.18, 0.24, -0.13, 0.02, 0.05),
+    gable(roof, 0.26, 0.08, 0.28, -0.13, 0.20, 0.05),
+    box(DOOR, 0.06, 0.11, 0.012, -0.13, 0.02, 0.176),
+    cyl(tank, 0.12, 0.24, 0.13, 0.02, -0.03, 16),
+    cyl(roof, 0.13, 0.06, 0.13, 0.26, -0.03, 16, 0),
+    box(METAL, 0.10, 0.03, 0.03, 0.0, 0.08, 0.02),
+  ].flat();
+}
+
 function shopfrontApartments() {
   const upper = MIX, roof = shade(MIX, 0.42), trim = shade(MIX, 1.12);
   const parts = [
@@ -402,6 +446,9 @@ const MODELS = {
   shopfront_apartments: shopfrontApartments,
   corner_store_flats: cornerStoreFlats,
   main_street_block: mainStreetBlock,
+  volunteer_fire_hall: volunteerFireHall,
+  police_post: policePost,
+  water_pump: waterPump,
 };
 
 // ── glTF writer ───────────────────────────────────────────────────────────────

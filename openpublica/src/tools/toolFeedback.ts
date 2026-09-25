@@ -12,6 +12,7 @@ import {
   POLICE_STATION_COST,
   POWER_PLANT_COST,
   WATER_TOWER_COST,
+  serviceSpecForTool,
 } from './serviceCatalog';
 
 import type { StrokeSummary } from './ToolController';
@@ -179,6 +180,16 @@ export function explainToolFailure(
         return fundsLine(WATER_TOWER_COST, sim.stats.money);
       }
       return 'Could not place a water tower.';
+
+    case 'placeWaterPump':
+    case 'placePolicePost':
+    case 'placeFireHall': {
+      const spec = serviceSpecForTool(toolName)!;
+      if (tile.buildingId !== null) return 'That lot already has a building.';
+      if (tile.roadType !== RoadType.None) return `Clear the road before placing a ${spec.label.toLowerCase()}.`;
+      if (!sim.canAfford(spec.cost)) return fundsLine(spec.cost, sim.stats.money);
+      return `Could not place a ${spec.label.toLowerCase()}.`;
+    }
 
     default:
       return 'Nothing happened.';
