@@ -141,6 +141,13 @@ describe('strategy balance', () => {
     expect(hopeless.bailouts).toBeGreaterThan(0);
   });
 
+  it('should give a careful town things to spend on: half its surplus by year 10, at most 3 years of expenses kept (G9)', () => {
+    const tenYears = summarize(playStrategy(STRATEGIES.find((s) => s.id === 'balanced')!, 120));
+    expect(tenYears.civicShareY10).toBeGreaterThanOrEqual(0.5);
+    expect(tenYears.civicSpentY10).toBeGreaterThan(0.8 * tenYears.moneyY10);
+    expect(tenYears.moneyY10).toBeLessThanOrEqual(36 * tenYears.expensesY10);
+  });
+
   it('should roll the same dice for the tax sweep as for the balanced town', () => {
     const a = playStrategy(taxStrategy(9), 12);
     const b = playStrategy(STRATEGIES.find((s) => s.id === 'balanced')!, 12);

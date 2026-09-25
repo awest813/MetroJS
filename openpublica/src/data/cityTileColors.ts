@@ -135,6 +135,9 @@ function _cornerColor(map: CityMap, cx: number, cy: number): TileColor {
 const POLICE_GROUND: TileColor = { r: 0.18, g: 0.26, b: 0.40 };
 const FIRE_GROUND: TileColor = { r: 0.48, g: 0.18, b: 0.12 };
 const WATER_GROUND: TileColor = { r: 0.16, g: 0.38, b: 0.46 };
+/** Paved civic plazas under the late civic buildings (G9). */
+const CIVIC_GROUND: TileColor = { r: 0.46, g: 0.44, b: 0.40 };
+const CIVIC_IDS = new Set(['clinic', 'college', 'stadium', 'city_hall']);
 
 export function cityTileColor(tile: CityTile): TileColor {
   if (tile.buildingId === 'small_park') {
@@ -148,6 +151,9 @@ export function cityTileColor(tile: CityTile): TileColor {
   }
   if (tile.buildingId === 'small_water_tower' || tile.buildingId === 'water_pump') {
     return WATER_GROUND;
+  }
+  if (tile.buildingId !== null && CIVIC_IDS.has(tile.buildingId)) {
+    return CIVIC_GROUND;
   }
   if (tile.buildingId !== null && tile.zoneType !== ZoneType.None) {
     return DEVELOPED_GROUND[tile.zoneType];

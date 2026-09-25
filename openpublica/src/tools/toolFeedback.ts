@@ -16,6 +16,7 @@ import {
 } from './serviceCatalog';
 
 import type { StrokeSummary } from './ToolController';
+import { CIVIC_NAMES, isUnlocked, unlockedBy } from '../sim/civic';
 
 /** Status line for the stroke that just ended. Null when nothing was spent or cut. */
 export function formatStrokeStatus(toolLabel: string, stroke: StrokeSummary): string | null {
@@ -180,6 +181,25 @@ export function explainToolFailure(
         return fundsLine(WATER_TOWER_COST, sim.stats.money);
       }
       return 'Could not place a water tower.';
+
+    case 'placeGasPlant':
+    case 'placeClinic':
+    case 'placeCollege':
+    case 'placeStadium':
+    case 'placeCityHall': {
+      const spec = serviceSpecForTool(toolName)!;
+      const milestone = unlockedBy(spec.defId);
+      if (milestone && !isUnlocked(spec.defId, sim.stats.milestones ?? 0)) {
+        return `A ${CIVIC_NAMES[spec.defId]} unlocks at ${milestone.name} (${milestone.population.toLocaleString()} people).`;
+      }
+      if (sim.growth.defs.get(spec.defId)?.unique && sim.hasBuilding(spec.defId)) {
+        return `The city already has a ${CIVIC_NAMES[spec.defId]}.`;
+      }
+      if (tile.buildingId !== null) return 'That lot already has a building.';
+      if (tile.roadType !== RoadType.None) return `Clear the road before placing a ${CIVIC_NAMES[spec.defId]}.`;
+      if (!sim.canAfford(spec.cost)) return fundsLine(spec.cost, sim.stats.money);
+      return `Could not place a ${CIVIC_NAMES[spec.defId]}.`;
+    }
 
     case 'placeWaterPump':
     case 'placePolicePost':

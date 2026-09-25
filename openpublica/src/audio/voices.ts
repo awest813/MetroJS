@@ -79,7 +79,13 @@ export function sfxForTool(toolName: string): Voice | null {
     case 'bulldoze':
       return { kind: 'noise', freq: 90, duration: 0.11, gain: 0.07 };
     case 'placePowerPlant':
+    case 'placeGasPlant':
       return { kind: 'chord', freq: 175, duration: 0.2, gain: 0.06, type: 'triangle' };
+    case 'placeClinic':
+    case 'placeCollege':
+    case 'placeStadium':
+    case 'placeCityHall':
+      return { kind: 'chord', freq: 330, duration: 0.3, gain: 0.055, type: 'sine' };
     case 'placePark':
       return { kind: 'blip', freq: 523, duration: 0.11, gain: 0.05, type: 'sine', slide: 90 };
     case 'placePoliceStation':

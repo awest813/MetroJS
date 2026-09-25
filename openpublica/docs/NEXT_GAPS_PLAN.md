@@ -1,7 +1,7 @@
 # OpenPublica — Next gaps (after Phases A–H)
 
 **Date:** 2026-09-25 (first written 2026-09-20)  
-**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AQ below have shipped on top.
+**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AR below have shipped on top.
 
 This is an implementation plan for **what is still missing**, not a licence to rewrite sim formulas or import Micropolis art.
 
@@ -980,6 +980,24 @@ The scripted players take the bailout. In the harness no city stays in debt more
 
 ---
 
+### Gap AR — Late civic buildings (plan slice G9) **shipped**
+
+The strategy audit found nothing to spend on late. From year 6 the careful town's money only piled up: the balanced town held $113,377 at year 10 with nothing left to decide.
+
+| Slice | What shipped |
+|---|---|
+| AR1 Buildings | Five buildings, each costly to build and run, with a city-wide effect while powered and on a street (`sim/civic.ts`, data on the defs). A **gas plant** ($2,500, $140 a month) is 1,000 load of power with smog reaching only 5 tiles. A **clinic** ($2,000, $150) adds +5 happiness. A **college** ($4,000, $300) adds +12 land value within 10 tiles. A **stadium** ($5,000, $350) adds +5 happiness and +10 on the shop demand target. A **city hall** ($8,000, $400) adds +10 rating. All but the gas plant are one per city. Civic happiness counts after crime, so a clinic helps a rough city too. |
+| AR2 Unlocks | Town unlocks the gas plant and clinic, City the college and stadium, Capital the city hall (`Milestone.unlocks`). Until then their buttons stay out of the rail, and the sim refuses them ("A clinic unlocks at Town (400 people)"). The milestone tooltip says what the next tier unlocks, and the banner says what was just unlocked. |
+| AR3 Show | Five generated models (`npm run models`), kits, and minimap and ground colours. Inspect says what each does ("happiness +5 city-wide"). The happiness tooltip counts "civic buildings +10", and the rating tooltip "city hall +10". |
+
+The scripted careful players keep a year of expenses in hand and spend what is beyond it on the next unlocked building whose upkeep the budget carries. Once Town unlocks it, their new power comes from gas plants. At year 10, the balanced town has spent $58,800 on civic buildings and kept $58,937. Its civic upkeep takes 53% of its monthly surplus, and it holds well under three years of expenses. The advice-follower spends 59% of its surplus; the mixed-use towns 51–54%. `test/strategyBalance.ts` holds the band: a ten-year balanced town puts at least half its surplus into civic upkeep and keeps at most three years of expenses.
+
+The harness showed how chaotic single runs are. One extra building early shifts the growth dice for years: across six maps, the balanced town reaches City anywhere from month 56 to 79, with or without civic buildings. Buying from money beyond a year's expenses keeps the early game, where the older bands are tuned, as it was.
+
+**Exit:** Load a Capital-sized city: the Gas plant, Clinic, College, Stadium, and City hall buttons are in the rail, and a second clinic is refused ("The city already has a clinic").
+
+---
+
 ## 4. Explicitly still out of scope (Phase I)
 
 Unchanged from the 3D plan:
@@ -1002,9 +1020,9 @@ opt-in, the Gap AE GLB kits, Gap AF's happiness, Gap AG's tile interactions,
 Gap AH's systems pass). What is left:
 
 1. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
-2. **An artist's kit (optional).** The eighteen models are generated; hand-made ones can replace them file by file under `public/models/ASSET_LICENSE.md`.
-3. **Something to spend on late.** Once a test city is built out, its money only grows: Riverside from $55k to $166k in ten years. Upgrades that cost money to run, such as larger plants, stadiums, or road repaving, would give a finished city decisions to make.
-4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). G1–G8 and G10 have shipped (Gaps AI–AQ). Next, in order: late civic buildings (which answer item 3), and new-game options with scenarios.
+2. **An artist's kit (optional).** The twenty-three models are generated; hand-made ones can replace them file by file under `public/models/ASSET_LICENSE.md`.
+3. ~~**Something to spend on late.**~~ Answered by Gap AR: milestones unlock a gas plant, clinic, college, stadium, and city hall, each costly to run.
+4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). G1–G10 have shipped (Gaps AI–AR). Next: new-game options with scenarios.
 
 ---
 
@@ -1027,6 +1045,7 @@ Gap AH's systems pass). What is left:
 - Milestones: the gold readout after the rating shows the next tier; its tooltip says what is missing. Reaching one shows a banner and pays a grant.
 - Village services: Shift+W/O/F place a pump, police post, or fire hall; a tower, station, or fire station placed on one upgrades it for the difference.
 - Debt: a year in debt locks funding at the minimum; two years pauses on the state's offer (bailout or new city).
+- Civic buildings: Town, City, and Capital add buttons to the rail; each works only while powered and on a street.
 - Smog: hover the Plant tool beside houses (they tint brown and the status counts them), or drag a factory area beside them.
 - Taxes: raise a tax in Budget and hover its bar: the tooltip names the empty places and the newcomers turned away, and the town keeps its people.
 - Systems: in `?city=troubled` the advisory names the industrial tax, and a few years on it says nobody will move in at 16%; in `?city=metro` Com's tooltip counts shop and office jobs; Save then Load leaves the HUD unchanged.

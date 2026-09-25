@@ -38,6 +38,7 @@ import { composeHappiness, type HappinessParts } from './happiness';
 import { bridgeProblem, type BridgeProblem } from './roadConnections';
 import { milestoneReady, nextMilestone, type Milestone } from './milestones';
 import { isTierUpgrade } from './serviceTiers';
+import { civicBonuses, isUnlocked, type CivicBonuses } from './civic';
 import {
   BAILOUT_OFFER_MONTHS,
   BAILOUT_TAX_RATE,
@@ -167,6 +168,8 @@ export interface CityStats {
   bailoutMonths?: number;
   /** Bailouts taken so far. */
   bailouts?: number;
+  /** What the working civic buildings add (sim/civic.ts); recomputed, not saved. */
+  civic?: CivicBonuses;
 }
 
 /**
@@ -428,6 +431,12 @@ export class CitySim {
     this._afterEdit();
   }
 
+  /** Whether the city has a building of this def. */
+  hasBuilding(defId: string): boolean {
+    for (const instance of this.growth.buildings.values()) if (instance.defId === defId) return true;
+    return false;
+  }
+
   /** True when {@link placeServiceBuilding} would succeed here right now. */
   canPlaceServiceBuilding(x: number, y: number, defId: string, cost: number): boolean {
     return this._serviceLot(x, y, defId) !== null && this.canAfford(cost);
@@ -468,7 +477,11 @@ export class CitySim {
     if (!tile || tile.terrain === TerrainType.Water) return null;
     if (tile.buildingId !== null && !isTierUpgrade(tile.buildingId, defId)) return null;
     if (tile.roadType !== RoadType.None) return null;
-    if (!this.growth.defs.has(defId)) return null;
+    const def = this.growth.defs.get(defId);
+    if (!def) return null;
+    // Late civic buildings wait for their milestone, and some are one per city.
+    if (!isUnlocked(defId, this.stats.milestones ?? 0)) return null;
+    if (def.unique && this.hasBuilding(defId)) return null;
     return tile;
   }
 
@@ -582,6 +595,7 @@ export class CitySim {
     this.police.tick(this.map, this.growth.buildings, this.growth.defs, safety);
     this.fire.tick(this.map, this.growth.buildings, this.growth.defs, this.stats, safety);
     this.water.tick(this.map, this.growth.buildings, this.growth.defs, this.stats);
+    this.stats.civic = civicBonuses(this.map, this.growth.buildings, this.growth.defs);
   }
 
   /** Crime from density, land value, and police; then happiness, which crime costs. */

@@ -29,6 +29,14 @@ function milestoneTable(rows: readonly StrategySummary[]): string[] {
   return out;
 }
 
+function lateGameTable(rows: readonly StrategySummary[]): string[] {
+  const out = ['strategy         civic spent   surplus to civic   money kept   3 yrs of expenses'];
+  for (const r of rows) {
+    out.push(`${r.id.padEnd(16)} ${pad(money(r.civicSpentY10), 11)} ${pad(`${Math.round(r.civicShareY10 * 100)}%`, 18)} ${pad(money(r.moneyY10), 12)} ${pad(money(36 * r.expensesY10), 19)}`);
+  }
+  return out;
+}
+
 export function strategyReport(only: readonly string[] = []): string {
   const pick = (id: string): boolean => only.length === 0 || only.includes(id);
   const lines: string[] = [];
@@ -43,6 +51,7 @@ export function strategyReport(only: readonly string[] = []): string {
   }
   if (runs.length > 0) {
     lines.push('Milestones: the month each was reached (— not in 20 years)', ...milestoneTable(runs), '');
+    lines.push('Year 10: what it chose to spend on civic buildings, and what it kept', ...lateGameTable(runs), '');
   }
   const balanced = runs.find((r) => r.id === 'balanced');
   if (balanced) {

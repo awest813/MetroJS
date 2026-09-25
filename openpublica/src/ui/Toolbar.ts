@@ -9,6 +9,8 @@ const TOOL_GROUPS: ReadonlyArray<ReadonlyArray<string>> = [
   ['zoneResidentialLow', 'zoneCommercialLow', 'zoneIndustrialLight', 'zoneMixedUse', 'zoneClear'],
   // Each service beside its small-town tier (G4).
   ['placePowerPlant', 'placePark', 'placeWaterTower', 'placeWaterPump', 'placePoliceStation', 'placePolicePost', 'placeFireStation', 'placeFireHall'],
+  // Late civic buildings (G9): shown once a milestone unlocks them.
+  ['placeGasPlant', 'placeClinic', 'placeCollege', 'placeStadium', 'placeCityHall'],
 ];
 
 /** Short button text; status lines keep each tool's full label. */
@@ -21,6 +23,8 @@ const BUTTON_LABELS: Readonly<Record<string, string>> = {
   placeWaterPump: 'Pump',
   placePolicePost: 'Post',
   placeFireHall: 'Fire hall',
+  placeGasPlant: 'Gas plant',
+  placeCityHall: 'City hall',
 };
 
 const TOOL_TITLES: Readonly<Record<string, string>> = {
@@ -41,6 +45,11 @@ const TOOL_TITLES: Readonly<Record<string, string>> = {
   placeWaterTower: 'Water tower — $350, $40/mo. Place beside a powered street: mains run along the streets, up to 600 load (key W)',
   placeWaterPump: 'Water pump — $150, $15/mo. A village\'s first water: like a tower, but up to 200 load (Shift+W)',
   placePolicePost: 'Police post — $200, $25/mo. A village\'s first police: patrols reach 11 road tiles, a station 14 (Shift+O)',
+  placeGasPlant: 'Gas plant — $2,500, $140/mo. Bigger and cleaner than the plant: up to 1,000 load, and its smog reaches only 5 tiles. Unlocked at Town',
+  placeClinic: 'Clinic — $2,000, $150/mo. Happiness +5 city-wide while powered and on a street. One per city. Unlocked at Town',
+  placeCollege: 'College — $4,000, $300/mo. Land value +12 within 10 tiles, for offices and main streets. One per city. Unlocked at City',
+  placeStadium: 'Stadium — $5,000, $350/mo. Happiness +5 and shop demand +10 city-wide. One per city. Unlocked at City',
+  placeCityHall: 'City hall — $8,000, $400/mo. Rating +10. One per city. Unlocked at Capital',
   placeFireHall: 'Volunteer fire hall — $200, $20/mo. A village\'s first fire cover: engines reach 11 road tiles, a station 14 (Shift+F)',
 };
 
@@ -122,6 +131,19 @@ export class Toolbar {
 
     const leftovers = tools.filter((t) => !placed.has(t.name));
     if (leftovers.length > 0) this._appendGroup(leftovers);
+  }
+
+  /**
+   * Show only the tools `shown` allows (late civic buildings wait for their
+   * milestone); a group with nothing to show is hidden with them.
+   */
+  showTools(shown: (toolName: string) => boolean): void {
+    for (const btn of this._container.querySelectorAll<HTMLButtonElement>('button[data-tool]')) {
+      btn.hidden = !shown(btn.dataset.tool ?? '');
+    }
+    for (const group of this._container.querySelectorAll<HTMLElement>('.rail-group')) {
+      group.hidden = [...group.querySelectorAll('button')].every((b) => b.hidden);
+    }
   }
 
   /** Activate a registered tool and light its button. */

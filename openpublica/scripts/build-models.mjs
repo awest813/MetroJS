@@ -374,6 +374,92 @@ function waterPump() {
   ].flat();
 }
 
+/** A gas plant: a turbine hall, a round tank, and one slim stack. */
+function gasPowerPlant() {
+  const body = [0.86, 0.84, 0.78], roof = [0.36, 0.38, 0.42], blue = [0.20, 0.42, 0.72];
+  return [
+    box(STONE, 0.84, 0.02, 0.76, 0, 0, 0),
+    box(body, 0.66, 0.32, 0.56, -0.07, 0.02, 0.04),
+    box(roof, 0.68, 0.03, 0.58, -0.07, 0.34, 0.04),
+    box(blue, 0.66, 0.04, 0.012, -0.07, 0.24, 0.326),
+    box(GLASS, 0.36, 0.08, 0.01, -0.12, 0.12, 0.325),
+    box(WHITE, 0.12, 0.18, 0.012, 0.16, 0.02, 0.326),
+    cyl(METAL, 0.10, 0.22, 0.30, 0.02, -0.24, 14),
+    cyl(roof, 0.105, 0.04, 0.30, 0.24, -0.24, 14, 0),
+    cyl(METAL, 0.045, 0.66, -0.28, 0.02, -0.22, 10),
+    cyl(blue, 0.048, 0.04, -0.28, 0.64, -0.22, 10),
+  ].flat();
+}
+
+/** A clinic: a low white building, a red cross, and an entrance canopy. */
+function clinic() {
+  const body = [0.92, 0.92, 0.90], roof = [0.50, 0.54, 0.58], red = [0.82, 0.14, 0.12];
+  return [
+    box(STONE, 0.74, 0.02, 0.60, 0, 0, 0),
+    box(body, 0.68, 0.28, 0.54, 0, 0.02, 0),
+    box(roof, 0.72, 0.03, 0.58, 0, 0.30, 0),
+    box(body, 0.30, 0.18, 0.30, 0.16, 0.33, -0.08),
+    box(roof, 0.32, 0.02, 0.32, 0.16, 0.51, -0.08),
+    box(red, 0.12, 0.04, 0.012, -0.16, 0.20, 0.276),
+    box(red, 0.04, 0.12, 0.012, -0.16, 0.16, 0.277),
+    box(GLASS, 0.18, 0.14, 0.01, 0.12, 0.02, 0.275),
+    box(roof, 0.26, 0.02, 0.10, 0.12, 0.18, 0.31),
+    box(GLASS, 0.10, 0.06, 0.01, -0.16, 0.06, 0.275),
+  ].flat();
+}
+
+/** A college: a gabled hall with tall windows and a clock tower. */
+function college() {
+  const brick = [0.62, 0.30, 0.22], roof = [0.24, 0.20, 0.22], trim = [0.86, 0.82, 0.72];
+  const parts = [
+    box(STONE, 0.86, 0.02, 0.66, 0, 0, 0),
+    box(brick, 0.80, 0.32, 0.56, 0, 0.02, -0.02),
+    gable(roof, 0.86, 0.16, 0.62, 0, 0.34, -0.02),
+    box(brick, 0.18, 0.56, 0.18, 0, 0.02, 0.20),
+    gable(roof, 0.22, 0.12, 0.22, 0, 0.58, 0.20),
+    cyl(trim, 0.05, 0.012, 0, 0.44, 0.292, 12, 0.05),
+    box(DOOR, 0.08, 0.14, 0.012, 0, 0.02, 0.292),
+  ];
+  for (const x of [-0.30, -0.18, 0.18, 0.30]) parts.push(box(GLASS, 0.06, 0.16, 0.01, x, 0.10, 0.262));
+  return parts.flat();
+}
+
+/** A stadium: four stands around a green pitch, with a roof over the main stand. */
+function stadium() {
+  const stand = [0.72, 0.72, 0.74], roof = [0.30, 0.34, 0.42], grass = [0.22, 0.56, 0.24], white = WHITE;
+  return [
+    box(grass, 0.62, 0.02, 0.60, 0, 0, 0),
+    box(white, 0.40, 0.004, 0.004, 0, 0.022, 0),
+    box(stand, 0.92, 0.26, 0.14, 0, 0, -0.38),
+    box(stand, 0.92, 0.20, 0.14, 0, 0, 0.38),
+    box(stand, 0.14, 0.22, 0.62, -0.39, 0, 0),
+    box(stand, 0.14, 0.22, 0.62, 0.39, 0, 0),
+    box(roof, 0.92, 0.03, 0.16, 0, 0.30, -0.38),
+    box(METAL, 0.02, 0.44, 0.02, -0.42, 0, -0.42),
+    box(METAL, 0.02, 0.44, 0.02, 0.42, 0, -0.42),
+    box(white, 0.10, 0.05, 0.02, -0.42, 0.44, -0.42),
+    box(white, 0.10, 0.05, 0.02, 0.42, 0.44, -0.42),
+  ].flat();
+}
+
+/** A city hall: a stone front with columns, a pediment, and a dome. */
+function cityHall() {
+  const stone = [0.84, 0.80, 0.70], roof = [0.34, 0.46, 0.44], gold = [0.85, 0.70, 0.18];
+  const parts = [
+    box(STONE, 0.86, 0.03, 0.76, 0, 0, 0),
+    box(stone, 0.76, 0.38, 0.50, 0, 0.03, -0.08),
+    box(stone, 0.80, 0.04, 0.16, 0, 0.37, 0.24),
+    gable(stone, 0.80, 0.10, 0.16, 0, 0.41, 0.24),
+    box(roof, 0.78, 0.03, 0.52, 0, 0.41, -0.08),
+    cyl(stone, 0.15, 0.16, 0, 0.44, -0.08, 16),
+    cyl(roof, 0.15, 0.20, 0, 0.60, -0.08, 16, 0.02),
+    cyl(gold, 0.02, 0.08, 0, 0.78, -0.08, 8, 0),
+    box(DOOR, 0.10, 0.18, 0.012, 0, 0.03, 0.172),
+  ];
+  for (const x of [-0.30, -0.18, -0.06, 0.06, 0.18, 0.30]) parts.push(cyl(WHITE, 0.022, 0.34, x, 0.03, 0.26, 8));
+  return parts.flat();
+}
+
 function shopfrontApartments() {
   const upper = MIX, roof = shade(MIX, 0.42), trim = shade(MIX, 1.12);
   const parts = [
@@ -449,6 +535,11 @@ const MODELS = {
   volunteer_fire_hall: volunteerFireHall,
   police_post: policePost,
   water_pump: waterPump,
+  gas_power_plant: gasPowerPlant,
+  clinic,
+  college,
+  stadium,
+  city_hall: cityHall,
 };
 
 // ── glTF writer ───────────────────────────────────────────────────────────────

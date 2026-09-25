@@ -72,6 +72,19 @@ export interface BuildingDef {
    */
   readonly waterCapacity?: number;
   /**
+   * Late civic buildings (docs/STRATEGY_AND_GAMEFLOW.md, G9): city-wide
+   * effects while the building is powered and has a street (sim/civic.ts).
+   * Happiness added for everyone, points on the shop demand target, points
+   * on the city rating, and land value lent to lots within a radius.
+   */
+  readonly happinessBonus?: number;
+  readonly shopDemandBonus?: number;
+  readonly ratingBonus?: number;
+  readonly landValueBonus?: number;
+  readonly landValueRadius?: number;
+  /** One per city (a clinic, a stadium): its effect does not stack. */
+  readonly unique?: boolean;
+  /**
    * Monthly operating cost while this service building exists.
    * EconomySystem sums these instead of a flat per-service fee.
    */

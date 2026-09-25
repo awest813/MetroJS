@@ -28,6 +28,7 @@ import { SERVICE_TIERS, tierOf } from '../sim/serviceTiers';
 import { bailoutRecap, budgetHoldNote, milestoneBanner as milestoneBannerText } from '../ui/chromeCopy';
 import { BailoutDialog } from '../ui/BailoutDialog';
 import { biggestCosts } from '../sim/bankruptcy';
+import { isUnlocked } from '../sim/civic';
 import { BudgetPanel, formatBonds } from '../ui/BudgetPanel';
 import { BOND_AMOUNT } from '../sim/budgetLevers';
 import { formatInspectStatus } from '../ui/inspectStatus';
@@ -435,6 +436,17 @@ export class App {
     const toolbar = new Toolbar(toolbarEl, toolController, () => refreshHover());
     toolbar.build(allTools);
     toolbar.select('road');
+    /** Late civic buildings show in the rail once a milestone unlocks them. */
+    const syncUnlocks = (): void => {
+      const reached = sim.stats.milestones ?? 0;
+      const shown = (name: string): boolean => {
+        const spec = serviceSpecForTool(name);
+        return !spec || isUnlocked(spec.defId, reached);
+      };
+      toolbar.showTools(shown);
+      if (!shown(toolController.activeTool.name)) toolbar.select('road');
+    };
+    syncUnlocks();
     statusEl.textContent = `${sim.stats.advisory} R road · I inspect · P pause.`;
 
     new CameraBar(cameraEl, cameraController);
@@ -490,6 +502,7 @@ export class App {
     sim.onMilestone = (milestone) => {
       const text = milestoneBannerText(milestone, sim.stats.milestones ?? 0, sim.stats.population);
       milestoneBanner.show(text.title, text.body);
+      syncUnlocks();
       audio.play(MILESTONE_VOICE, 'milestone');
     };
 
@@ -657,6 +670,7 @@ export class App {
         previewCoverage(null);
         if (sim.stats.bailoutOffered) offerBailout();
         else bailoutDialog.hide();
+        syncUnlocks();
       },
     });
     if (testCity) {

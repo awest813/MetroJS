@@ -79,14 +79,15 @@ export const COMMERCE_DEMAND_STEP = 5;
  * instead (see taxes.ts).
  */
 export function nextCommercialDemand(
-  stats: Pick<CityStats, 'population' | 'shopJobs' | 'commercialDemand' | 'walkability' | 'transitAccess'>,
+  stats: Pick<CityStats, 'population' | 'shopJobs' | 'commercialDemand' | 'walkability' | 'transitAccess' | 'civic'>,
 ): number {
   let target = 0;
   if (stats.population > 0) {
     const room = 1 - (stats.shopJobs ?? 0) / (stats.population * SHOP_JOBS_PER_RESIDENT);
+    // A stadium brings shoppers from outside the city (sim/civic.ts).
     target = Math.max(0, Math.min(
       MAX_DEMAND,
-      room * 100 + stats.walkability / 10 + stats.transitAccess / 10,
+      room * 100 + stats.walkability / 10 + stats.transitAccess / 10 + (stats.civic?.shopDemand ?? 0),
     ));
   }
   const step = Math.max(-COMMERCE_DEMAND_STEP, Math.min(COMMERCE_DEMAND_STEP, target - stats.commercialDemand));

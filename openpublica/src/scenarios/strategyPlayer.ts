@@ -17,7 +17,8 @@ import { RoadTool } from '../tools/RoadTool';
 import { ToolController } from '../tools/ToolController';
 import { ZoneBrushTool } from '../tools/ZoneBrushTool';
 import { planRoadLine, roadLinePath } from '../tools/roadLine';
-import { createServiceTools, serviceSpecForDef } from '../tools/serviceCatalog';
+import { CIVIC_SPECS, GAS_PLANT_SERVICE, createServiceTools, serviceSpecForDef } from '../tools/serviceCatalog';
+import { isCivicAmenity, isUnlocked } from '../sim/civic';
 import { planZoneArea } from '../tools/zoneArea';
 
 /**
@@ -83,6 +84,12 @@ export interface StrategyMonth {
   readonly advisory: string;
   /** Milestones reached by the month's end. */
   readonly milestones: number;
+  /** Spent so far on civic amenities (G9): their price and upkeep. */
+  readonly civicSpent: number;
+  /** This month's civic amenity upkeep. */
+  readonly civicUpkeep: number;
+  /** Projected monthly expenses. */
+  readonly expenses: number;
 }
 
 export interface StrategyRun {
@@ -122,6 +129,9 @@ const BLOCK_ZONE_COST = 42 * 5 + 14 * 10;
 
 /** Keep this much in hand. */
 const RESERVE = 300;
+
+/** Months of expenses a careful player keeps in hand before buying civic buildings (G9). */
+const CIVIC_RESERVE_MONTHS = 12;
 
 /** Upgrade a village service only with this much to spare. */
 const UPGRADE_SPARE = 3000;
@@ -258,10 +268,14 @@ export function playStrategy(strategy: Strategy, months = 240, seed = DEFAULT_TE
    * first one if every lot in town is too close.
    */
   const placePlant = (): boolean => {
-    const tool = services.get('placePowerPlant')!;
+    // Once Town unlocks it, new power comes from the bigger, cleaner gas plant (G9).
+    const gas = isUnlocked(GAS_PLANT_SERVICE.defId, sim.stats.milestones ?? 0)
+      && sim.stats.money - RESERVE >= GAS_PLANT_SERVICE.cost;
+    const toolName = gas ? GAS_PLANT_SERVICE.toolName : 'placePowerPlant';
+    const tool = services.get(toolName)!;
     if (!strategy.heedSmog) {
       const where = hasPlant ? (strategy.naive || factories.length === 0 ? [...town].reverse() : factories) : town;
-      return place('placePowerPlant', where, 'plant');
+      return place(toolName, where, gas ? 'gas' : 'plant');
     }
     const def = sim.growth.defs.get(tool.spec.defId)!;
     const candidates: TileCoord[] = [];
@@ -327,6 +341,8 @@ export function playStrategy(strategy: Strategy, months = 240, seed = DEFAULT_TE
 
   const log: StrategyMonth[] = [];
   let hasTower = false;
+  /** Spent on civic amenities so far: their price and upkeep (G9). */
+  let civicSpent = 0;
   let lastFire = -Infinity;
   let lastPolice = -Infinity;
   for (let month = 1; month <= months; month++) {
@@ -349,6 +365,18 @@ export function playStrategy(strategy: Strategy, months = 240, seed = DEFAULT_TE
     if ((strategy.police ?? true) && s.crimeAverage >= crimeBar && month - lastPolice >= 12 && affordable(police)) {
       if (place(police, town, police === 'placePolicePost' ? 'post' : 'police', advisedAt('crime', 'abandon:crime'))) lastPolice = month;
     }
+    // What the milestones unlock: a careful player keeps two years of
+    // expenses in hand and spends what is beyond it, once the budget carries
+    // the building's upkeep.
+    for (const spec of CIVIC_SPECS) {
+      const def = sim.growth.defs.get(spec.defId)!;
+      if (!isCivicAmenity(def) || sim.hasBuilding(spec.defId)) continue;
+      if (!isUnlocked(spec.defId, s.milestones ?? 0)) continue;
+      const net = s.projectedIncome - s.projectedExpenses;
+      if (net < (def.monthlyCost ?? 0) || s.money - spec.cost < CIVIC_RESERVE_MONTHS * s.projectedExpenses) continue;
+      if (place(spec.toolName, town, spec.defId)) civicSpent += spec.cost;
+      break;
+    }
     // Once the budget carries it, upgrade a village service in place (one a
     // month), from money to spare: the next block comes first.
     const upgrade = sim.evaluation.advisories.find((a) => a.id.startsWith('upgrade:') && a.at);
@@ -366,6 +394,12 @@ export function playStrategy(strategy: Strategy, months = 240, seed = DEFAULT_TE
     if (!strategy.followAdvice && s.money < 0 && sim.issueBond()) did(`bond@m${month}`);
 
     sim.tick(MONTH_SECONDS);
+    let civicUpkeep = 0;
+    for (const instance of sim.growth.buildings.values()) {
+      const def = sim.growth.defs.get(instance.defId);
+      if (def && isCivicAmenity(def)) civicUpkeep += def.monthlyCost ?? 0;
+    }
+    civicSpent += civicUpkeep;
     log.push({
       month,
       population: s.population,
@@ -378,6 +412,9 @@ export function playStrategy(strategy: Strategy, months = 240, seed = DEFAULT_TE
       acted,
       advisory: s.advisory,
       milestones: s.milestones ?? 0,
+      civicSpent,
+      civicUpkeep,
+      expenses: Math.round(s.projectedExpenses),
     });
   }
   return { strategy, months: log, actions, sim };
@@ -447,6 +484,11 @@ export interface StrategySummary {
   readonly activeMonths: readonly number[];
   /** The month each milestone was reached (Village, Town, City, Capital), Infinity if not. */
   readonly milestoneMonths: readonly number[];
+  /** Spent on civic amenities (price and upkeep) by year 10, and monthly expenses then. */
+  readonly civicSpentY10: number;
+  readonly expensesY10: number;
+  /** Share of year 10's monthly surplus (before civic upkeep) spent on civic upkeep. */
+  readonly civicShareY10: number;
 }
 
 export function summarize(run: StrategyRun): StrategySummary {
@@ -482,5 +524,8 @@ export function summarize(run: StrategyRun): StrategySummary {
     lowMoney: low.money,
     activeMonths: [1, 2, 3, 5, 10, 20].map(active),
     milestoneMonths: MILESTONES.map((_, i) => run.months.find((m) => m.milestones > i)?.month ?? Infinity),
+    civicSpentY10: at(120).civicSpent,
+    expensesY10: at(120).expenses,
+    civicShareY10: at(120).civicUpkeep > 0 ? at(120).civicUpkeep / Math.max(1, at(120).net + at(120).civicUpkeep) : 0,
   };
 }

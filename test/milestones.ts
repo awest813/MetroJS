@@ -141,7 +141,7 @@ describe('milestones', () => {
     it('should announce a milestone with its grant and the next one', () => {
       const banner = milestoneBanner(TOWN, 2, 412);
       expect(banner.title).toBe('Town!');
-      expect(banner.body).toMatch(/412 people call this place home\. The state sends a \$5,000 grant\. Next: City at 600 people\./);
+      expect(banner.body).toMatch(/412 people call this place home\. The state sends a \$5,000 grant\. You can now build a gas plant and a clinic\. Next: City at 600 people\./);
       expect(milestoneBanner(CAPITAL, 4, 1000).body).toMatch(/top tier/);
     });
   });

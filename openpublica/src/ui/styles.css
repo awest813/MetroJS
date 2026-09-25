@@ -1101,3 +1101,9 @@ input:focus-visible {
   line-height: 1.4;
   color: var(--muted);
 }
+
+/* Tools a milestone has not unlocked yet stay out of the rail. */
+#toolbar .rail-group[hidden],
+#toolbar button[hidden] {
+  display: none;
+}

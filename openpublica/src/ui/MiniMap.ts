@@ -80,7 +80,8 @@ function _miniColor(
     return road === RoadType.None ? [18, 72, 118] : [150, 146, 138];
   }
   if (buildingId === 'small_park') return [36, 140, 58];
-  if (buildingId === 'small_power_plant') return [210, 196, 72];
+  if (buildingId === 'small_power_plant' || buildingId === 'gas_power_plant') return [210, 196, 72];
+  if (buildingId === 'clinic' || buildingId === 'college' || buildingId === 'stadium' || buildingId === 'city_hall') return [214, 206, 188];
   if (buildingId === 'small_police_station' || buildingId === 'police_post') return [48, 88, 168];
   if (buildingId === 'small_fire_station' || buildingId === 'volunteer_fire_hall') return [196, 72, 48];
   if (buildingId === 'small_water_tower' || buildingId === 'water_pump') return [48, 140, 168];

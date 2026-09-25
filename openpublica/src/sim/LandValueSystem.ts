@@ -8,6 +8,7 @@ import { waterfrontDistance } from './shoreline';
 import { groveStrengths, isWooded } from './woods';
 import type { BuildingDef } from './BuildingDef';
 import type { BuildingInstance } from './BuildingInstance';
+import { civicWorks } from './civic';
 
 // ── Named constants ────────────────────────────────────────────────────────
 
@@ -160,6 +161,24 @@ export class LandValueSystem {
           if (!tile) continue;
           const dist = Math.sqrt(dist2);
           tile.landValue += Math.round(PARK_BONUS * (1 - dist / r));
+        }
+      }
+    }
+
+    // ── Civic bonus (a college) ────────────────────────────────────────────
+    // A working civic building with a land-value bonus lifts lots around it,
+    // falling off to nothing at its radius (sim/civic.ts).
+    for (const instance of buildings.values()) {
+      const def = defs.get(instance.defId);
+      if (!def?.landValueBonus || !def.landValueRadius || !civicWorks(map, instance)) continue;
+      const r = def.landValueRadius;
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          const dist2 = dx * dx + dy * dy;
+          if (dist2 > r * r) continue;
+          const tile = map.getTile(instance.x + dx, instance.y + dy);
+          if (!tile) continue;
+          tile.landValue += Math.round(def.landValueBonus * (1 - Math.sqrt(dist2) / (r + 1)));
         }
       }
     }

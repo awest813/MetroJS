@@ -57,6 +57,11 @@ export const BUILDING_SHAPES: Record<string, BuildingShape> = {
   volunteer_fire_hall:  { width: 0.56, depth: 0.50, height: 0.44 },
   police_post:          { width: 0.46, depth: 0.42, height: 0.40 },
   water_pump:           { width: 0.54, depth: 0.44, height: 0.44 },
+  gas_power_plant:      { width: 0.86, depth: 0.80, height: 0.70 },
+  clinic:               { width: 0.76, depth: 0.62, height: 0.62 },
+  college:              { width: 0.88, depth: 0.72, height: 0.82 },
+  stadium:              { width: 0.94, depth: 0.90, height: 0.46 },
+  city_hall:            { width: 0.86, depth: 0.74, height: 1.05 },
   shopfront_apartments: { width: 0.75, depth: 0.55, height: 0.65 },
   corner_store_flats:   { width: 0.65, depth: 0.65, height: 0.60 },
   main_street_block:    { width: 0.85, depth: 0.60, height: 0.75 },
@@ -65,8 +70,8 @@ export const BUILDING_SHAPES: Record<string, BuildingShape> = {
 
 export const DEFAULT_SHAPE: BuildingShape = { width: 0.50, depth: 0.50, height: 0.40 };
 
-export const SERVICE_DEF_IDS = new Set(['small_power_plant']);
-export const CIVIC_DEF_IDS = new Set(['small_police_station', 'police_post']);
+export const SERVICE_DEF_IDS = new Set(['small_power_plant', 'gas_power_plant']);
+export const CIVIC_DEF_IDS = new Set(['small_police_station', 'police_post', 'clinic', 'college', 'stadium', 'city_hall']);
 export const FIRE_DEF_IDS = new Set(['small_fire_station', 'volunteer_fire_hall']);
 export const WATER_DEF_IDS = new Set(['small_water_tower', 'water_pump']);
 
@@ -288,6 +293,68 @@ const KITS: BuildingKit[] = [
       box('roof', 0.28, 0.04, 0.30, -0.13, 0.22, 0.04),
       cylinder('accent', 0.26, 0.30, 0.13, 0.15, -0.02),
       box('trim', 0.14, 0.04, 0.04, 0.0, 0.12, 0.04),
+    ],
+  },
+  {
+    // A turbine hall with one slim stack: the cleaner, bigger plant.
+    defId: 'gas_power_plant',
+    shape: BUILDING_SHAPES.gas_power_plant,
+    parts: [
+      box('body', 0.80, 0.34, 0.66, 0, 0.17, 0),
+      box('roof', 0.82, 0.05, 0.68, 0, 0.365, 0),
+      cylinder('accent', 0.22, 0.30, 0.26, 0.15, -0.20),
+      cylinder('stack', 0.10, 0.66, -0.24, 0.35, -0.16),
+    ],
+  },
+  {
+    // A low white clinic with a red cross over the door.
+    defId: 'clinic',
+    shape: BUILDING_SHAPES.clinic,
+    parts: [
+      box('body', 0.70, 0.30, 0.56, 0, 0.15, 0),
+      box('roof', 0.74, 0.05, 0.60, 0, 0.325, 0),
+      box('trim', 0.30, 0.20, 0.30, 0.16, 0.45, -0.08),
+      box('accent', 0.12, 0.04, 0.03, -0.14, 0.24, 0.29),
+      box('accent', 0.04, 0.12, 0.03, -0.14, 0.24, 0.29),
+      box('glass', 0.20, 0.12, 0.02, 0.14, 0.12, 0.285),
+    ],
+  },
+  {
+    // A college hall with a gable and a clock tower.
+    defId: 'college',
+    shape: BUILDING_SHAPES.college,
+    parts: [
+      box('body', 0.82, 0.34, 0.60, 0, 0.17, 0),
+      prism('roof', 0.86, 0.16, 0.64, 0, 0.42, 0),
+      box('trim', 0.18, 0.62, 0.18, 0, 0.31, 0.22),
+      prism('roof', 0.22, 0.14, 0.22, 0, 0.69, 0.22),
+      box('glass', 0.60, 0.08, 0.02, 0, 0.22, 0.305),
+    ],
+  },
+  {
+    // A stadium bowl: stands around a green pitch.
+    defId: 'stadium',
+    shape: BUILDING_SHAPES.stadium,
+    parts: [
+      box('body', 0.90, 0.30, 0.14, 0, 0.15, -0.38),
+      box('body', 0.90, 0.30, 0.14, 0, 0.15, 0.38),
+      box('body', 0.14, 0.30, 0.62, -0.38, 0.15, 0),
+      box('body', 0.14, 0.30, 0.62, 0.38, 0.15, 0),
+      box('accent', 0.62, 0.03, 0.62, 0, 0.02, 0),
+      box('roof', 0.90, 0.04, 0.18, 0, 0.32, -0.38),
+    ],
+  },
+  {
+    // A city hall: columns, a pediment, and a dome.
+    defId: 'city_hall',
+    shape: BUILDING_SHAPES.city_hall,
+    parts: [
+      box('body', 0.78, 0.40, 0.58, 0, 0.20, -0.04),
+      box('trim', 0.80, 0.05, 0.14, 0, 0.42, 0.26),
+      prism('roof', 0.80, 0.12, 0.14, 0, 0.50, 0.26),
+      cylinder('trim', 0.30, 0.20, 0, 0.52, -0.06),
+      cylinder('roof', 0.24, 0.26, 0, 0.72, -0.06),
+      box('glass', 0.50, 0.14, 0.02, 0, 0.18, 0.255),
     ],
   },
   {

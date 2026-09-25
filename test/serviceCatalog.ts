@@ -33,6 +33,11 @@ describe('serviceCatalog', () => {
       'placePolicePost',
       'placeFireHall',
       'placeWaterPump',
+      'placeGasPlant',
+      'placeClinic',
+      'placeCollege',
+      'placeStadium',
+      'placeCityHall',
     ]);
   });
 

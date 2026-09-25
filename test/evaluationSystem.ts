@@ -23,7 +23,7 @@ describe('EvaluationSystem', () => {
   it('should start a blank city at half marks (happiness and budget) with a plant advisory', () => {
     const sim = CitySim.createCity(8, 8);
     expect(sim.stats.approval).toBe(50);
-    expect(sim.stats.ratingParts).toEqual({ size: 0, happiness: 25, services: 0, budget: 25, smog: 0, taxes: 0, other: 0 });
+    expect(sim.stats.ratingParts).toEqual({ size: 0, happiness: 25, services: 0, budget: 25, smog: 0, taxes: 0, other: 0, civic: 0 });
     expect(sim.stats.advisory).toMatch(/paint a street/i);
     expect(sim.stats.advisory).toMatch(/power plant/i);
   });

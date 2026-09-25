@@ -5,7 +5,7 @@ import { fundedReach } from '../sim/budgetLevers';
 import { SERVICE_BUILDING_MONTHLY_COST } from '../sim/EconomySystem';
 import { PlaceServiceTool } from './PlaceServiceTool';
 
-export type ServiceCoverage = 'power' | 'police' | 'fire' | 'water' | 'park';
+export type ServiceCoverage = 'power' | 'police' | 'fire' | 'water' | 'park' | 'civic';
 
 export interface ServiceSpec {
   readonly toolName: string;
@@ -32,6 +32,12 @@ export const WATER_TOWER_COST = 350;
 export const FIRE_HALL_COST = 200;
 export const POLICE_POST_COST = 200;
 export const WATER_PUMP_COST = 150;
+/** Late civic buildings (G9), unlocked by milestones. */
+export const GAS_PLANT_COST = 2_500;
+export const CLINIC_COST = 2_000;
+export const COLLEGE_COST = 4_000;
+export const STADIUM_COST = 5_000;
+export const CITY_HALL_COST = 8_000;
 
 export const POWER_PLANT_SERVICE: ServiceSpec = {
   toolName: 'placePowerPlant',
@@ -109,6 +115,62 @@ export const WATER_PUMP_SERVICE: ServiceSpec = {
   preview: WATER_SERVICE.preview,
 };
 
+const CIVIC_PREVIEW = { r: 0.92, g: 0.84, b: 0.52 };
+
+export const GAS_PLANT_SERVICE: ServiceSpec = {
+  toolName: 'placeGasPlant',
+  label: 'Gas plant',
+  defId: 'gas_power_plant',
+  cost: GAS_PLANT_COST,
+  coverage: 'power',
+  preview: POWER_PLANT_SERVICE.preview,
+};
+
+export const CLINIC_SERVICE: ServiceSpec = {
+  toolName: 'placeClinic',
+  label: 'Clinic',
+  defId: 'clinic',
+  cost: CLINIC_COST,
+  coverage: 'civic',
+  preview: CIVIC_PREVIEW,
+};
+
+export const COLLEGE_SERVICE: ServiceSpec = {
+  toolName: 'placeCollege',
+  label: 'College',
+  defId: 'college',
+  cost: COLLEGE_COST,
+  coverage: 'civic',
+  preview: CIVIC_PREVIEW,
+};
+
+export const STADIUM_SERVICE: ServiceSpec = {
+  toolName: 'placeStadium',
+  label: 'Stadium',
+  defId: 'stadium',
+  cost: STADIUM_COST,
+  coverage: 'civic',
+  preview: CIVIC_PREVIEW,
+};
+
+export const CITY_HALL_SERVICE: ServiceSpec = {
+  toolName: 'placeCityHall',
+  label: 'City hall',
+  defId: 'city_hall',
+  cost: CITY_HALL_COST,
+  coverage: 'civic',
+  preview: CIVIC_PREVIEW,
+};
+
+/** The late civic buildings, in the order the rail shows them. */
+export const CIVIC_SPECS: ReadonlyArray<ServiceSpec> = [
+  GAS_PLANT_SERVICE,
+  CLINIC_SERVICE,
+  COLLEGE_SERVICE,
+  STADIUM_SERVICE,
+  CITY_HALL_SERVICE,
+];
+
 export const SERVICE_SPECS: ReadonlyArray<ServiceSpec> = [
   POWER_PLANT_SERVICE,
   PARK_SERVICE,
@@ -118,6 +180,7 @@ export const SERVICE_SPECS: ReadonlyArray<ServiceSpec> = [
   POLICE_POST_SERVICE,
   FIRE_HALL_SERVICE,
   WATER_PUMP_SERVICE,
+  ...CIVIC_SPECS,
 ];
 
 const BY_TOOL = new Map(SERVICE_SPECS.map((spec) => [spec.toolName, spec]));
@@ -139,7 +202,7 @@ export function serviceRadius(def: BuildingDef | undefined, safetyFunding = 100)
   if (!def) return 0;
   const dispatch = def.policeRadius || def.fireRadius;
   if (dispatch) return fundedReach(dispatch, safetyFunding);
-  return def.parkRadius || 0;
+  return def.parkRadius || def.landValueRadius || 0;
 }
 
 /**
@@ -206,6 +269,13 @@ function _serviceStatus(
     if (!powered) return `dark — the ${what} pumps once a powered street reaches it`;
     return formatNetwork('water', network);
   }
+  const effect = civicEffectText(def);
+  if (effect) {
+    const name = def.name.toLowerCase();
+    if (!hasRoad) return `no street — the ${name} works once a street touches its lot`;
+    if (!powered) return `dark — the ${name} works once powered`;
+    return effect;
+  }
   const radius = serviceRadius(def, safetyFunding);
   if (radius <= 0) return null;
   if (def.parkRadius) return `park radius ${radius} — raises land value and walkability nearby`;
@@ -215,6 +285,17 @@ function _serviceStatus(
   const funding = safetyFunding === 100 ? '' : ` at ${safetyFunding}% funding`;
   const reached = covers === undefined ? '' : ` · covers ${covers} building${covers === 1 ? '' : 's'}`;
   return `${kind} reach ${radius} road tiles${funding}${reached}`;
+}
+
+/** What a late civic building does for the city: "happiness +5 city-wide", or null. */
+export function civicEffectText(def: BuildingDef): string | null {
+  const parts: string[] = [];
+  if (def.happinessBonus) parts.push(`happiness +${def.happinessBonus}`);
+  if (def.shopDemandBonus) parts.push(`shop demand +${def.shopDemandBonus}`);
+  if (def.ratingBonus) parts.push(`rating +${def.ratingBonus}`);
+  if (parts.length > 0) return `${parts.join(', ')} city-wide`;
+  if (def.landValueBonus) return `land value +${def.landValueBonus} within ${def.landValueRadius ?? 0} tiles`;
+  return null;
 }
 
 export function createServiceTools(): PlaceServiceTool[] {

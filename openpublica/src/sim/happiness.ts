@@ -36,6 +36,8 @@ export interface HappinessInputs {
   walkability: number;
   transitAccess: number;
   crimeAverage: number;
+  /** Working civic buildings (sim/civic.ts): a clinic, a stadium. */
+  civic?: { readonly happiness: number };
 }
 
 /** What made this month's happiness: the two costs, and the bonuses that won some of it back. */
@@ -48,6 +50,8 @@ export interface HappinessParts {
   readonly walk: number;
   /** Transit's bonus (likewise). */
   readonly transit: number;
+  /** Civic buildings' bonus (a clinic, a stadium; likewise). */
+  readonly civic?: number;
 }
 
 /** Happiness at or above this draws everyone housing demand promises. */
@@ -102,6 +106,13 @@ export function composeHappiness(
   const crime = applyCrime ? Math.round(stats.crimeAverage * CRIME_HAPPINESS_MULTIPLIER) : 0;
   next = Math.max(0, next - crime);
 
+  // A clinic or a stadium lifts everyone, crime or not (up to 100).
+  const civicBonus = Math.max(0, stats.civic?.happiness ?? 0);
+  next = Math.min(100, next + civicBonus);
+
   stats.happiness = next;
-  stats.happinessParts = { jams, crime, walk: walkBonus, transit: transitBonus };
+  stats.happinessParts = {
+    jams, crime, walk: walkBonus, transit: transitBonus,
+    ...(civicBonus > 0 ? { civic: civicBonus } : {}),
+  };
 }

@@ -2,6 +2,7 @@ import { HAPPY_DRAW, UNHAPPY_FLOOR, happinessDraw, type HappinessParts } from '.
 import { taxDraw, taxOccupancy } from '../sim/taxes';
 import { RATING_PART, type RatingParts } from '../sim/EvaluationSystem';
 import { milestoneShortfall, nextMilestone, tierName, type Milestone } from '../sim/milestones';
+import { unlocksText } from '../sim/civic';
 import type { CityStats } from '../sim/CitySim';
 import {
   BAILOUT_OFFER_MONTHS,
@@ -133,7 +134,7 @@ export function industryTooltip(
  */
 export function ratingTooltip(rating: number, parts: RatingParts | undefined): string {
   if (!parts) return `Rating ${rating} of 100: size, happiness, services, and budget, less smog, high taxes, and debt.`;
-  const gains = `size +${parts.size}, happiness +${parts.happiness}, services +${parts.services}, budget +${parts.budget}`;
+  const gains = `size +${parts.size}, happiness +${parts.happiness}, services +${parts.services}, budget +${parts.budget}${parts.civic ? `, city hall +${parts.civic}` : ''}`;
   const losses = [
     parts.smog > 0 ? `smog −${parts.smog}` : null,
     parts.taxes > 0 ? `taxes over 9% −${parts.taxes}` : null,
@@ -145,7 +146,7 @@ export function ratingTooltip(rating: number, parts: RatingParts | undefined): s
 export function happinessTooltip(happiness: number, parts: HappinessParts | undefined): string {
   const share = Math.round(happinessDraw(happiness) * 100);
   const why = parts
-    ? `jammed roads −${parts.jams}, crime −${parts.crime}; walkable streets +${parts.walk} and transit +${parts.transit} win some back`
+    ? `jammed roads −${parts.jams}, crime −${parts.crime}; walkable streets +${parts.walk}${parts.civic ? `, transit +${parts.transit} and civic buildings +${parts.civic}` : ` and transit +${parts.transit}`} win some back`
     : 'jammed roads and crime cost it; walkable streets and transit win some back';
   const draw = share >= 100
     ? `At ${HAPPY_DRAW} or more, everyone the housing demand calls for moves in.`
@@ -208,13 +209,15 @@ export function milestoneTooltip(stats: MilestoneStats, reached: number): string
   const status = todo.length > 0
     ? `Still needed: ${todo.join('; ')}.`
     : `All met: ${next.name} at the month's end.`;
-  return `${tier} → ${next.name}: ${joinAnd(needs)}. ${status} It pays a $${next.grant.toLocaleString('en-US')} state grant.`;
+  const unlocks = unlocksText(next.unlocks);
+  return `${tier} → ${next.name}: ${joinAnd(needs)}. ${status} It pays a $${next.grant.toLocaleString('en-US')} state grant${unlocks ? ` and unlocks ${unlocks}` : ''}.`;
 }
 
 /** The banner on reaching a milestone: a title and a line. */
 export function milestoneBanner(milestone: Milestone, reached: number, population: number): { title: string; body: string } {
   const next = nextMilestone(reached);
-  const grant = `The state sends a $${milestone.grant.toLocaleString('en-US')} grant.`;
+  const unlocked = unlocksText(milestone.unlocks);
+  const grant = `The state sends a $${milestone.grant.toLocaleString('en-US')} grant.${unlocked ? ` You can now build ${unlocked}.` : ''}`;
   const after = next
     ? `Next: ${next.name} at ${next.population.toLocaleString()} people.`
     : 'It is the top tier.';

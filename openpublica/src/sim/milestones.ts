@@ -25,13 +25,15 @@ export interface Milestone {
   readonly jobsShare: number;
   /** One-time state grant on reaching it. */
   readonly grant: number;
+  /** Civic building defs it unlocks (sim/civic.ts). */
+  readonly unlocks: readonly string[];
 }
 
 export const MILESTONES: readonly Milestone[] = [
-  { id: 'village', name: 'Village', population: 150, rating: 50, jobsShare: 0, grant: 2_000 },
-  { id: 'town', name: 'Town', population: 400, rating: 60, jobsShare: 0.5, grant: 5_000 },
-  { id: 'city', name: 'City', population: 600, rating: 65, jobsShare: 0.5, grant: 10_000 },
-  { id: 'capital', name: 'Capital', population: 1_000, rating: 70, jobsShare: 0.5, grant: 20_000 },
+  { id: 'village', name: 'Village', population: 150, rating: 50, jobsShare: 0, grant: 2_000, unlocks: [] },
+  { id: 'town', name: 'Town', population: 400, rating: 60, jobsShare: 0.5, grant: 5_000, unlocks: ['gas_power_plant', 'clinic'] },
+  { id: 'city', name: 'City', population: 600, rating: 65, jobsShare: 0.5, grant: 10_000, unlocks: ['college', 'stadium'] },
+  { id: 'capital', name: 'Capital', population: 1_000, rating: 70, jobsShare: 0.5, grant: 20_000, unlocks: ['city_hall'] },
 ];
 
 /** What a city of fewer than {@link MILESTONES}[0] people is called. */

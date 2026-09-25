@@ -434,6 +434,8 @@ export interface RatingParts {
   readonly taxes: number;
   /** No plant, debt, and a bailout's terms. */
   readonly other: number;
+  /** A city hall's bonus (sim/civic.ts). */
+  readonly civic?: number;
 }
 
 /** Size points for a population: log-scaled, {@link RATING_PART} at {@link RATING_FULL_SIZE}. */
@@ -471,13 +473,14 @@ function rate(stats: CityStats, census: Census): { total: number; parts: RatingP
     taxes,
     other: (!census.hasPlant && (census.zonedCount > 0 || census.buildingCount > 0) ? RATING_NO_PLANT : 0)
       + ((stats.bailoutMonths ?? 0) > 0 ? BAILOUT_RATING_PENALTY : 0),
+    civic: Math.max(0, stats.civic?.rating ?? 0),
   };
   if (stats.bankruptcyWarning || stats.money < 0) {
-    const before = parts.size + parts.happiness + parts.services + parts.budget - parts.smog - parts.taxes - parts.other;
+    const before = parts.size + parts.happiness + parts.services + parts.budget + parts.civic - parts.smog - parts.taxes - parts.other;
     parts.other += Math.max(RATING_DEBT, before - RATING_IN_DEBT_MAX);
   }
   // The total is the parts as shown, so the HUD tooltip adds up.
-  const total = parts.size + parts.happiness + parts.services + parts.budget
+  const total = parts.size + parts.happiness + parts.services + parts.budget + parts.civic
     - parts.smog - parts.taxes - parts.other;
   return { total: Math.max(0, Math.min(100, total)), parts };
 }
