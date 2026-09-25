@@ -1107,3 +1107,73 @@ input:focus-visible {
 #toolbar button[hidden] {
   display: none;
 }
+
+/* ── New-game panel (the fresh map shows behind it) ─── */
+#newgame-panel {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--status-h) + 64px);
+  transform: translateX(-50%);
+  z-index: 30;
+  width: min(440px, calc(100% - 32px));
+  padding: 14px 16px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+  color: #c8d8e8;
+}
+
+#newgame-panel[hidden] {
+  display: none;
+}
+
+.newgame-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #e8eef6;
+}
+
+.newgame-body {
+  margin: 6px 0 10px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.newgame-choices,
+.newgame-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.newgame-choices button {
+  flex: 1;
+  padding: 6px 4px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.newgame-choices button.newgame-picked {
+  background: #2b5d9c;
+  border-color: #6aa0e8;
+  color: #fff;
+}
+
+.newgame-actions {
+  margin-top: 10px;
+}
+
+.newgame-actions button {
+  flex: 1;
+  padding: 8px 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.newgame-start {
+  background: #2e7d4f;
+  color: #fff;
+}

@@ -1,7 +1,7 @@
 # OpenPublica — Next gaps (after Phases A–H)
 
 **Date:** 2026-09-25 (first written 2026-09-20)  
-**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AR below have shipped on top.
+**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AS below have shipped on top.
 
 This is an implementation plan for **what is still missing**, not a licence to rewrite sim formulas or import Micropolis art.
 
@@ -998,6 +998,22 @@ The harness showed how chaotic single runs are. One extra building early shifts 
 
 ---
 
+### Gap AS — New game and scenarios (plan slice G11) **shipped**
+
+The strategy audit found no replay: New always gave a random map with $10,000, and the test cities had no goals.
+
+| Slice | What shipped |
+|---|---|
+| AS1 New game | New (and the bailout's New city) opens a fresh random map behind a panel. The player can re-roll it, pick a starting treasury (Easy $20,000, Normal $10,000, Hard $5,000), and start. The city waits until Start. The map and treasury travel in the address (`?new=1&seed=…&start=hard`, `scenarios/newGame.ts`), so a re-roll is a reload, and after Start a reload rebuilds the same start. |
+| AS2 Scenarios | Each test city is a scenario with a goal and a deadline, counted from when it opens (`scenarios/goals.ts`). Hamlet: grow into a town of 400 people within 5 years. Riverside: a city of 600 within 4 years. Metro: 1,500 people within 5 years. Troubled: get back to 300 people within 5 years. Sprawl: water every building on the strip within 2 years. A gold HUD readout shows the progress and time left ("Goal 119/300 people · 5y 0m"). At a month's end the app detects a goal met or a deadline passed and shows a banner: "Scenario complete! … with 3 years 3 months to spare" or "Time's up". A save keeps the scenario. |
+| AS3 8× | An 8× speed (a month every 3¾ seconds) for a city that runs itself. |
+
+The goals are set so that none is met by waiting: over five idle years, the hamlet stays near 140 people, Riverside reaches 516, Metro falls to 906, Troubled stays near 120, and the strip stays dry.
+
+**Exit:** New, then Hard and Start: the treasury reads $5,000. In `?city=troubled` the HUD shows "Goal 119/300 people · 5y 0m". A town of 376 on the hamlet's goal wins within a few months at 8× and shows "Scenario complete!".
+
+---
+
 ## 4. Explicitly still out of scope (Phase I)
 
 Unchanged from the 3D plan:
@@ -1022,7 +1038,7 @@ Gap AH's systems pass). What is left:
 1. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
 2. **An artist's kit (optional).** The twenty-three models are generated; hand-made ones can replace them file by file under `public/models/ASSET_LICENSE.md`.
 3. ~~**Something to spend on late.**~~ Answered by Gap AR: milestones unlock a gas plant, clinic, college, stadium, and city hall, each costly to run.
-4. **Strategy and gameflow (G1–G11).** Start with the plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md). G1–G10 have shipped (Gaps AI–AR). Next: new-game options with scenarios.
+4. ~~**Strategy and gameflow (G1–G11).**~~ The plan in [STRATEGY_AND_GAMEFLOW.md](./STRATEGY_AND_GAMEFLOW.md) has shipped in full (Gaps AI–AS). What is left from it is tuning: `npm run strategies` and `test/strategyBalance.ts` hold the bands. Single harness runs are chaotic, so a band that moves by one building's worth deserves a multi-map check before a retune.
 
 ---
 
@@ -1046,6 +1062,7 @@ Gap AH's systems pass). What is left:
 - Village services: Shift+W/O/F place a pump, police post, or fire hall; a tower, station, or fire station placed on one upgrades it for the difference.
 - Debt: a year in debt locks funding at the minimum; two years pauses on the state's offer (bailout or new city).
 - Civic buildings: Town, City, and Capital add buttons to the rail; each works only while powered and on a street.
+- New game and scenarios: New shows the map with re-roll and Easy/Normal/Hard; each test city shows its goal in the HUD and a banner when it is met or missed.
 - Smog: hover the Plant tool beside houses (they tint brown and the status counts them), or drag a factory area beside them.
 - Taxes: raise a tax in Budget and hover its bar: the tooltip names the empty places and the newcomers turned away, and the town keeps its people.
 - Systems: in `?city=troubled` the advisory names the industrial tax, and a few years on it says nobody will move in at 16%; in `?city=metro` Com's tooltip counts shop and office jobs; Save then Load leaves the HUD unchanged.

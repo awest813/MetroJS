@@ -81,6 +81,7 @@ export class SaveCodec {
         bailoutOffered:    sim.stats.bailoutOffered ?? false,
         bailoutMonths:     sim.stats.bailoutMonths ?? 0,
         bailouts:          sim.stats.bailouts ?? 0,
+        scenario:          sim.stats.scenario ? { ...sim.stats.scenario } : null,
       },
       levers: {
         safetyFunding: sim.levers.safetyFunding,
@@ -166,6 +167,11 @@ export class SaveCodec {
     sim.stats.bailoutOffered    = s.bailoutOffered === true;
     sim.stats.bailoutMonths     = count(s.bailoutMonths);
     sim.stats.bailouts          = count(s.bailouts);
+    const scenario = s.scenario;
+    sim.stats.scenario = scenario && typeof scenario.id === 'string' && Number.isFinite(scenario.start)
+      && (scenario.status === 'active' || scenario.status === 'won' || scenario.status === 'lost')
+      ? { id: scenario.id, start: scenario.start, status: scenario.status }
+      : undefined;
     const hold = s.advisoryHold;
     sim.evaluation.hold = hold && typeof hold.id === 'string' && Number.isFinite(hold.since)
       ? {

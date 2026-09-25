@@ -132,7 +132,7 @@ At 1× the decisions fit in the first 30–40 minutes. After that the player wat
 - **Tuning:** City and Capital are lower than first planned (900 and 1,500), because the balanced town levels off near 700 on its land.
 - **Pace:** the careful towns reach Village in year 1, Town by year 3, and City by year 5. The naive and houses-only towns stop at Village.
 - **HUD:** it shows the next tier's progress and what is missing, and a banner marks each tier reached.
-- **Still to come:** unlocks (G9) and scenario goals (G11).
+- **Since then:** milestones unlock civic buildings (G9, Gap AR), and each test city is a scenario with a goal and a deadline (G11, Gap AS). A new game offers a re-roll and three starting treasuries.
 
 **F2 — The score ranks failure above success.** The score starts at 100 and only subtracts: pollution, crime, jams, taxes over 9%, dark buildings, missing fire and water cover, and debt. Nothing adds for people, happiness, services reached, or a healthy budget. The results are upside down:
 
@@ -291,7 +291,7 @@ Slices are named G1–G11 here and become gap letters as they ship. Each has an 
 
 | Slice | Change | Exit |
 |---|---|---|
-| **G11 New game and scenarios** | New city shows the random map, with a re-roll and a starting treasury: Easy $20,000, Normal $10,000, Hard $5,000. The test cities become scenarios with a goal and a deadline — for example, Troubled: get back to 300 people within 5 years; Sprawl: power the whole strip; Riverside: reach Town. Consider an 8× speed for the late game. | In the browser, the new-game choices work, and completing a scenario is detected and shown. |
+| **G11 New game and scenarios** (shipped as Gap AS) | New city shows the random map, with a re-roll and a starting treasury: Easy $20,000, Normal $10,000, Hard $5,000. The test cities become scenarios with a goal and a deadline — for example, Troubled: get back to 300 people within 5 years; Sprawl: power the whole strip; Riverside: reach Town. Consider an 8× speed for the late game. | In the browser, the new-game choices work, and completing a scenario is detected and shown. |
 
 ### Order
 

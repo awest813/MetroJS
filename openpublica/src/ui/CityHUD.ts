@@ -56,6 +56,7 @@ export class CityHUD {
   private readonly _power:         HTMLElement;
   private readonly _approval:      HTMLElement;
   private readonly _milestone:     HTMLElement;
+  private readonly _goal:          HTMLElement;
   private readonly _advisory:      HTMLElement;
   /** Where the advisory on show points, if anywhere. */
   private _advisoryAt: { x: number; y: number } | null = null;
@@ -85,6 +86,7 @@ export class CityHUD {
         <span class="hud-item hud-muted" id="hud-water" title="Percent of zoned lots that are watered">Water 0</span>
         <span class="hud-item" id="hud-approval" title="City rating: size, happiness, services, and budget, less smog, high taxes, and debt">Rating 0</span>
         <span class="hud-item hud-milestone" id="hud-milestone" title="The next city tier">Village 0/150</span>
+        <span class="hud-item hud-goal" id="hud-goal" hidden></span>
       </div>
         <div id="hud-advisory" class="hud-advisory" title="Top city problem">Paint a street, zone lots beside it, then place a power plant.</div>
       <div id="hud-demand" title="Zone demand">
@@ -127,6 +129,7 @@ export class CityHUD {
     this._power         = root.querySelector('#hud-power')!;
     this._approval      = root.querySelector('#hud-approval')!;
     this._milestone     = root.querySelector('#hud-milestone')!;
+    this._goal          = root.querySelector('#hud-goal')!;
     this._advisory      = root.querySelector('#hud-advisory')!;
     this._advisory.addEventListener('click', () => {
       if (this._advisoryAt && this._onAdvisoryJump) this._onAdvisoryJump(this._advisoryAt.x, this._advisoryAt.y);
@@ -145,6 +148,13 @@ export class CityHUD {
     if (text === this._dateText) return;
     this._dateText = text;
     this._date.textContent = text;
+  }
+
+  /** A scenario's goal readout and tooltip; null hides it. */
+  setGoal(label: string | null, title: string | null): void {
+    this._goal.hidden = label === null;
+    this._goal.textContent = label ?? '';
+    this._goal.title = title ?? '';
   }
 
   /** Called with the advisory's tile when the player clicks an advisory that has one. */

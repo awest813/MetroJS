@@ -170,6 +170,16 @@ export interface CityStats {
   bailouts?: number;
   /** What the working civic buildings add (sim/civic.ts); recomputed, not saved. */
   civic?: CivicBonuses;
+  /** A test city's goal (scenarios/goals.ts): which, from which month, and how it stands. */
+  scenario?: ScenarioState;
+}
+
+/** A scenario's progress, kept with the city so a save keeps it. */
+export interface ScenarioState {
+  readonly id: string;
+  /** The month it started (`clock.monthsPassed`). */
+  readonly start: number;
+  status: 'active' | 'won' | 'lost';
 }
 
 /**

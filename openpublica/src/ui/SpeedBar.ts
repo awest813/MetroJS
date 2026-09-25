@@ -1,6 +1,6 @@
 import { keyBelongsToField } from './keys';
 
-export type SimSpeed = 0 | 1 | 2 | 4;
+export type SimSpeed = 0 | 1 | 2 | 4 | 8;
 
 /**
  * Longest real frame that counts toward sim time. Browsers stop drawing a
@@ -20,6 +20,7 @@ const SPEEDS: ReadonlyArray<{ value: SimSpeed; label: string; hint: string }> = 
   { value: 1, label: '1×', hint: 'A month every 30 seconds (keys [ and ])' },
   { value: 2, label: '2×', hint: 'A month every 15 seconds (keys [ and ])' },
   { value: 4, label: '4×', hint: 'A month every 7½ seconds (keys [ and ])' },
+  { value: 8, label: '8×', hint: 'A month every 3¾ seconds, for a city that runs itself (keys [ and ])' },
 ];
 
 /**
@@ -96,6 +97,7 @@ export class SpeedBar {
   }
 
   private _slower(): SimSpeed {
+    if (this._speed === 8) return 4;
     if (this._speed === 4) return 2;
     if (this._speed === 2) return 1;
     return 0;
@@ -104,7 +106,8 @@ export class SpeedBar {
   private _faster(): SimSpeed {
     if (this._speed === 0) return 1;
     if (this._speed === 1) return 2;
-    return 4;
+    if (this._speed === 2) return 4;
+    return 8;
   }
 
   private _sync(): void {

@@ -53,6 +53,9 @@ import { BuildingModels } from '../render/BuildingModels';
 import { parseWeatherKind } from '../sim/weather';
 import { CityView } from './CityView';
 import { mountCityMenu, requestedTestCity, startNewCity } from './cityFile';
+import { START_TREASURY, parseNewGame, randomSeed } from '../scenarios/newGame';
+import { checkScenario, scenarioLabel, scenarioText, startScenario } from '../scenarios/goals';
+import { NewGamePanel } from '../ui/NewGamePanel';
 import { BulldozeAreaMode, PlannedDragInput, RoadLineMode, ZoneAreaMode } from './plannedDrag';
 import { formatBulldozeResult } from '../tools/bulldozeArea';
 import { planRoadLine } from '../tools/roadLine';
@@ -100,9 +103,8 @@ function developedBounds(sim: CitySim): { x0: number; y0: number; x1: number; y1
   return box;
 }
 
-/** A new city on a random map. */
-function freshCity(): CitySim {
-  const terrainSeed = (Math.random() * 0x7fffffff) | 0;
+/** A new city on map `terrainSeed`. */
+function freshCity(terrainSeed: number): CitySim {
   const sim = CitySim.createCity(MAP_SIZE, MAP_SIZE, terrainSeed);
   generateTerrain(sim.map, terrainSeed);
   return sim;
@@ -126,20 +128,30 @@ export class App {
     const lookEl     = document.getElementById('look-panel');
     const milestoneEl = document.getElementById('milestone-banner');
     const bailoutEl  = document.getElementById('bailout-dialog');
+    const newGameEl  = document.getElementById('newgame-panel');
 
     if (
       !(canvas instanceof HTMLCanvasElement) ||
       !toolbarEl || !overlayEl || !cityMenuEl || !settingsEl ||
-      !statusEl || !hudEl || !budgetEl || !cameraEl || !lookEl || !milestoneEl || !bailoutEl
+      !statusEl || !hudEl || !budgetEl || !cameraEl || !lookEl || !milestoneEl || !bailoutEl || !newGameEl
     ) {
       throw new Error(
-        'Required DOM elements not found: #game-canvas, #toolbar, #overlay-bar, #city-menu, #settings-panel, #status-bar, #city-hud, #budget-panel, #camera-bar, #look-panel, #milestone-banner, #bailout-dialog',
+        'Required DOM elements not found: #game-canvas, #toolbar, #overlay-bar, #city-menu, #settings-panel, #status-bar, #city-hud, #budget-panel, #camera-bar, #look-panel, #milestone-banner, #bailout-dialog, #newgame-panel',
       );
     }
 
     // `?city=<id>` opens a scripted test city; otherwise a fresh random map.
     const testCity = requestedTestCity();
-    const sim = testCity ? testCity.build().sim : freshCity();
+    const newGame = parseNewGame(window.location.search);
+    const sim = testCity ? testCity.build().sim : freshCity(newGame.seed ?? randomSeed());
+    // A test city is a scenario: its goal's clock starts now. A new city
+    // starts with the treasury its address names (Normal unless chosen).
+    if (testCity) startScenario(sim, testCity.id);
+    else if (START_TREASURY[newGame.difficulty] !== sim.stats.money) {
+      sim.stats.money = START_TREASURY[newGame.difficulty];
+      sim.previewEconomy();
+      sim.evaluate();
+    }
     const heights = HeightField.fromMap(sim.map, sim.terrainSeed);
 
     const audio = new AudioBus();
@@ -506,6 +518,12 @@ export class App {
       audio.play(MILESTONE_VOICE, 'milestone');
     };
 
+    /** Open while a new game's map and treasury are being chosen. */
+    let newGamePanel: NewGamePanel | null = null;
+    /** A scenario's goal in the HUD. */
+    const syncGoal = (): void => hud.setGoal(scenarioLabel(sim), scenarioText(sim)?.body ?? null);
+    syncGoal();
+
     let wasBankrupt = sim.stats.bankruptcyWarning;
     const syncAmbient = (): void => {
       const size = (sim.stats.population + sim.stats.jobs) / 3500;
@@ -516,8 +534,9 @@ export class App {
     scene.onBeforeRenderObservable.add(() => {
       weatherView.update(engine.getDeltaTime() / 1000);
       audio.setRain(weatherView.look.rain);
-      // The city waits while the state's offer stands.
-      const step = sim.stats.bailoutOffered ? 0 : simSecondsForFrame(engine.getDeltaTime(), simSpeed);
+      // The city waits while the state's offer stands, and while a new game is being chosen.
+      const waiting = sim.stats.bailoutOffered || newGamePanel?.open;
+      const step = waiting ? 0 : simSecondsForFrame(engine.getDeltaTime(), simSpeed);
       if (step > 0) {
         sim.tick(step);
         view.traffic.update(step);
@@ -535,6 +554,14 @@ export class App {
       hud.update(sim.stats, sim.clock, sim);
       budgetPanel.update(sim.stats, sim.budget, sim.levers);
       syncAmbient();
+      // A scenario's goal: met in time, or the deadline passed.
+      const outcome = checkScenario(sim);
+      if (outcome) {
+        const text = scenarioText(sim)!;
+        milestoneBanner.show(text.title, text.body);
+        audio.play(outcome === 'won' ? MILESTONE_VOICE : BANKRUPT_VOICE, 'milestone');
+      }
+      syncGoal();
     };
     budgetPanel.onTaxChange((res, com, ind) => {
       if (!sim.setTaxes(res, com, ind)) {
@@ -561,6 +588,26 @@ export class App {
       speedBar.setSpeed(0);
       bailoutDialog.show(bailoutRecap(sim.stats, biggestCosts(sim.budget, 3)));
     };
+    // A new game: the map shows behind the panel; re-roll it or pick a treasury, then start.
+    if (!testCity && newGame.choosing) {
+      newGamePanel = new NewGamePanel(newGameEl, newGame.difficulty, {
+        onReroll: (difficulty) => startNewCity(difficulty),
+        onStart: (difficulty) => {
+          sim.stats.money = START_TREASURY[difficulty];
+          sim.stats.bankruptcyWarning = false;
+          sim.previewEconomy();
+          sim.evaluate();
+          hud.update(sim.stats, sim.clock, sim);
+          budgetPanel.update(sim.stats, sim.budget, sim.levers);
+          // Keep the map and treasury in the address, so a reload rebuilds this city's start.
+          const url = new URL(window.location.href);
+          url.searchParams.delete('new');
+          window.history.replaceState(null, '', url.href);
+          statusEl.textContent = `A new city with $${sim.stats.money.toLocaleString()}. ${sim.stats.advisory}`;
+        },
+      });
+      newGamePanel.show();
+    }
     sim.onCouncil = (event) => {
       audio.play(BANKRUPT_VOICE, 'warn');
       if (event === 'bailout') offerBailout();
@@ -671,6 +718,7 @@ export class App {
         if (sim.stats.bailoutOffered) offerBailout();
         else bailoutDialog.hide();
         syncUnlocks();
+        syncGoal();
       },
     });
     if (testCity) {

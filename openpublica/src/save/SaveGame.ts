@@ -62,6 +62,8 @@ export interface SavedStats {
   bailoutOffered?:   boolean;
   bailoutMonths?:    number;
   bailouts?:         number;
+  /** A test city's goal and how it stands (scenarios/goals.ts). */
+  scenario?:         { id: string; start: number; status: 'active' | 'won' | 'lost' } | null;
 }
 
 /** Serialised budget levers beyond taxes. */

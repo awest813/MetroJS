@@ -5,6 +5,7 @@ import type { CitySim } from '../sim/CitySim';
 import type { CityHUD } from '../ui/CityHUD';
 import type { BudgetPanel } from '../ui/BudgetPanel';
 import type { CityView } from './CityView';
+import { newGameSearch, randomSeed, type Difficulty } from '../scenarios/newGame';
 
 /**
  * Save / load / new city. Load rebuilds the Babylon view; sim decode stays in SaveSystem.
@@ -44,7 +45,7 @@ export function mountCityMenu(
       }
     },
     testCities: TEST_CITIES.map((city) => ({ id: city.id, title: city.title, summary: city.summary })),
-    onNewCity: startNewCity,
+    onNewCity: () => startNewCity(),
     onTestCity: (id) => {
       const url = new URL(window.location.href);
       url.searchParams.set('city', id);
@@ -53,12 +54,14 @@ export function mountCityMenu(
   });
 }
 
-/** A fresh random map, not the test city the address may name. */
-export function startNewCity(): void {
+/**
+ * A fresh random map, not the test city the address may name: it opens on
+ * the new-game panel (re-roll, starting treasury).
+ */
+export function startNewCity(difficulty: Difficulty = 'normal', seed = randomSeed()): void {
   const url = new URL(window.location.href);
-  url.searchParams.delete('city');
-  if (url.href === window.location.href) window.location.reload();
-  else window.location.assign(url.href);
+  url.search = newGameSearch(seed, difficulty);
+  window.location.assign(url.href);
 }
 
 /** The scripted test city named by `?city=<id>` in the address, if any. */
