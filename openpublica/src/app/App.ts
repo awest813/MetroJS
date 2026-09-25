@@ -41,6 +41,7 @@ import { explainToolFailure, formatStrokeStatus } from '../tools/toolFeedback';
 import { formatGrowthHint } from '../sim/zoneGrowthHints';
 import { WeatherRenderer } from '../render/WeatherRenderer';
 import { AmbientOcclusion } from '../render/AmbientOcclusion';
+import { BuildingModels } from '../render/BuildingModels';
 import { parseWeatherKind } from '../sim/weather';
 import { CityView } from './CityView';
 import { mountCityMenu, requestedTestCity } from './cityFile';
@@ -175,6 +176,13 @@ export class App {
     weatherView.setWeather(sim.weather, true);
     sim.onWeatherChanged = () => weatherView.setWeather(sim.weather);
     weatherView.onLightning = () => audio.thunder();
+
+    // GLB kits load in the background; each replaces its procedural kit as it
+    // arrives (High quality), and a model that fails leaves the kit in place.
+    const buildingModels = new BuildingModels(scene, import.meta.env.BASE_URL);
+    buildingModels.onReady = (defId) => view.buildings.refreshDef(defId);
+    view.buildings.setModels(buildingModels);
+    buildingModels.load(sim.growth.defs.values());
 
     // Opt-in, High only: see AmbientOcclusion and settingsStore.
     const ambientOcclusion = new AmbientOcclusion(scene, camera);

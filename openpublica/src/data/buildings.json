@@ -4,21 +4,24 @@
     "name": "Small House",
     "zoneType": 1,
     "population": 4,
-    "jobs": 0
+    "jobs": 0,
+    "visualRef": "models/small_house.glb"
   },
   {
     "id": "rowhouse",
     "name": "Rowhouse",
     "zoneType": 1,
     "population": 8,
-    "jobs": 0
+    "jobs": 0,
+    "visualRef": "models/rowhouse.glb"
   },
   {
     "id": "small_shop",
     "name": "Small Shop",
     "zoneType": 2,
     "population": 0,
-    "jobs": 3
+    "jobs": 3,
+    "visualRef": "models/small_shop.glb"
   },
   {
     "id": "shop_row",
@@ -34,7 +37,8 @@
     "zoneType": 2,
     "population": 0,
     "jobs": 14,
-    "walkabilityRadius": 3
+    "walkabilityRadius": 3,
+    "visualRef": "models/office_block.glb"
   },
   {
     "id": "light_workshop",
@@ -52,7 +56,8 @@
     "population": 0,
     "jobs": 12,
     "pollutionOutput": 45,
-    "pollutionRadius": 7
+    "pollutionRadius": 7,
+    "visualRef": "models/factory.glb"
   },
   {
     "id": "industrial_works",
@@ -93,7 +98,8 @@
     "jobs": 4,
     "isService": true,
     "fireRadius": 14,
-    "monthlyCost": 60
+    "monthlyCost": 60,
+    "visualRef": "models/small_fire_station.glb"
   },
   {
     "id": "small_water_tower",
@@ -103,7 +109,8 @@
     "jobs": 2,
     "isService": true,
     "waterCapacity": 600,
-    "monthlyCost": 40
+    "monthlyCost": 40,
+    "visualRef": "models/small_water_tower.glb"
   },
   {
     "id": "small_park",

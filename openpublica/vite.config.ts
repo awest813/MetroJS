@@ -11,6 +11,8 @@ export default defineConfig({
     // hundreds of raw ESM files (that stalls Chrome). Do not `exclude` core
     // on Vite 6 — that path is only a workaround for Vite 8 Rolldown, which
     // crashes with MatrixTrackPrecisionChange.
-    include: ['@babylonjs/core', 'simplex-noise', 'alea'],
+    // The glTF loader imports core by deep paths: prebundle it with core so
+    // both share one copy (and one registry of file loaders).
+    include: ['@babylonjs/core', '@babylonjs/loaders/glTF', 'simplex-noise', 'alea'],
   },
 });

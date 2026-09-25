@@ -1,0 +1,348 @@
+// Builds the starter GLB building kits in public/models/.
+//
+//   node scripts/build-models.mjs
+//
+// Each model is a few dozen boxes, gables, wedges, and cylinders in the city's
+// zone colours, written as glTF 2.0 binary with no dependencies. They stand in
+// for artist-made kits: any GLB that follows the same conventions (see
+// public/models/ASSET_LICENSE.md) can replace a file here.
+//
+// Conventions: 1 unit = one map tile; the model stands on y = 0, centred on
+// the origin, inside the tile; its front (door, shopfront) faces +Z.
+//
+// Faces nobody sees are left out: the camera never goes below the ground, so
+// nothing has a bottom, and a door, window, or sign (a box thinner than
+// DECAL) keeps only its outward face. A house is drawn hundreds of times.
+
+/** Boxes thinner than this are surface details: only their outward face is drawn. */
+const DECAL = 0.02;
+
+import { writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'models');
+
+// ── Colours (linear RGB, the procedural kits' palettes) ───────────────────────
+
+const shade = (c, f) => c.map((v) => Math.min(1, v * f));
+const RES = [0.42, 0.62, 0.90];
+const COM = [0.92, 0.78, 0.22];
+const IND = [0.68, 0.48, 0.78];
+const GLASS = [0.10, 0.18, 0.28];
+const DOOR = [0.38, 0.24, 0.14];
+const STONE = [0.52, 0.50, 0.47];
+const METAL = [0.28, 0.28, 0.30];
+const WHITE = [0.90, 0.88, 0.82];
+
+// ── Parts ─────────────────────────────────────────────────────────────────────
+// Every part is a list of flat quads/triangles: { c, pts: [[x,y,z]...], n }.
+
+function face(c, pts, n) {
+  return { c, pts, n };
+}
+
+/** Axis box: w (x) × h (y) × d (z), bottom at y, centred on x, z; optional tilt about x. */
+function box(c, w, h, d, x, y, z, rx = 0) {
+  const X = [x - w / 2, x + w / 2];
+  const Y = [0, h];
+  const Z = [z - d / 2, z + d / 2];
+  const cos = Math.cos(rx);
+  const sin = Math.sin(rx);
+  // Tilt about the box's bottom-front edge's axis through its centre height.
+  const p = (i, j, k) => {
+    const ly = Y[j] - h / 2;
+    const lz = Z[k] - z;
+    return [X[i], y + h / 2 + ly * cos - lz * sin, z + ly * sin + lz * cos];
+  };
+  const r = (v) => [v[0], v[1] * cos - v[2] * sin, v[1] * sin + v[2] * cos];
+  const faces = {
+    front: face(c, [p(0, 0, 1), p(1, 0, 1), p(1, 1, 1), p(0, 1, 1)], r([0, 0, 1])),
+    back: face(c, [p(1, 0, 0), p(0, 0, 0), p(0, 1, 0), p(1, 1, 0)], r([0, 0, -1])),
+    right: face(c, [p(1, 0, 1), p(1, 0, 0), p(1, 1, 0), p(1, 1, 1)], [1, 0, 0]),
+    left: face(c, [p(0, 0, 0), p(0, 0, 1), p(0, 1, 1), p(0, 1, 0)], [-1, 0, 0]),
+    top: face(c, [p(0, 1, 1), p(1, 1, 1), p(1, 1, 0), p(0, 1, 0)], r([0, 1, 0])),
+  };
+  // A detail on a wall faces out from the building's middle; one lying flat faces up.
+  if (d < DECAL && rx === 0) return [z >= 0 ? faces.front : faces.back];
+  if (w < DECAL) return [x >= 0 ? faces.right : faces.left];
+  if (h < DECAL && rx === 0) return [faces.top];
+  return Object.values(faces);
+}
+
+/** Gable roof: w (x) × d (z) at its eaves, ridge h above y, running along x. */
+function gable(c, w, h, d, x, y, z) {
+  const x0 = x - w / 2, x1 = x + w / 2, z0 = z - d / 2, z1 = z + d / 2, top = y + h;
+  const slope = Math.hypot(h, d / 2);
+  const front = [0, (d / 2) / slope, h / slope];
+  const back = [0, (d / 2) / slope, -h / slope];
+  return [
+    face(c, [[x0, y, z1], [x1, y, z1], [x1, top, z], [x0, top, z]], front),
+    face(c, [[x1, y, z0], [x0, y, z0], [x0, top, z], [x1, top, z]], back),
+    face(c, [[x1, y, z1], [x1, y, z0], [x1, top, z]], [1, 0, 0]),
+    face(c, [[x0, y, z0], [x0, y, z1], [x0, top, z]], [-1, 0, 0]),
+  ];
+}
+
+/** Sawtooth tooth: a wedge w (x) × d (z), glazed upright face h tall at its +z end. */
+function wedge(roof, glass, w, h, d, x, y, z) {
+  const x0 = x - w / 2, x1 = x + w / 2, z0 = z - d / 2, z1 = z + d / 2;
+  const slope = Math.hypot(h, d);
+  const up = [0, d / slope, -h / slope];
+  return [
+    face(roof, [[x1, y, z0], [x0, y, z0], [x0, y + h, z1], [x1, y + h, z1]], up),
+    face(glass, [[x0, y, z1], [x1, y, z1], [x1, y + h, z1], [x0, y + h, z1]], [0, 0, 1]),
+    face(roof, [[x1, y, z1], [x1, y, z0], [x1, y + h, z1]], [1, 0, 0]),
+    face(roof, [[x0, y, z0], [x0, y, z1], [x0, y + h, z1]], [-1, 0, 0]),
+  ];
+}
+
+/** Upright cylinder or cone: radius r at the bottom, r2 at the top, n sides. */
+function cyl(c, r, h, x, y, z, n = 12, r2 = r, caps = true) {
+  const out = [];
+  const at = (i, rad, yy) => {
+    const a = (i / n) * Math.PI * 2;
+    return [x + Math.cos(a) * rad, yy, z + Math.sin(a) * rad];
+  };
+  const slant = Math.atan2(r - r2, h);
+  for (let i = 0; i < n; i++) {
+    const mid = ((i + 0.5) / n) * Math.PI * 2;
+    const nrm = [Math.cos(mid) * Math.cos(slant), Math.sin(slant), Math.sin(mid) * Math.cos(slant)];
+    if (r2 > 0) out.push(face(c, [at(i, r, y), at(i + 1, r, y), at(i + 1, r2, y + h), at(i, r2, y + h)], nrm));
+    else out.push(face(c, [at(i, r, y), at(i + 1, r, y), [x, y + h, z]], nrm));
+  }
+  if (caps) {
+    if (r2 > 0) {
+      const top = [];
+      for (let i = 0; i < n; i++) top.push(at(i, r2, y + h));
+      out.push(face(c, top, [0, 1, 0]));
+    }
+  }
+  return out;
+}
+
+// ── Models ────────────────────────────────────────────────────────────────────
+
+function smallHouse() {
+  const body = RES, roof = shade(RES, 0.42), trim = shade(RES, 1.12);
+  return [
+    box(STONE, 0.48, 0.03, 0.44, 0, 0, 0),
+    box(body, 0.44, 0.22, 0.40, 0, 0.03, 0),
+    gable(roof, 0.52, 0.16, 0.48, 0, 0.25, 0),
+    box(METAL, 0.06, 0.14, 0.06, 0.12, 0.30, -0.08),
+    box(DOOR, 0.07, 0.12, 0.012, 0, 0.03, 0.206),
+    box(STONE, 0.11, 0.015, 0.05, 0, 0, 0.235),
+    box(GLASS, 0.08, 0.07, 0.01, -0.12, 0.11, 0.203),
+    box(GLASS, 0.08, 0.07, 0.01, 0.12, 0.11, 0.203),
+    box(trim, 0.10, 0.012, 0.02, -0.12, 0.10, 0.205),
+    box(trim, 0.10, 0.012, 0.02, 0.12, 0.10, 0.205),
+    box(GLASS, 0.01, 0.07, 0.08, 0.223, 0.11, 0),
+    box(GLASS, 0.01, 0.07, 0.08, -0.223, 0.11, 0),
+  ].flat();
+}
+
+function rowhouse() {
+  const parts = [box(STONE, 0.70, 0.03, 0.42, 0, 0, 0)];
+  const tones = [RES, shade(RES, 0.9), shade(RES, 1.06)];
+  [-0.23, 0, 0.23].forEach((x, i) => {
+    const body = tones[i];
+    parts.push(
+      box(body, 0.22, 0.40, 0.40, x, 0.03, 0),
+      box(shade(RES, 0.42), 0.22, 0.03, 0.40, x, 0.43, 0),
+      box(METAL, 0.05, 0.08, 0.05, x + 0.06, 0.46, -0.1),
+      box(DOOR, 0.06, 0.13, 0.012, x - 0.05, 0.03, 0.206),
+      box(STONE, 0.08, 0.03, 0.05, x - 0.05, 0, 0.23),
+      box(GLASS, 0.06, 0.08, 0.01, x + 0.05, 0.08, 0.203),
+      box(GLASS, 0.06, 0.08, 0.01, x - 0.05, 0.26, 0.203),
+      box(GLASS, 0.06, 0.08, 0.01, x + 0.05, 0.26, 0.203),
+    );
+  });
+  parts.push(box(shade(RES, 1.12), 0.70, 0.025, 0.43, 0, 0.40, 0));
+  return parts.flat();
+}
+
+function smallShop() {
+  const body = COM, roof = shade(COM, 0.42), trim = shade(COM, 1.12);
+  return [
+    box(body, 0.60, 0.30, 0.56, 0, 0, 0),
+    box(roof, 0.60, 0.02, 0.56, 0, 0.30, 0),
+    box(trim, 0.62, 0.05, 0.03, 0, 0.30, 0.27),
+    box(GLASS, 0.44, 0.14, 0.01, 0.04, 0.04, 0.283),
+    box(shade(GLASS, 0.7), 0.08, 0.16, 0.012, -0.22, 0, 0.284),
+    box(WHITE, 0.40, 0.06, 0.015, 0, 0.23, 0.287),
+    box([0.80, 0.16, 0.12], 0.52, 0.015, 0.12, 0, 0.19, 0.33, -0.35),
+    box(METAL, 0.12, 0.06, 0.10, 0.12, 0.32, -0.1),
+  ].flat();
+}
+
+function officeBlock() {
+  const body = COM, roof = shade(COM, 0.42), trim = shade(COM, 1.12);
+  const parts = [
+    box(shade(COM, 0.8), 0.70, 0.14, 0.70, 0, 0, 0),
+    box(GLASS, 0.24, 0.10, 0.01, 0, 0, 0.353),
+    box(trim, 0.30, 0.02, 0.10, 0, 0.11, 0.39),
+    box(body, 0.60, 0.90, 0.60, 0, 0.14, 0),
+  ];
+  for (let k = 0; k < 8; k++) parts.push(box(GLASS, 0.612, 0.055, 0.612, 0, 0.18 + k * 0.105, 0));
+  parts.push(
+    box(roof, 0.62, 0.02, 0.62, 0, 1.04, 0),
+    box(METAL, 0.24, 0.08, 0.20, 0.08, 1.06, -0.08),
+    cyl(METAL, 0.01, 0.10, -0.18, 1.06, 0.16, 6),
+  );
+  return parts.flat();
+}
+
+function factory() {
+  const body = IND, roof = shade(IND, 0.42);
+  const parts = [
+    box(body, 0.78, 0.30, 0.70, 0, 0, 0),
+    box(DOOR, 0.20, 0.18, 0.012, -0.18, 0, 0.356),
+    box(GLASS, 0.30, 0.05, 0.01, 0.17, 0.18, 0.353),
+  ];
+  for (let i = 0; i < 3; i++) parts.push(wedge(roof, GLASS, 0.78, 0.12, 0.2333, 0, 0.30, -0.35 + 0.2333 * (i + 0.5)));
+  parts.push(
+    cyl(METAL, 0.05, 0.32, 0.28, 0.30, -0.22, 10),
+    cyl([0.80, 0.16, 0.12], 0.056, 0.03, 0.28, 0.56, -0.22, 10),
+  );
+  return parts.flat();
+}
+
+function fireStation() {
+  const red = [0.78, 0.18, 0.12], roof = [0.28, 0.10, 0.08];
+  return [
+    box(red, 0.68, 0.30, 0.56, 0, 0, 0),
+    box(roof, 0.70, 0.025, 0.58, 0, 0.30, 0),
+    box(WHITE, 0.22, 0.20, 0.012, -0.13, 0, 0.286),
+    box(WHITE, 0.22, 0.20, 0.012, 0.13, 0, 0.286),
+    box([0.95, 0.72, 0.12], 0.30, 0.04, 0.012, 0, 0.24, 0.287),
+    box(red, 0.14, 0.44, 0.14, -0.24, 0.02, -0.16),
+    gable(roof, 0.16, 0.06, 0.16, -0.24, 0.46, -0.16),
+    box(GLASS, 0.01, 0.06, 0.06, -0.171, 0.34, -0.16),
+  ].flat();
+}
+
+function waterTower() {
+  const tank = [0.22, 0.48, 0.62], roof = [0.14, 0.28, 0.38], trim = [0.55, 0.55, 0.52];
+  const parts = [];
+  for (const [x, z] of [[-0.13, -0.13], [0.13, -0.13], [-0.13, 0.13], [0.13, 0.13]]) {
+    parts.push(box(METAL, 0.03, 0.50, 0.03, x, 0, z));
+  }
+  for (const y of [0.18, 0.36]) {
+    parts.push(
+      box(trim, 0.26, 0.015, 0.015, 0, y, 0.13),
+      box(trim, 0.26, 0.015, 0.015, 0, y, -0.13),
+      box(trim, 0.015, 0.015, 0.26, 0.13, y, 0),
+      box(trim, 0.015, 0.015, 0.26, -0.13, y, 0),
+    );
+  }
+  parts.push(
+    cyl(METAL, 0.025, 0.50, 0, 0, 0, 8),
+    cyl(trim, 0.2, 0.012, 0, 0.50, 0, 16),
+    cyl(tank, 0.17, 0.22, 0, 0.512, 0, 16),
+    cyl(roof, 0.18, 0.10, 0, 0.732, 0, 16, 0),
+  );
+  return parts.flat();
+}
+
+const MODELS = {
+  small_house: smallHouse,
+  rowhouse,
+  small_shop: smallShop,
+  office_block: officeBlock,
+  factory,
+  small_fire_station: fireStation,
+  small_water_tower: waterTower,
+};
+
+// ── glTF writer ───────────────────────────────────────────────────────────────
+
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const unit = (v) => { const l = Math.hypot(...v) || 1; return v.map((x) => x / l); };
+
+/** Faces grouped by colour into primitives: flat normals, counter-clockwise from outside. */
+function primitives(faces) {
+  const groups = new Map();
+  for (const f of faces) {
+    const key = f.c.map((v) => v.toFixed(3)).join(',');
+    let g = groups.get(key);
+    if (!g) groups.set(key, (g = { color: f.c, pos: [], nrm: [], idx: [] }));
+    const n = unit(f.n);
+    const base = g.pos.length / 3;
+    for (const p of f.pts) { g.pos.push(...p); g.nrm.push(...n); }
+    for (let i = 1; i + 1 < f.pts.length; i++) {
+      const tri = [0, i, i + 1];
+      // glTF front faces wind counter-clockwise; flip any that face inward.
+      const [a, b, c] = tri.map((t) => f.pts[t]);
+      if (dot(cross(sub(b, a), sub(c, a)), n) < 0) tri.reverse();
+      g.idx.push(...tri.map((t) => base + t));
+    }
+  }
+  return [...groups.values()];
+}
+
+function glb(name, faces) {
+  const prims = primitives(faces);
+  const chunks = [];
+  const bufferViews = [];
+  const accessors = [];
+  let offset = 0;
+  const push = (typed, target) => {
+    const bytes = Buffer.from(typed.buffer, typed.byteOffset, typed.byteLength);
+    const pad = (4 - (bytes.length % 4)) % 4;
+    chunks.push(bytes, Buffer.alloc(pad));
+    bufferViews.push({ buffer: 0, byteOffset: offset, byteLength: bytes.length, target });
+    offset += bytes.length + pad;
+    return bufferViews.length - 1;
+  };
+  const materials = [];
+  const gltfPrims = prims.map((p, i) => {
+    const pos = new Float32Array(p.pos);
+    const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+    for (let k = 0; k < pos.length; k += 3) {
+      for (let a = 0; a < 3; a++) { min[a] = Math.min(min[a], pos[k + a]); max[a] = Math.max(max[a], pos[k + a]); }
+    }
+    accessors.push({ bufferView: push(pos, 34962), componentType: 5126, count: pos.length / 3, type: 'VEC3', min, max });
+    const posAcc = accessors.length - 1;
+    accessors.push({ bufferView: push(new Float32Array(p.nrm), 34962), componentType: 5126, count: pos.length / 3, type: 'VEC3' });
+    const nrmAcc = accessors.length - 1;
+    accessors.push({ bufferView: push(new Uint16Array(p.idx), 34963), componentType: 5123, count: p.idx.length, type: 'SCALAR' });
+    materials.push({
+      name: `${name}-${i}`,
+      pbrMetallicRoughness: { baseColorFactor: [...p.color, 1], metallicFactor: 0, roughnessFactor: 0.8 },
+    });
+    return { attributes: { POSITION: posAcc, NORMAL: nrmAcc }, indices: accessors.length - 1, material: i };
+  });
+  const json = {
+    asset: { version: '2.0', generator: 'OpenPublica scripts/build-models.mjs' },
+    scene: 0,
+    scenes: [{ nodes: [0] }],
+    nodes: [{ name, mesh: 0 }],
+    meshes: [{ name, primitives: gltfPrims }],
+    materials,
+    accessors,
+    bufferViews,
+    buffers: [{ byteLength: offset }],
+  };
+  const bin = Buffer.concat(chunks);
+  let text = Buffer.from(JSON.stringify(json));
+  text = Buffer.concat([text, Buffer.alloc((4 - (text.length % 4)) % 4, 0x20)]);
+  const header = Buffer.alloc(12);
+  header.writeUInt32LE(0x46546c67, 0);
+  header.writeUInt32LE(2, 4);
+  header.writeUInt32LE(12 + 8 + text.length + 8 + bin.length, 8);
+  const chunk = (type, data) => {
+    const h = Buffer.alloc(8);
+    h.writeUInt32LE(data.length, 0);
+    h.writeUInt32LE(type, 4);
+    return Buffer.concat([h, data]);
+  };
+  return { bytes: Buffer.concat([header, chunk(0x4e4f534a, text), chunk(0x004e4942, bin)]), triangles: prims.reduce((n, p) => n + p.idx.length / 3, 0) };
+}
+
+for (const [defId, build] of Object.entries(MODELS)) {
+  const { bytes, triangles } = glb(defId, build());
+  writeFileSync(join(OUT, `${defId}.glb`), bytes);
+  console.log(`${defId}.glb  ${bytes.length} bytes, ${triangles} triangles`);
+}

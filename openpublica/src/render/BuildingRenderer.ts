@@ -8,6 +8,7 @@ import {
   VertexBuffer,
   InstancedMesh,
   PBRMaterial,
+  VertexData,
 } from '@babylonjs/core';
 import type { BuildingInstance } from '../sim/BuildingInstance';
 import { ZoneType } from '../sim/CityTile';
@@ -24,9 +25,12 @@ import {
   kitForDef,
   kitPalette,
   type BuildingKit,
+  type BuildingShape,
   type KitPart,
   type KitPalette,
 } from './buildingVisuals';
+import type { BuildingModels } from './BuildingModels';
+import { warningColors, type BakedModel } from './modelBake';
 import { coloredPbr, vertexColorPbr } from './pbrSurfaces';
 import { foundationFor } from './foundation';
 import { rotateOffset } from './buildingFacing';
@@ -51,12 +55,13 @@ interface PlacedBuilding {
 }
 
 /**
- * Instanced procedural building kits.
+ * Instanced building kits: procedural, or GLB models where a def has one.
  *
  * One hidden source mesh per (defId, variant) is baked from kit boxes/cylinders
- * with vertex colours. Placed buildings are `createInstance` copies so 200 houses
- * share a handful of draw calls. Unpowered buildings swap to a red-baked source
- * because instances cannot have their own material.
+ * with vertex colours, or from the def's GLB model (see BuildingModels) on High
+ * quality once it has loaded. Placed buildings are `createInstance` copies so
+ * 200 houses share a handful of draw calls. Unpowered buildings swap to a
+ * red-baked source because instances cannot have their own material.
  */
 export class BuildingRenderer {
   private readonly _scene:    Scene;
@@ -70,6 +75,9 @@ export class BuildingRenderer {
   private readonly _plinths = new ThinInstanceGroups();
   private _selectedKey: string | null = null;
   private _heights: HeightField | null = null;
+  /** GLB kits, when a def has one and detailed models are on (High quality). */
+  private _models: BuildingModels | null = null;
+  private _detailed = true;
 
   constructor(scene: Scene, shadowGenerator: ShadowGenerator | null = null) {
     this._scene = scene;
@@ -95,6 +103,44 @@ export class BuildingRenderer {
 
   setHeightField(heights: HeightField): void {
     this._heights = heights;
+  }
+
+  /** Use these GLB kits where a def has one (see {@link setDetailedModels}). */
+  setModels(models: BuildingModels): void {
+    this._models = models;
+  }
+
+  /** Detailed models on High quality; the procedural kits on Low. */
+  setDetailedModels(on: boolean): void {
+    if (on === this._detailed) return;
+    this._detailed = on;
+    this._respawn((defId) => this._models?.get(defId) !== null);
+  }
+
+  /** A def's model arrived: rebuild its standing buildings with it. */
+  refreshDef(defId: string): void {
+    this._respawn((id) => id === defId);
+  }
+
+  private _respawn(which: (defId: string) => boolean): void {
+    for (const [key, placed] of [...this._placed]) {
+      if (!which(placed.defId)) continue;
+      const pick = placed.instance.metadata as BuildingPickData;
+      const selected = this._selectedKey === key;
+      placed.instance.dispose();
+      this._placed.delete(key);
+      this._spawn({ defId: placed.defId, x: pick.x, y: pick.y }, placed.zoneType, placed.variant, placed.facing);
+      if (selected) this.selectBuilding(pick.x, pick.y);
+    }
+  }
+
+  /** The loaded model for a def, if detailed models are on. */
+  private _modelFor(defId: string): BakedModel | null {
+    return this._detailed ? this._models?.get(defId) ?? null : null;
+  }
+
+  private _shapeFor(defId: string): BuildingShape {
+    return this._modelFor(defId)?.shape ?? BUILDING_SHAPES[defId] ?? DEFAULT_SHAPE;
   }
 
   /** Place a kit on its lot; `facing` turns its front (+z) toward the street. */
@@ -219,7 +265,7 @@ export class BuildingRenderer {
     if (!heights) return;
     const cx = x * TILE_SIZE + TILE_SIZE / 2;
     const cz = y * TILE_SIZE + TILE_SIZE / 2;
-    const shape = BUILDING_SHAPES[defId] ?? DEFAULT_SHAPE;
+    const shape = this._shapeFor(defId);
     const spec = foundationFor(shape, this._floorY(x, y), (dx, dz) => {
       const world = rotateOffset(dx, dz, facing);
       return heights.sample(cx + world.dx, cz + world.dz);
@@ -239,13 +285,15 @@ export class BuildingRenderer {
     zoneType: ZoneType,
     variant: KitVariant,
   ): Mesh {
-    const sourceKey = `${defId}:${variant}:${zoneType}`;
+    const model = this._modelFor(defId);
+    // A model carries its own colours, so its sources do not vary by zone.
+    const sourceKey = model ? `${defId}:${variant === 'warning' ? 'warning' : 'lit'}:glb` : `${defId}:${variant}:${zoneType}`;
     const cached = this._sources.get(sourceKey);
     if (cached) return cached;
 
-    const kit = kitForDef(defId);
-    const palette = kitPalette(variant, zoneType);
-    const baked = this._bakeKit(sourceKey, kit, palette);
+    const baked = model
+      ? this._modelMesh(sourceKey, model, variant === 'warning')
+      : this._bakeKit(sourceKey, kitForDef(defId), kitPalette(variant, zoneType));
     baked.isVisible = false;
     baked.isPickable = false;
     baked.useVertexColors = true;
@@ -254,6 +302,18 @@ export class BuildingRenderer {
     this._shadows?.addShadowCaster(baked);
     this._sources.set(sourceKey, baked);
     return baked;
+  }
+
+  /** One mesh from a baked GLB kit; `dark` recolours it for an unpowered building. */
+  private _modelMesh(name: string, model: BakedModel, dark: boolean): Mesh {
+    const mesh = new Mesh(name, this._scene);
+    const data = new VertexData();
+    data.positions = model.positions;
+    data.normals = model.normals;
+    data.colors = dark ? warningColors(model.colors) : model.colors;
+    data.indices = model.indices;
+    data.applyToMesh(mesh);
+    return mesh;
   }
 
   private _bakeKit(name: string, kit: BuildingKit | null, palette: KitPalette): Mesh {

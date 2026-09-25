@@ -1,7 +1,7 @@
 # OpenPublica — Next gaps (after Phases A–H)
 
 **Date:** 2026-09-24 (first written 2026-09-20)  
-**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AD below have shipped on top.
+**Base:** 3D presentation Phases A–H are playable in `openpublica/` (perspective camera, heightfield + water, extruded roads, instanced kits, parks/trees/smoke, moving traffic, unified overlays, minimap/sun/quality, city/settings chrome, MIT simplex hills), and gap slices A–AE below have shipped on top.
 
 This is an implementation plan for **what is still missing**, not a licence to rewrite sim formulas or import Micropolis art.
 
@@ -15,7 +15,7 @@ checked against five scripted test cities (Gap N). The first audit's four
 open items (city health, honest feedback, PBR/sky, the `App.ts` split) have
 all shipped. What is left (section 5) is depth, not missing systems:
 
-1. **Presentation** extras: SSAO shipped as an opt-in after its full-city frame check (Gaps AB, AC); GLB kits stay optional.
+1. **Presentation** extras have shipped: SSAO as an opt-in after its full-city frame check (Gaps AB, AC), and GLB kits with seven starter models (Gap AE). What is left there is art: models for the other eight buildings, or an artist's kit.
 2. **Happiness** is shown in the HUD but drives nothing: not growth, demand, or the score (found in Gap AD's audit). Services now count in the score directly instead.
 
 Do **not** treat leftover comments in `FULL_3D_WEB_PORT_PLAN.md` §3.2 as current reality. That table is the pre-A snapshot.
@@ -85,7 +85,7 @@ Buildings **do** empty after sustained neglect. Status is city-local (HUD adviso
 | C1 Materials **shipped** | Untextured PBR colours (roughness) on terrain, kits, roads, water, trees, traffic | Micropolis sheets as albedo |
 | C2 Sky **shipped** | Inverted sky dome, vertex horizon→zenith; fog + sun slider still drive it | Full atmosphere / SSAO in C2 |
 | C3 Terrain read **shipped** | Grass/dirt variation from simplex; the earth skirt (Gap G); lawns, yards, and woods (Gap L) | Change lake topology |
-| C4 GLB (optional) | `@babylonjs/loaders` + `visualRef` + `ASSET_LICENSE.md`; procedural fallback | EA-looking kits |
+| C4 GLB **shipped** (Gap AE) | `@babylonjs/loaders` + `visualRef` + `ASSET_LICENSE.md`; procedural fallback | EA-looking kits |
 | C5 PostFX **shipped (opt-in)** | SSAO/FXAA only after a filled-city frame-time check on High quality: checked in Gap AB, shipped in Gap AC as a Settings toggle, off by default | Always-on SSAO |
 
 **Exit:** Horizon and materials read 3D without a second engine.
@@ -702,6 +702,37 @@ buildings. Happiness is display-only (section 1); it is left for its own pass.
 `no fire cover`, and the advisory asks for a second water tower. Place a fire
 station and Inspect it: it gives the buildings it covers and its $60/mo.
 
+### Gap AE — GLB building kits **shipped**
+
+C4 asked for glTF models with the procedural kits as the fallback. Outside
+art was not reachable from the build machine (kenney.nl is blocked), and a
+kit's licence has to be checked file by file, so the pipeline ships with
+seven starter models generated in the repo. Any GLB that follows the same
+conventions can replace one.
+
+| Slice | What shipped |
+|---|---|
+| AE1 Data | `visualRef` on a building def (`models/small_house.glb`): the file under `public/`. Render-only; the sim never reads it. |
+| AE2 Loader | `BuildingModels` loads each model once with `@babylonjs/loaders`, prebundled with core so both share one copy. A model that fails (a 404, bad data) logs one warning, and that building keeps its procedural kit. |
+| AE3 Baking | `bakeMeshes` flattens a model into one vertex-coloured mesh in lot space, so it instances and draws like a procedural kit: one source per building and variant, the same material, snow on flat roofs, and ambient occlusion. Colour is the material's base colour times its texture at each vertex (a palette-texture kit comes through exactly; a probe with a 2×2 palette read back red and yellow where it should). Each triangle is wound by its own normal: the first cut trusted the loader's mirror and drew every model inside out. `fitToLot` stands a model on the ground, re-centres one authored off its origin, and shrinks one too big for its lot. |
+| AE4 Renderer | High quality uses the models; Low keeps the procedural kits. Buildings already standing swap when their model arrives. Unpowered ones recolour to reds of their own brightness (`warningColors`), and plinths on slopes take the model's footprint. |
+| AE5 Models | `scripts/build-models.mjs` (`npm run models`) writes the house (gable, chimney, porch step), rowhouse (three houses, stoops, chimneys), shop (awning, sign, shopfront), office block (podium, window bands, roof plant), factory (sawtooth north lights, chimney), fire station (bays, hose tower), and water tower (legs, braces, tank, cone). They leave out faces nobody sees: bottoms, and all but the front of doors, windows, and signs. That cut them from 92–322 triangles to 44–186. |
+| AE6 Licence | `public/models/ASSET_LICENSE.md` lists each file's source and licence (GPL-3.0, generated here), the conventions, and what a contributed model must carry (CC0, CC-BY with attribution, or the contributor's own work; nothing from SimCity). |
+
+| Full city, High | Procedural | Models |
+|---|---|---|
+| Building triangles (main pass) | 180k | 253k |
+| Main pass | 451k | 525k |
+| Draw calls | 73 | 73 |
+
+A test checks each model's file against the conventions (glTF 2.0, normals,
+on the ground, inside the lot, under 400 triangles), and that the generator
+builds exactly the models the defs name.
+
+**Exit:** Open `?city=metro` on High: houses have gables and chimneys, shops
+awnings, offices window bands, factories sawtooth roofs; switch to Low and
+the procedural kits return.
+
 ---
 
 ## 4. Explicitly still out of scope (Phase I)
@@ -720,12 +751,13 @@ Unchanged from the 3D plan:
 
 ## 5. Recommended next PRs (mergeable)
 
-The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped, and so has the
-housekeeping after it (D4 faster tests, the Gap AB frame check, the Gap AC
-SSAO opt-in). What is left is optional:
+The first list (A1–A6, B1–B3, C1–C2, D2) has all shipped, and so has
+everything after it (D4 faster tests, the Gap AB frame check, the Gap AC SSAO
+opt-in, the Gap AE GLB kits). What is left:
 
-1. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
-2. **GLB kits (C4)** stay optional.
+1. **Happiness that counts.** It is composed every month and shown in the HUD, but nothing reads it (section 1).
+2. **Time SSAO on a real GPU.** Only SwiftShader measured it (Gap AC). On an integrated GPU at 1080p, time a full city with it off and on; if it holds 60 fps, consider turning it on by default for High.
+3. **More models (optional).** Eight buildings still use their procedural kits (shop rows, workshops, works, the power plant, the police station, and the three mixed-use blocks); an artist's kit can replace the starter set under `public/models/ASSET_LICENSE.md`.
 
 ---
 
@@ -758,5 +790,6 @@ SSAO opt-in). What is left is optional:
 - Shops: open `?city=metro`, look at the shopping districts (glass-banded office blocks among shop rows), and check Traffic there.
 - Frame time: load a full city on High and run it at 4× (the only stutter is the month end), and let Metro reach its first rain (no stall when it starts); a bridge still shades the water under it.
 - Services: in `?city=riverside` the advisory names the dry buildings behind its full tower; Inspect a house (`dry`, `no fire cover`) and a police station (buildings covered, upkeep); a new fire station raises land value around it and the score once people live nearby.
+- Models: on High, Metro's houses, rowhouses, shops, offices, factories, fire stations, and water towers are GLB models; on Low they are procedural kits; rename a file under `public/models/` and that building keeps its procedural kit with one console warning.
 - Ambient occlusion: Settings → Ambient occlusion on (Quality: high): buildings and trees sit darker where they meet the ground, and open lawns stay light; open a map and the shade pauses; switch to Quality: low and the button greys out.
 - Test cities: open `?city=hamlet`, `riverside`, `metro`, `troubled`, and `sprawl` (or New → Or open a test city); each status line says what the city shows, the HUD and advisory match its row in Gap N, and New goes back to a fresh map.

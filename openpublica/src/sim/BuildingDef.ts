@@ -76,4 +76,11 @@ export interface BuildingDef {
    * EconomySystem sums these instead of a flat per-service fee.
    */
   readonly monthlyCost?: number;
+  /**
+   * A GLB model for this building, relative to the site root (for example
+   * `models/small_house.glb`). The renderer loads it on High quality and falls
+   * back to the procedural kit while it loads, if it fails, or on Low.
+   * Render-only: the simulation never reads it.
+   */
+  readonly visualRef?: string;
 }

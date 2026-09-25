@@ -113,6 +113,7 @@ export class CityView {
   applyQuality(level: QualityLevel, sim: CitySim): void {
     const high = level === 'high';
     this.smoke.setEnabled(high);
+    this.buildings.setDetailedModels(high);
     if (this.vegetation.setExtraTrees(high)) {
       this.vegetation.rebuild(sim.map, this.heights);
     }
