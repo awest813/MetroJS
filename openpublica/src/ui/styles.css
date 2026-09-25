@@ -377,6 +377,14 @@ input:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+/* The HUD lets clicks through to the map, but its readouts take the pointer
+   so their tooltips (the rating's parts, happiness, demand) show on hover. */
+.hud-item,
+#hud-demand .demand-row {
+  pointer-events: auto;
+  cursor: default;
+}
+
 .hud-muted {
   color: var(--muted);
   font-size: 12px;

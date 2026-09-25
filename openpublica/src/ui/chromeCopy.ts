@@ -1,5 +1,6 @@
 import { HAPPY_DRAW, UNHAPPY_FLOOR, happinessDraw, type HappinessParts } from '../sim/happiness';
 import { taxDraw, taxOccupancy } from '../sim/taxes';
+import type { RatingParts } from '../sim/EvaluationSystem';
 
 /**
  * Shared chrome strings and money formatting. No DOM — Jest can load this.
@@ -116,6 +117,21 @@ export function industryTooltip(
  * The HUD's happiness tooltip: what cost it, what won some back, and how
  * much of the housing demand it lets move in.
  */
+/**
+ * City rating tooltip: the four parts it is made of and what it loses.
+ * "Rating 76: size +19, happiness +19, services +23, budget +25; smog −10."
+ */
+export function ratingTooltip(rating: number, parts: RatingParts | undefined): string {
+  if (!parts) return `Rating ${rating} of 100: size, happiness, services, and budget, less smog, high taxes, and debt.`;
+  const gains = `size +${parts.size}, happiness +${parts.happiness}, services +${parts.services}, budget +${parts.budget}`;
+  const losses = [
+    parts.smog > 0 ? `smog −${parts.smog}` : null,
+    parts.taxes > 0 ? `taxes over 9% −${parts.taxes}` : null,
+    parts.other > 0 ? `no plant or debt −${parts.other}` : null,
+  ].filter((l): l is string => l !== null);
+  return `Rating ${rating} of 100: ${gains}${losses.length ? `; ${losses.join(', ')}` : ''}. Each part is worth up to 25.`;
+}
+
 export function happinessTooltip(happiness: number, parts: HappinessParts | undefined): string {
   const share = Math.round(happinessDraw(happiness) * 100);
   const why = parts

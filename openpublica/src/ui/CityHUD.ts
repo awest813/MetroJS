@@ -1,7 +1,7 @@
 import type { CityStats } from '../sim/CitySim';
 import type { SimulationClock } from '../sim/SimulationClock';
 import { describeWeatherEffects, formatWeather, weatherLabel, type Weather } from '../sim/weather';
-import { commerceTooltip, formatPopulation, happinessTooltip, housingTooltip, industryTooltip } from './chromeCopy';
+import { commerceTooltip, formatPopulation, happinessTooltip, housingTooltip, industryTooltip, ratingTooltip } from './chromeCopy';
 import { HAPPY_DRAW } from '../sim/happiness';
 import { demandForZone, housingDemand } from '../sim/zoneGrowthHints';
 import { ZoneType } from '../sim/CityTile';
@@ -73,7 +73,7 @@ export class CityHUD {
         <span class="hud-item hud-muted" id="hud-crime" title="Average crime">Crime 0</span>
         <span class="hud-item hud-muted" id="hud-fire" title="Average fire coverage on occupied lots">Fire 0</span>
         <span class="hud-item hud-muted" id="hud-water" title="Percent of zoned lots that are watered">Water 0</span>
-        <span class="hud-item" id="hud-approval" title="Mayor approval">Score 100</span>
+        <span class="hud-item" id="hud-approval" title="City rating: size, happiness, services, and budget, less smog, high taxes, and debt">Rating 0</span>
       </div>
         <div id="hud-advisory" class="hud-advisory" title="Top city problem">Paint a street, zone lots beside it, then place a power plant.</div>
       <div id="hud-demand" title="Zone demand">
@@ -173,7 +173,8 @@ export class CityHUD {
     this._power.title = stats.powerShort > 0
       ? `Plants are at capacity: ${stats.powerShort} building${stats.powerShort === 1 ? '' : 's'} on the grid get no power`
       : 'Power drawn from plants on the street grid, of what they can carry';
-    this._approval.textContent      = `Score ${stats.approval}`;
+    this._approval.textContent = `Rating ${stats.approval}`;
+    this._approval.title = ratingTooltip(stats.approval, stats.ratingParts);
     const alert = stats.advisory.trim().length > 0;
     this._advisory.textContent = alert ? stats.advisory : 'No mayor alerts.';
     this._advisory.classList.toggle('hud-advisory-alert', alert);

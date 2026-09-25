@@ -135,6 +135,12 @@ At 1× the decisions fit in the first 30–40 minutes. After that the player wat
 
 The score also drives nothing in the game.
 
+*Addressed by G7 (Gap AN).* The score is now a city rating (Rating in the HUD) of four parts worth up to 25 each, less problems:
+- **Parts:** size (population on a log scale, full at 2,000 people), a quarter of happiness, services (the share of zone buildings powered, and past 40 residents also watered and in fire reach), and budget (a balanced budget and $1,000 in hand).
+- **Problems:** a quarter of the smog, a point for each point of each tax over 9%, 10 with no plant, and at least 15 in debt. A city in debt rates 40 at best.
+- **Result at year 10:** the thriving towns rate 71–80, the naive town 64, the town without services 57, and the bankrupt towns 20–35. A new city starts at 50.
+- **Tooltip:** hovering the rating lists its parts.
+
 **F3 — Mixed use dominates.** On the same land at the same prices, a houses-then-mixed-use town has about 1.9× the balanced town's people and 3.9× its money; on trolley avenues, 2.5× the people. Mixed use wins on every count:
 
 - Its smallest building houses 6 people and 2 jobs, against a house's 4 people.
@@ -251,7 +257,7 @@ Slices are named G1–G11 here and become gap letters as they ship. Each has an 
 
 | Slice | Change | Exit |
 |---|---|---|
-| **G7 A rating that means success** | Replace the subtract-only score with a city rating built from happiness, services reached, budget health (positive net, no debt) and size (population tier, on a log scale), less today's penalties. The HUD tooltip shows the parts. | Across the harness, thriving towns (balanced, suburb, mixed, industry late) rate above naive, and naive above bankrupt. No bankrupt town rates above 40. |
+| **G7 A rating that means success** (shipped as Gap AN) | Replace the subtract-only score with a city rating built from happiness, services reached, budget health (positive net, no debt) and size (population tier, on a log scale), less today's penalties. The HUD tooltip shows the parts. | Across the harness, thriving towns (balanced, suburb, mixed, industry late) rate above naive, and naive above bankrupt. No bankrupt town rates above 40. |
 | **G8 Milestones** | City tiers: Village at 150 people, Town at 400, City at 900, Capital at 1,500 (tuned to the 64-tile map after G3). Each needs population, a rating bar, and no debt. Reaching one pays a one-time grant, shows a banner, and unlocks the next civic building (G9). The HUD shows progress ("Town: 312/400 people, rating 58/60"). | The careful player reaches Village in year 1, Town by year 3, and City by year 7. The naive player stalls earlier, and the tooltip says why. |
 | **G9 Late civic buildings** | New buildings unlocked by milestones, each costly to build and run, each with a city-wide effect. For example: a gas plant (cleaner, bigger) at Town; a clinic (happiness) at Town; a college (land value, office tier) at City; a stadium (happiness, shop demand) at City; a city hall (rating) at Capital. Models come from the generator. | At year 10 the careful town spends at least half its surplus on things it chose, against nothing now. It holds at most about 3 years of expenses unless it is saving for something. |
 | **G10 Bankruptcy with an ending** | After 12 months in debt, the council cuts safety and road funding to the minimum, and the advice says so. The deficit advisory lists the biggest costs ("roads $783 a month"). After 24 months, a recap screen offers a state bailout (the debt cleared, taxes held at 12% for 5 years, a rating penalty) or a new city. | No harness city stays in debt more than 24 months. |

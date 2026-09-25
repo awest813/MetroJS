@@ -385,6 +385,10 @@ export interface StrategySummary {
   readonly endMoney: number;
   readonly endHappiness: number;
   readonly endWalkability: number;
+  /** City rating in the run's last month. */
+  readonly endRating: number;
+  /** Highest rating in any month spent in debt (null if never in debt). */
+  readonly bestRatingInDebt: number | null;
   /** First month with 100 residents (Infinity if never). */
   readonly monthTo100: number;
   /** Months in debt over the run. */
@@ -399,6 +403,7 @@ export interface StrategySummary {
 export function summarize(run: StrategyRun): StrategySummary {
   const at = (month: number): StrategyMonth => run.months[Math.min(run.months.length, month) - 1];
   const low = run.months.reduce((a, b) => (b.money < a.money ? b : a));
+  const debt = run.months.filter((m) => m.money < 0);
   const active = (year: number): number =>
     run.months.slice((year - 1) * 12, year * 12).filter((m) => m.acted).length;
   return {
@@ -412,8 +417,10 @@ export function summarize(run: StrategyRun): StrategySummary {
     endMoney: run.months[run.months.length - 1].money,
     endHappiness: run.months[run.months.length - 1].happiness,
     endWalkability: run.sim.stats.walkability,
+    endRating: run.months[run.months.length - 1].approval,
+    bestRatingInDebt: debt.length > 0 ? Math.max(...debt.map((m) => m.approval)) : null,
     monthTo100: run.months.find((m) => m.population >= 100)?.month ?? Infinity,
-    monthsInDebt: run.months.filter((m) => m.money < 0).length,
+    monthsInDebt: debt.length,
     lowMonth: low.month,
     lowMoney: low.money,
     activeMonths: [1, 2, 3, 5, 10, 20].map(active),

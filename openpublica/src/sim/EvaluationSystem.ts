@@ -8,44 +8,50 @@ import { RoadType, ZoneType } from './CityTile';
 import { housingDemand, tileHasAdjacentRoad, zoneStress, type ZoneStress } from './zoneGrowthHints';
 import { stationHasRoad } from './roadDispatch';
 import { EXTREME_TRAFFIC_PRESSURE } from './happiness';
-import { taxOccupancy } from './taxes';
-
-/** Pollution average subtracted from approval at this weight. */
-const POLLUTION_WEIGHT = 0.30;
-
-/** Crime average subtracted from approval at this weight. */
-const CRIME_WEIGHT = 0.25;
+import { TAX_NEUTRAL_RATE, taxOccupancy } from './taxes';
 
 /** Warn about a deficit once the treasury would run dry within this many months. */
 const DEFICIT_WARNING_MONTHS = 12;
 
-/** Approval lost per extreme-traffic road, capped. */
-const TRAFFIC_PER_EXTREME = 2;
-const TRAFFIC_CAP = 25;
+/**
+ * The city rating (stored as `stats.approval`, shown as Rating): four parts
+ * worth up to 25 each, less the city's problems.
+ *
+ * - Size: population on a log scale, 25 at {@link RATING_FULL_SIZE} people.
+ * - Happiness: a quarter of it.
+ * - Services: the share of zone buildings powered, and from
+ *   {@link SERVICE_ADVISORY_POPULATION} residents on also watered and
+ *   reached by a fire station.
+ * - Budget: a balanced budget and money in hand; nothing in debt.
+ * - Problems: smog, taxes over 9%, no power plant, and debt. A city in
+ *   debt rates {@link RATING_IN_DEBT_MAX} at best, however big and happy.
+ */
+export const RATING_PART = 25;
+export const RATING_FULL_SIZE = 2000;
 
-/** Approval lost per tax point above the default 9. */
-const TAX_PER_POINT_OVER = 3;
+/** Rating lost per point of smog on developed land. */
+const RATING_SMOG_WEIGHT = 0.25;
 
-/** Approval lost when every building is unpowered. */
-const UNPOWERED_WEIGHT = 40;
+/** Rating lost per point of each tax over 9% (all three raised together: 3 a point). */
+const RATING_TAX_PER_POINT = 1;
 
-/** Flat approval hit while the treasury is negative. */
-const BANKRUPT_PENALTY = 35;
+/** Rating lost with no power plant once anything is zoned or built. */
+const RATING_NO_PLANT = 10;
 
-/** Flat approval hit when the city has no generator. */
-const NO_PLANT_PENALTY = 12;
+/**
+ * Rating lost while the treasury is in debt (on top of an empty budget part):
+ * at least this, and whatever more holds the rating to {@link RATING_IN_DEBT_MAX}.
+ */
+const RATING_DEBT = 15;
+
+/** The best rating a city in debt can have. */
+export const RATING_IN_DEBT_MAX = 40;
+
+/** Money in hand that earns the rest of the budget part. */
+const RATING_RESERVE = 1000;
 
 /** Fire/water nags wait until someone actually lives here. */
 export const SERVICE_ADVISORY_POPULATION = 40;
-
-/**
- * Approval lost when no zone building has a fire station in reach, in
- * proportion (from {@link SERVICE_ADVISORY_POPULATION} residents on).
- */
-const UNPROTECTED_WEIGHT = 10;
-
-/** Approval lost when every zone building is dry, in proportion (same threshold). */
-const DRY_WEIGHT = 5;
 
 /** Buildings left dry by full water towers before the mayor hears about it. */
 export const WATER_SHORT_ADVISORY = 5;
@@ -100,10 +106,7 @@ function family(id: string): string {
 }
 
 /**
- * Monthly mayor score and a single top advisory.
- *
- * approval starts at 100 and is reduced by pollution, crime, extreme traffic,
- * taxes above 9%, unpowered buildings, bankruptcy, and a missing power plant.
+ * Monthly city rating (see {@link RATING_PART}) and a single top advisory.
  * No Micropolis evaluation tables or census graphs.
  *
  * Advisories are city-wide (status/HUD), not tile-local inspect copy.
@@ -133,7 +136,9 @@ export class EvaluationSystem {
     steady = false,
   ): void {
     const census = survey(map, buildings, defs, stats);
-    stats.approval = score(stats, census);
+    const rating = rate(stats, census);
+    stats.approval = rating.total;
+    stats.ratingParts = rating.parts;
     const list = listAdvisories(stats, census, forecast, budget);
     this.advisories = list;
     const shown = this._choose(list, month, steady);
@@ -401,30 +406,61 @@ function survey(
   };
 }
 
-function score(stats: CityStats, census: Census): number {
-  let next = 100;
-  next -= Math.round(stats.pollutionAverage * POLLUTION_WEIGHT);
-  next -= Math.round(stats.crimeAverage * CRIME_WEIGHT);
-  next -= Math.min(TRAFFIC_CAP, census.extremeRoads * TRAFFIC_PER_EXTREME);
-  next -= taxOverDefault(stats.resTaxRate);
-  next -= taxOverDefault(stats.comTaxRate);
-  next -= taxOverDefault(stats.indTaxRate);
-  if (census.buildingCount > 0) {
-    next -= Math.round((census.unpoweredCount / census.buildingCount) * UNPOWERED_WEIGHT);
-  }
-  if (stats.population >= SERVICE_ADVISORY_POPULATION && census.zoneBuildings > 0) {
-    next -= Math.round((census.unprotectedBuildings / census.zoneBuildings) * UNPROTECTED_WEIGHT);
-    next -= Math.round((census.dryBuildings / census.zoneBuildings) * DRY_WEIGHT);
-  }
-  if (stats.bankruptcyWarning) next -= BANKRUPT_PENALTY;
-  if (!census.hasPlant && (census.zonedCount > 0 || census.buildingCount > 0)) {
-    next -= NO_PLANT_PENALTY;
-  }
-  return Math.max(0, Math.min(100, next));
+/** The city rating's parts, for the HUD tooltip. */
+export interface RatingParts {
+  readonly size: number;
+  readonly happiness: number;
+  readonly services: number;
+  readonly budget: number;
+  readonly smog: number;
+  readonly taxes: number;
+  /** No plant, and debt. */
+  readonly other: number;
 }
 
-function taxOverDefault(rate: number): number {
-  return Math.max(0, rate - 9) * TAX_PER_POINT_OVER;
+/** Size points for a population: log-scaled, {@link RATING_PART} at {@link RATING_FULL_SIZE}. */
+export function sizePoints(population: number): number {
+  if (population <= 0) return 0;
+  const full = Math.log10(1 + RATING_FULL_SIZE / 20);
+  return RATING_PART * Math.min(1, Math.log10(1 + population / 20) / full);
+}
+
+function rate(stats: CityStats, census: Census): { total: number; parts: RatingParts } {
+  const size = sizePoints(stats.population);
+  const happiness = RATING_PART * Math.max(0, Math.min(100, stats.happiness)) / 100;
+  let services = 0;
+  if (census.zoneBuildings > 0) {
+    const shares = [1 - census.unpoweredHouses / census.zoneBuildings];
+    if (stats.population >= SERVICE_ADVISORY_POPULATION) {
+      shares.push(1 - census.dryBuildings / census.zoneBuildings);
+      shares.push(1 - census.unprotectedBuildings / census.zoneBuildings);
+    }
+    services = RATING_PART * shares.reduce((a, b) => a + b, 0) / shares.length;
+  }
+  const net = stats.projectedIncome - stats.projectedExpenses;
+  const budget = stats.bankruptcyWarning || stats.money < 0
+    ? 0
+    : (net >= 0 ? 15 : 5) + (stats.money >= RATING_RESERVE ? 10 : 5);
+  const smog = stats.pollutionAverage * RATING_SMOG_WEIGHT;
+  const taxes = [stats.resTaxRate, stats.comTaxRate, stats.indTaxRate]
+    .reduce((sum, r) => sum + Math.max(0, r - TAX_NEUTRAL_RATE) * RATING_TAX_PER_POINT, 0);
+  const parts = {
+    size: Math.round(size),
+    happiness: Math.round(happiness),
+    services: Math.round(services),
+    budget,
+    smog: Math.round(smog),
+    taxes,
+    other: !census.hasPlant && (census.zonedCount > 0 || census.buildingCount > 0) ? RATING_NO_PLANT : 0,
+  };
+  if (stats.bankruptcyWarning || stats.money < 0) {
+    const before = parts.size + parts.happiness + parts.services + parts.budget - parts.smog - parts.taxes - parts.other;
+    parts.other += Math.max(RATING_DEBT, before - RATING_IN_DEBT_MAX);
+  }
+  // The total is the parts as shown, so the HUD tooltip adds up.
+  const total = parts.size + parts.happiness + parts.services + parts.budget
+    - parts.smog - parts.taxes - parts.other;
+  return { total: Math.max(0, Math.min(100, total)), parts };
 }
 
 /** Why buildings are emptying, for one trouble and the buildings it troubles. */

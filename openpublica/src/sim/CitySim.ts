@@ -16,7 +16,7 @@ import { PoliceCoverageSystem } from './PoliceCoverageSystem';
 import { FireCoverageSystem } from './FireCoverageSystem';
 import { WaterCoverageSystem } from './WaterCoverageSystem';
 import { CrimeSystem } from './CrimeSystem';
-import { EvaluationSystem } from './EvaluationSystem';
+import { EvaluationSystem, type RatingParts } from './EvaluationSystem';
 import { tileKey } from './ZoneGrowthSystem';
 import { STARTER_RESIDENTIAL_DEMAND } from './zoneGrowthHints';
 import { STARTING_MONEY, tallyBudget, type BudgetLevers, type BudgetTally } from './EconomySystem';
@@ -133,9 +133,12 @@ export interface CityStats {
   /** Buildings the mains reach but cannot serve: the towers run dry. */
   waterShort: number;
   /**
-   * Mayor approval [0–100] from EvaluationSystem. Starts at 100.
+   * City rating [0–100] from EvaluationSystem: size, happiness, services and
+   * budget, less smog, high taxes, no plant and debt. (Saved as `approval`.)
    */
   approval: number;
+  /** What made the rating, for the HUD (not saved: recomputed on load). */
+  ratingParts?: RatingParts;
   /**
    * Top city-wide advisory, or empty when nothing is wrong enough to flag.
    */

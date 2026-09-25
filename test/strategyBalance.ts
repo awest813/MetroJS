@@ -96,6 +96,22 @@ describe('strategy balance', () => {
     expect(heeds.endPopulation).toBeGreaterThan(1.5 * run('naive').endPopulation);
   });
 
+  it('should rate thriving towns above the naive one, and the naive one above bankrupt towns (G7)', () => {
+    const naive = run('naive');
+    for (const id of ['balanced', 'suburb', 'mixed', 'industry-late']) {
+      expect(run(id).endRating).toBeGreaterThan(naive.endRating);
+    }
+    // The small towns run out of money slowly; twenty years of them (cheap to play).
+    for (const id of ['tiny', 'houses-only']) {
+      const broke = summarize(playStrategy(STRATEGIES.find((s) => s.id === id)!, 240));
+      expect(broke.monthsInDebt).toBeGreaterThan(24);
+      expect(broke.endRating).toBeLessThan(naive.endRating);
+      // A town in debt never rates above 40.
+      expect(broke.bestRatingInDebt).not.toBeNull();
+      expect(broke.bestRatingInDebt!).toBeLessThanOrEqual(40);
+    }
+  });
+
   it('should roll the same dice for the tax sweep as for the balanced town', () => {
     const a = playStrategy(taxStrategy(9), 12);
     const b = playStrategy(STRATEGIES.find((s) => s.id === 'balanced')!, 12);

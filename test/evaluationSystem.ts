@@ -1,7 +1,8 @@
 import { CitySim } from '../openpublica/src/sim/CitySim';
 import { ZoneType, RoadType, type CityTile } from '../openpublica/src/sim/CityTile';
-import { SERVICE_ADVISORY_POPULATION, WATER_SHORT_ADVISORY } from '../openpublica/src/sim/EvaluationSystem';
+import { RATING_FULL_SIZE, RATING_IN_DEBT_MAX, RATING_PART, SERVICE_ADVISORY_POPULATION, WATER_SHORT_ADVISORY, sizePoints, type RatingParts } from '../openpublica/src/sim/EvaluationSystem';
 import { MONTH_SECONDS } from '../openpublica/src/data/constants';
+import { ratingTooltip } from '../openpublica/src/ui/chromeCopy';
 
 function tickOneMonth(sim: CitySim): void {
   sim.tick(MONTH_SECONDS);
@@ -13,10 +14,16 @@ function placeConnectedPlant(sim: CitySim, x: number, y: number): void {
   sim.placeRoad(x, y + 1, RoadType.Street);
 }
 
+/** The rating as the tooltip adds it up. */
+function sumOf(parts: RatingParts): number {
+  return parts.size + parts.happiness + parts.services + parts.budget - parts.smog - parts.taxes - parts.other;
+}
+
 describe('EvaluationSystem', () => {
-  it('should start a blank city at full approval with a plant advisory', () => {
+  it('should start a blank city at half marks (happiness and budget) with a plant advisory', () => {
     const sim = CitySim.createCity(8, 8);
-    expect(sim.stats.approval).toBe(100);
+    expect(sim.stats.approval).toBe(50);
+    expect(sim.stats.ratingParts).toEqual({ size: 0, happiness: 25, services: 0, budget: 25, smog: 0, taxes: 0, other: 0 });
     expect(sim.stats.advisory).toMatch(/paint a street/i);
     expect(sim.stats.advisory).toMatch(/power plant/i);
   });
@@ -32,7 +39,9 @@ describe('EvaluationSystem', () => {
     sim.placeRoad(2, 2, RoadType.Street);
     sim.setZone(2, 3, ZoneType.Residential);
     sim.evaluate();
-    expect(sim.stats.approval).toBe(88);
+    expect(sim.stats.ratingParts!.other).toBe(10);
+    expect(sim.stats.approval).toBe(sumOf(sim.stats.ratingParts!));
+    expect(sim.stats.approval).toBeLessThan(50);
     expect(sim.stats.advisory).toMatch(/place a power plant beside a street/i);
   });
 
@@ -49,7 +58,8 @@ describe('EvaluationSystem', () => {
     sim.setZone(4, 4, ZoneType.Residential);
     sim.placeServiceBuilding(8, 8, 'small_power_plant', 0);
     expect(sim.stats.advisory).not.toMatch(/power plant/i);
-    expect(sim.stats.approval).toBeGreaterThanOrEqual(50);
+    expect(sim.stats.ratingParts!.other).toBe(0);
+    expect(sim.stats.approval).toBe(sumOf(sim.stats.ratingParts!));
     expect(sim.stats.approval).toBeLessThanOrEqual(100);
   });
 
@@ -63,7 +73,7 @@ describe('EvaluationSystem', () => {
     expect(sim.stats.advisory).toMatch(/road next door/i);
   });
 
-  it('should cut approval for high taxes', () => {
+  it('should cut the rating a point for each point of each tax over 9%', () => {
     const sim = CitySim.createCity(24, 24);
     sim.stats.money = 100_000;
     placeConnectedPlant(sim, 0, 0);
@@ -72,15 +82,17 @@ describe('EvaluationSystem', () => {
     const baseline = sim.stats.approval;
     sim.stats.resTaxRate = 18;
     sim.evaluate();
-    expect(sim.stats.approval).toBe(baseline - (18 - 9) * 3);
+    expect(sim.stats.ratingParts!.taxes).toBe(18 - 9);
+    expect(sim.stats.approval).toBe(baseline - (18 - 9));
     expect(sim.stats.advisory).toMatch(/taxes are high/i);
   });
 
-  it('should cut approval when bankrupt', () => {
+  it('should empty the budget part and cut 15 more when bankrupt', () => {
     const sim = CitySim.createCity(8, 8);
     sim.stats.bankruptcyWarning = true;
     sim.evaluate();
-    expect(sim.stats.approval).toBe(65);
+    expect(sim.stats.ratingParts).toMatchObject({ budget: 0, other: 15 });
+    expect(sim.stats.approval).toBe(25 - 15);
     expect(sim.stats.advisory).toMatch(/bankrupt/i);
   });
 
@@ -185,17 +197,21 @@ describe('EvaluationSystem', () => {
       });
     };
 
-    it('should cost approval for buildings no fire engine reaches and buildings left dry', () => {
+    it('should cost services points for buildings no fire engine reaches and buildings left dry', () => {
       const sim = town(10);
       cover(sim, 60, true);
       judge(sim);
       const served = sim.stats.approval;
+      expect(sim.stats.ratingParts!.services).toBe(RATING_PART);
+      // Powered, but dry and out of fire reach: a third of the services part.
       cover(sim, 0, false);
       judge(sim);
-      expect(sim.stats.approval).toBe(served - 10 - 5);
+      expect(sim.stats.ratingParts!.services).toBe(Math.round(RATING_PART / 3));
+      expect(sim.stats.approval).toBe(served - RATING_PART + Math.round(RATING_PART / 3));
+      // Half of them served: two thirds of the part.
       cover(sim, 60, true, 0.5);
       judge(sim);
-      expect(sim.stats.approval).toBe(served - 5 - 3);
+      expect(sim.stats.ratingParts!.services).toBe(Math.round(RATING_PART * 2 / 3));
     });
 
     it('should not count fire or water against a village too small to need them', () => {
@@ -388,6 +404,49 @@ describe('EvaluationSystem', () => {
     tickOneMonth(sim);
     expect(sim.stats.approval).toBeGreaterThanOrEqual(0);
     expect(sim.stats.approval).toBeLessThanOrEqual(100);
+  });
+
+  it('should hold a big, happy city in debt to a rating of 40 at best', () => {
+    const sim = CitySim.createCity(24, 24);
+    placeConnectedPlant(sim, 0, 0);
+    // One served home, so every part but the budget is full.
+    sim.growth.buildings.set('1,1', { defId: 'small_house', x: 1, y: 1 });
+    Object.assign(sim.getTile(1, 1)!, {
+      zoneType: ZoneType.Residential, buildingId: 'small_house', powered: true, watered: true, fireCoverage: 60,
+    });
+    Object.assign(sim.stats, { population: RATING_FULL_SIZE, happiness: 100, pollutionAverage: 0, money: -500 });
+    sim.evaluation.tick(sim.map, sim.growth.buildings, sim.growth.defs, sim.stats);
+    expect(sim.stats.ratingParts).toMatchObject({ size: 25, happiness: 25, services: 25 });
+    expect(sim.stats.ratingParts!.budget).toBe(0);
+    expect(sim.stats.ratingParts!.other).toBeGreaterThanOrEqual(15);
+    expect(sim.stats.approval).toBe(RATING_IN_DEBT_MAX);
+    expect(sim.stats.approval).toBe(sumOf(sim.stats.ratingParts!));
+  });
+
+  it('should score size on a log scale, full at the full-size population', () => {
+    expect(sizePoints(0)).toBe(0);
+    expect(sizePoints(RATING_FULL_SIZE)).toBeCloseTo(RATING_PART);
+    expect(sizePoints(RATING_FULL_SIZE * 3)).toBe(RATING_PART);
+    // A hamlet already earns a fair share; each step up earns less.
+    expect(sizePoints(100)).toBeGreaterThan(8);
+    expect(sizePoints(400) - sizePoints(100)).toBeGreaterThan(sizePoints(1600) - sizePoints(400) - 1);
+    expect(sizePoints(400)).toBeLessThan(sizePoints(1600));
+  });
+
+  it('should add the rating up from the parts the tooltip shows', () => {
+    const sim = CitySim.createCity(24, 24);
+    sim.stats.money = 100_000;
+    placeConnectedPlant(sim, 0, 0);
+    Object.assign(sim.stats, { population: 500, happiness: 80, pollutionAverage: 20, comTaxRate: 12 });
+    sim.evaluate();
+    const parts = sim.stats.ratingParts!;
+    expect(parts.size).toBe(Math.round(sizePoints(500)));
+    expect(parts.happiness).toBe(20);
+    expect(parts.smog).toBe(5);
+    expect(parts.taxes).toBe(3);
+    expect(sim.stats.approval).toBe(sumOf(parts));
+    expect(ratingTooltip(sim.stats.approval, parts)).toMatch(new RegExp(`^Rating ${sim.stats.approval} of 100: size \\+${parts.size}, happiness \\+20`));
+    expect(ratingTooltip(sim.stats.approval, parts)).toMatch(/smog −5, taxes over 9% −3/);
   });
 
   it('should say when a plant has no street for its power to follow', () => {
