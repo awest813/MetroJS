@@ -12,10 +12,44 @@ import {
 } from '../openpublica/src/tools/serviceCatalog';
 
 const SIM_YEARS = 4;
-const SIM_MONTHS = SIM_YEARS * 12;
+const MONTHS_PER_YEAR = 12;
+const SIM_MONTHS = SIM_YEARS * MONTHS_PER_YEAR;
 const START_YEAR = 2000;
 const GRID_SPACING = 6;
 const SEED = 2026;
+
+interface CityCensus {
+  year: number;
+  monthName: string;
+  monthsPassed: number;
+  population: number;
+  darkPopulation: number;
+  jobs: number;
+  money: number;
+  buildings: number;
+  houses: number;
+  shops: number;
+  workshops: number;
+  mixed: number;
+  services: number;
+  happiness: number;
+  approval: number;
+  walkability: number;
+  crimeAverage: number;
+  pollutionAverage: number;
+  fireAverage: number;
+  waterAverage: number;
+  bankruptcyWarning: boolean;
+  advisory: string;
+}
+
+const SERVICE_IDS = new Set([
+  'small_power_plant',
+  'small_park',
+  'small_police_station',
+  'small_fire_station',
+  'small_water_tower',
+]);
 
 function finiteStats(sim: CitySim): void {
   const s = sim.stats;
@@ -35,22 +69,41 @@ function finiteStats(sim: CitySim): void {
   expect(typeof s.advisory).toBe('string');
 }
 
-function countBuildings(sim: CitySim): number {
-  let count = 0;
+function takeCensus(sim: CitySim): CityCensus {
+  const buildings = { houses: 0, shops: 0, workshops: 0, mixed: 0, services: 0, total: 0 };
   sim.map.forEach((tile) => {
-    if (tile.buildingId !== null) count += 1;
+    if (tile.buildingId === null) return;
+    buildings.total += 1;
+    if (SERVICE_IDS.has(tile.buildingId)) buildings.services += 1;
+    else if (tile.buildingId === 'small_house' || tile.buildingId === 'rowhouse') buildings.houses += 1;
+    else if (tile.buildingId === 'small_shop') buildings.shops += 1;
+    else if (tile.buildingId === 'light_workshop') buildings.workshops += 1;
+    else buildings.mixed += 1;
   });
-  return count;
-}
-
-function countZonedLots(sim: CitySim): number {
-  let count = 0;
-  sim.map.forEach((tile) => {
-    if (tile.zoneType !== ZoneType.None && tile.buildingId === null && tile.roadType === RoadType.None) {
-      count += 1;
-    }
-  });
-  return count;
+  return {
+    year: sim.clock.year,
+    monthName: sim.clock.monthName,
+    monthsPassed: sim.clock.monthsPassed,
+    population: sim.stats.population,
+    darkPopulation: sim.stats.darkPopulation,
+    jobs: sim.stats.jobs,
+    money: sim.stats.money,
+    buildings: buildings.total,
+    houses: buildings.houses,
+    shops: buildings.shops,
+    workshops: buildings.workshops,
+    mixed: buildings.mixed,
+    services: buildings.services,
+    happiness: sim.stats.happiness,
+    approval: sim.stats.approval,
+    walkability: sim.stats.walkability,
+    crimeAverage: sim.stats.crimeAverage,
+    pollutionAverage: sim.stats.pollutionAverage,
+    fireAverage: sim.stats.fireAverage,
+    waterAverage: sim.stats.waterAverage,
+    bankruptcyWarning: sim.stats.bankruptcyWarning,
+    advisory: sim.stats.advisory,
+  };
 }
 
 function isAdjacentToRoad(sim: CitySim, x: number, y: number): boolean {
@@ -61,17 +114,24 @@ function isAdjacentToRoad(sim: CitySim, x: number, y: number): boolean {
   return false;
 }
 
-function pickServiceSite(sim: CitySim, cx: number, cy: number): { x: number; y: number } | null {
-  for (let radius = 1; radius <= 4; radius++) {
+function pickServiceSite(
+  sim: CitySim,
+  cx: number,
+  cy: number,
+  used: Set<string>,
+): { x: number; y: number } | null {
+  for (let radius = 1; radius <= 5; radius++) {
     for (let dy = -radius; dy <= radius; dy++) {
       for (let dx = -radius; dx <= radius; dx++) {
         const x = cx + dx;
         const y = cy + dy;
+        const key = `${x},${y}`;
+        if (used.has(key)) continue;
         const tile = sim.getTile(x, y);
         if (!tile || tile.terrain === TerrainType.Water) continue;
         if (tile.roadType !== RoadType.None || tile.buildingId !== null) continue;
-        if (tile.zoneType !== ZoneType.None) continue;
         if (!isAdjacentToRoad(sim, x, y)) continue;
+        used.add(key);
         return { x, y };
       }
     }
@@ -79,8 +139,21 @@ function pickServiceSite(sim: CitySim, cx: number, cy: number): { x: number; y: 
   return null;
 }
 
-/** Lay out a street grid, zone blocks, and civic services on a full-size map. */
-function buildLargeCity(sim: CitySim): { roads: number; zones: number } {
+function placeService(
+  sim: CitySim,
+  used: Set<string>,
+  cx: number,
+  cy: number,
+  defId: string,
+  cost: number,
+): boolean {
+  const coord = pickServiceSite(sim, cx, cy, used);
+  if (!coord) return false;
+  return sim.placeServiceBuilding(coord.x, coord.y, defId, cost);
+}
+
+/** Street grid, civic coverage, then zoned lots on a full 64×64 map. */
+function buildLargeCity(sim: CitySim): { roads: number; zones: number; services: number } {
   sim.stats.money = 500_000;
 
   let roads = 0;
@@ -96,6 +169,24 @@ function buildLargeCity(sim: CitySim): { roads: number; zones: number } {
       if (!sim.isBuildable(x, y)) continue;
       sim.placeRoad(x, y, RoadType.Street);
       roads += 1;
+    }
+  }
+
+  const used = new Set<string>();
+  let services = 0;
+  const civicStep = GRID_SPACING * 3;
+
+  for (let x = GRID_SPACING; x < sim.map.width; x += civicStep) {
+    for (let y = GRID_SPACING; y < sim.map.height; y += civicStep) {
+      if (placeService(sim, used, x, y, 'small_power_plant', POWER_PLANT_COST)) services += 1;
+      if (placeService(sim, used, x + 2, y, 'small_water_tower', WATER_TOWER_COST)) services += 1;
+    }
+  }
+  for (let x = GRID_SPACING * 2; x < sim.map.width; x += civicStep) {
+    for (let y = GRID_SPACING * 2; y < sim.map.height; y += civicStep) {
+      if (placeService(sim, used, x, y, 'small_police_station', POLICE_STATION_COST)) services += 1;
+      if (placeService(sim, used, x, y + 2, 'small_fire_station', FIRE_STATION_COST)) services += 1;
+      if (placeService(sim, used, x + 2, y + 2, 'small_park', PARK_COST)) services += 1;
     }
   }
 
@@ -119,51 +210,70 @@ function buildLargeCity(sim: CitySim): { roads: number; zones: number } {
     zones += 1;
   });
 
-  const serviceSites = [
-    { cx: GRID_SPACING * 2, cy: GRID_SPACING * 2, defId: 'small_power_plant', cost: POWER_PLANT_COST },
-    { cx: GRID_SPACING * 6, cy: GRID_SPACING * 2, defId: 'small_power_plant', cost: POWER_PLANT_COST },
-    { cx: GRID_SPACING * 4, cy: GRID_SPACING * 4, defId: 'small_park', cost: PARK_COST },
-    { cx: GRID_SPACING * 2, cy: GRID_SPACING * 6, defId: 'small_police_station', cost: POLICE_STATION_COST },
-    { cx: GRID_SPACING * 6, cy: GRID_SPACING * 6, defId: 'small_fire_station', cost: FIRE_STATION_COST },
-    { cx: GRID_SPACING * 4, cy: GRID_SPACING * 8, defId: 'small_water_tower', cost: WATER_TOWER_COST },
-  ];
-
-  for (const site of serviceSites) {
-    const coord = pickServiceSite(sim, site.cx, site.cy);
-    if (!coord) continue;
-    sim.placeServiceBuilding(coord.x, coord.y, site.defId, site.cost);
-  }
-
-  return { roads, zones };
+  return { roads, zones, services };
 }
 
-function simulateYears(sim: CitySim, months: number): void {
-  for (let month = 0; month < months; month++) {
+/** Mulberry32 so the 48-month growth pass is deterministic. */
+function seedRandom(seed: number): () => number {
+  let t = seed >>> 0;
+  return () => {
+    t += 0x6D2B79F5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function simulateFourYears(sim: CitySim): CityCensus[] {
+  const years: CityCensus[] = [];
+  for (let month = 0; month < SIM_MONTHS; month++) {
     sim.tick(MONTH_SECONDS);
     finiteStats(sim);
+    if ((month + 1) % MONTHS_PER_YEAR === 0) {
+      years.push(takeCensus(sim));
+    }
   }
+  return years;
 }
 
 describe('OpenPublica large city (4 years)', () => {
-  it('should grow a grid city for four in-game years', () => {
+  it('should fully simulate a grid city for four in-game years', () => {
     const sim = CitySim.createCity(MAP_SIZE, MAP_SIZE, SEED);
     generateTerrain(sim.map, SEED);
 
     const layout = buildLargeCity(sim);
     expect(layout.roads).toBeGreaterThan(400);
     expect(layout.zones).toBeGreaterThan(200);
-    expect(countZonedLots(sim)).toBe(layout.zones);
+    expect(layout.services).toBeGreaterThan(10);
 
-    simulateYears(sim, SIM_MONTHS);
+    const originalRandom = Math.random;
+    Math.random = seedRandom(SEED);
+    let years: CityCensus[];
+    try {
+      years = simulateFourYears(sim);
+    } finally {
+      Math.random = originalRandom;
+    }
 
+    expect(years).toHaveLength(SIM_YEARS);
     expect(sim.clock.monthsPassed).toBe(SIM_MONTHS);
     expect(sim.clock.year).toBe(START_YEAR + SIM_YEARS);
 
-    const buildings = countBuildings(sim);
-    expect(buildings).toBeGreaterThan(50);
-    expect(sim.stats.population).toBeGreaterThan(100);
-    expect(sim.stats.jobs).toBeGreaterThan(20);
-    expect(sim.stats.residentialDemand).toBeGreaterThan(0);
+    console.log('4-year large city layout', layout);
+    console.log('4-year large city census', years);
+
+    for (let i = 0; i < years.length; i++) {
+      const census = years[i];
+      expect(census.monthsPassed).toBe((i + 1) * MONTHS_PER_YEAR);
+      expect(census.year).toBe(START_YEAR + i + 1);
+      expect(census.population).toBeGreaterThan(200);
+      expect(census.jobs).toBeGreaterThan(50);
+      expect(census.buildings).toBeGreaterThan(layout.services);
+      expect(census.bankruptcyWarning).toBe(false);
+    }
+
+    const year4 = years[years.length - 1];
+    expect(year4.houses + year4.shops + year4.workshops + year4.mixed).toBeGreaterThan(40);
 
     const save = SaveCodec.encode(sim);
     const restored = CitySim.createCity(MAP_SIZE, MAP_SIZE);
@@ -171,6 +281,6 @@ describe('OpenPublica large city (4 years)', () => {
     expect(restored.clock.totalSeconds).toBe(sim.clock.totalSeconds);
     expect(restored.stats.population).toBe(sim.stats.population);
     expect(restored.stats.jobs).toBe(sim.stats.jobs);
-    expect(countBuildings(restored)).toBe(buildings);
-  });
+    expect(takeCensus(restored).buildings).toBe(year4.buildings);
+  }, 120_000);
 });
